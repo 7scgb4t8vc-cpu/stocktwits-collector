@@ -1,1 +1,45 @@
+name: StockTwits Data Collector
 
+on:
+  schedule:
+    - cron: "0 * * * *"
+  workflow_dispatch:
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install curl-cffi
+
+      - name: Run collector
+        run: |
+          python stocktwits_collector.py \
+            --symbols AAPL TSLA NVDA \
+            --paginate --pages 3 \
+            --outdir data \
+            --format both
+
+      - name: Upload data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stocktwits-${{ github.run_id }}
+          path: data/
+          retention-days: 30
+
+      - name: Commit data to repo
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "chore: stocktwits data $(date -u +'%Y-%m-%d %H:%M UTC')"
+          git push
