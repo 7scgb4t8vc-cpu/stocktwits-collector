@@ -2,10 +2,11 @@
 StockTwits Trending Collector
 ==============================
 Each run:
-1. Fetches top 15 trending stocks
+1. Fetches top 10 trending stocks
 2. For each stock, fetches only NEW messages since last run (since_id)
 3. Caps at 10 new messages per stock
 4. Appends one row per message to a single growing CSV
+5. Updates frequency.csv with total mention counts per symbol
 
 Runs in under 60 seconds.
 """
@@ -26,6 +27,7 @@ REQUEST_DELAY = 1.0
 TOP_N_STOCKS  = 10
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
+FREQ_CSV      = Path("data/frequency.csv")
 CURSOR_FILE   = Path("data/cursors.json")
 
 HEADERS = {
@@ -111,6 +113,39 @@ def append_to_csv(rows: list[dict]):
         writer.writerows(rows)
 
 
+# ── Frequency tracking ───────────────────────────────────────────────────────
+
+def update_frequency():
+    """Read stocktwits.csv and recount total mentions per symbol."""
+    if not DATA_CSV.exists():
+        return
+
+    # Count mentions per symbol from full CSV
+    counts: dict = {}
+    last_seen: dict = {}
+
+    with open(DATA_CSV, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            symbol = row["symbol"]
+            counts[symbol] = counts.get(symbol, 0) + 1
+            last_seen[symbol] = row["timestamp"]
+
+    # Write frequency CSV sorted by mention count
+    FREQ_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with open(FREQ_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=["symbol", "mention_count", "last_seen"])
+        writer.writeheader()
+        for symbol, count in sorted(counts.items(), key=lambda x: x[1], reverse=True):
+            writer.writerow({
+                "symbol":        symbol,
+                "mention_count": count,
+                "last_seen":     last_seen[symbol],
+            })
+
+    print(f"  Updated {FREQ_CSV} — {len(counts)} symbols tracked.")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -175,6 +210,10 @@ def main():
         print(f"\n✓ Done. {len(all_rows)} new messages appended to {DATA_CSV}")
     else:
         print("\n✓ Done. No new messages this run.")
+
+    # Step 4 — update frequency counts
+    print("\nUpdating ticker mention frequency...")
+    update_frequency()
 
 
 if __name__ == "__main__":
