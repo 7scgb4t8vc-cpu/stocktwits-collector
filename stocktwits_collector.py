@@ -18,6 +18,8 @@ from datetime import datetime
 from pathlib import Path
 
 from curl_cffi import requests
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +30,7 @@ TOP_N_STOCKS  = 10
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 FREQ_CSV      = Path("data/frequency.csv")
+EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
 
 HEADERS = {
@@ -146,6 +149,82 @@ def update_frequency():
     print(f"  Updated {FREQ_CSV} — {len(counts)} symbols tracked.")
 
 
+# ── Excel export ─────────────────────────────────────────────────────────────
+
+def export_to_excel():
+    """Write stocktwits.csv and frequency.csv into a formatted Excel workbook."""
+    wb = openpyxl.Workbook()
+
+    # ── Sheet 1: Raw Messages ──
+    ws1 = wb.active
+    ws1.title = "Raw Messages"
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+
+    if DATA_CSV.exists():
+        with open(DATA_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+
+        # Headers
+        headers = ["timestamp", "symbol", "message", "sentiment"]
+        for col, h in enumerate(headers, 1):
+            cell = ws1.cell(row=1, column=col, value=h.upper())
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+
+        # Data rows with sentiment color coding
+        sentiment_colors = {
+            "Bullish": "C6EFCE",   # green
+            "Bearish": "FFC7CE",   # red
+            "None":    "FFFFFF",   # white
+        }
+
+        for r, row in enumerate(rows, 2):
+            sentiment = row.get("sentiment", "None")
+            fill_color = sentiment_colors.get(sentiment, "FFFFFF")
+            row_fill = PatternFill("solid", fgColor=fill_color)
+
+            for col, key in enumerate(headers, 1):
+                cell = ws1.cell(row=r, column=col, value=row.get(key, ""))
+                cell.fill = row_fill
+
+        # Column widths
+        ws1.column_dimensions["A"].width = 22
+        ws1.column_dimensions["B"].width = 10
+        ws1.column_dimensions["C"].width = 80
+        ws1.column_dimensions["D"].width = 12
+
+    # ── Sheet 2: Frequency ──
+    ws2 = wb.create_sheet("Ticker Frequency")
+
+    if FREQ_CSV.exists():
+        with open(FREQ_CSV, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            freq_rows = list(reader)
+
+        freq_headers = ["symbol", "mention_count", "last_seen"]
+        for col, h in enumerate(freq_headers, 1):
+            cell = ws2.cell(row=1, column=col, value=h.upper())
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center")
+
+        for r, row in enumerate(freq_rows, 2):
+            for col, key in enumerate(freq_headers, 1):
+                ws2.cell(row=r, column=col, value=row.get(key, ""))
+
+        ws2.column_dimensions["A"].width = 12
+        ws2.column_dimensions["B"].width = 16
+        ws2.column_dimensions["C"].width = 22
+
+    EXCEL_FILE.parent.mkdir(parents=True, exist_ok=True)
+    wb.save(EXCEL_FILE)
+    print(f"  Saved Excel workbook → {EXCEL_FILE}")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -214,6 +293,10 @@ def main():
     # Step 4 — update frequency counts
     print("\nUpdating ticker mention frequency...")
     update_frequency()
+
+    # Step 5 — export to Excel
+    print("\nExporting to Excel...")
+    export_to_excel()
 
 
 if __name__ == "__main__":
