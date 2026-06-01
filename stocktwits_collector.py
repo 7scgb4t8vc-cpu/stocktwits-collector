@@ -22,8 +22,8 @@ from curl_cffi import requests
 
 BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
-REQUEST_DELAY = 1.5
-TOP_N_STOCKS  = 15
+REQUEST_DELAY = 1.0
+TOP_N_STOCKS  = 10
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 CURSOR_FILE   = Path("data/cursors.json")
