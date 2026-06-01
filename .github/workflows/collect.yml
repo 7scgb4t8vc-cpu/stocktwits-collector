@@ -2,11 +2,11 @@ name: StockTwits Data Collector
 
 on:
   schedule:
-    - cron: "0 * * * *"
-  workflow_dispatch:
+    - cron: "30 9-16 * * 1-5"  # every hour 9:30am-4:30pm ET, Mon-Fri
+  workflow_dispatch:             # manual trigger anytime
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: TRUE
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   collect:
@@ -25,12 +25,7 @@ jobs:
         run: pip install curl-cffi
 
       - name: Run collector
-        run: |
-          python stocktwits_collector.py \
-            --symbols AAPL TSLA NVDA \
-            --paginate --pages 3 \
-            --outdir data \
-            --format both
+        run: python stocktwits_collector.py
 
       - name: Upload data as artifact
         uses: actions/upload-artifact@v4.6.2
