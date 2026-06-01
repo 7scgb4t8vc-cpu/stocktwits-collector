@@ -22,7 +22,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install curl-cffi
+        run: pip install curl-cffi openpyxl
 
       - name: Run collector
         run: python stocktwits_collector.py
