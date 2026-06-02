@@ -105,26 +105,33 @@ def get_sentiment(msg: dict) -> str:
 # ── FinViz fetcher ────────────────────────────────────────────────────────────
 
 def fetch_finviz(symbol: str) -> dict:
-    """Scrape key metrics for a symbol from FinViz."""
-    url  = f"https://finviz.com/quote.ashx?t={symbol}"
-    resp = req.get(url, headers=FV_HEADERS, timeout=15)
+    """Scrape key metrics for a symbol from FinViz using curl_cffi."""
+    url  = f"https://finviz.com/quote.ashx?t={symbol}&p=d"
+    resp = curl_requests.get(url, headers=FV_HEADERS, impersonate="chrome120", timeout=20)
     resp.raise_for_status()
 
-    soup  = BeautifulSoup(resp.text, "html.parser")
-    cells = soup.find_all("td", class_="snapshot-td2")
-    labels = soup.find_all("td", class_="snapshot-td2-cp")
+    soup = BeautifulSoup(resp.text, "html.parser")
 
+    # Build a flat label->value dict from the snapshot table
     data = {}
-    for label, cell in zip(labels, cells):
-        data[label.get_text(strip=True)] = cell.get_text(strip=True)
+    table = soup.find("table", class_="snapshot-table2")
+    if table:
+        tds = table.find_all("td")
+        for i in range(0, len(tds) - 1, 2):
+            label = tds[i].get_text(strip=True)
+            value = tds[i + 1].get_text(strip=True)
+            data[label] = value
+
+    if not data:
+        print(f"    Warning: no snapshot data found for {symbol}")
 
     return {
-        "price":      data.get("Price",    ""),
-        "change_pct": data.get("Change",   ""),
-        "volume":     data.get("Volume",   ""),
+        "price":      data.get("Price",      ""),
+        "change_pct": data.get("Change",     ""),
+        "volume":     data.get("Volume",     ""),
         "rel_volume": data.get("Rel Volume", ""),
         "market_cap": data.get("Market Cap", ""),
-        "sector":     data.get("Sector",   ""),
+        "sector":     data.get("Sector",     ""),
     }
 
 
