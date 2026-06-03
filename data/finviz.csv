@@ -1,0 +1,11 @@
+timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,beta,52w_high,52w_low,sector,industry
+2026-06-03 19:40 ET,AVGO,479.23,-0.49%,"42,095,271",24.17M,1.74,2268.99B,73.33,1.43,488.82,241.1198,Technology,Semiconductors
+2026-06-03 19:40 ET,KEEL,6.15,0.16%,"44,987,580",34.62M,1.30,3.71B,82.88,4.13,6.82,0.70778,Technology,Information Technology Services
+2026-06-03 19:40 ET,SOFI,16.68,-5.98%,"72,837,765",67.02M,1.09,21.40B,49.65,2.15,49.04,13.2326,Financial Services,Credit Services
+2026-06-03 19:40 ET,CADL,8.80,4.51%,"2,088,704",1.74M,1.20,644.78M,67.98,-0.48,9.27,4.35102,Healthcare,Biotechnology
+2026-06-03 19:40 ET,CRWD,747.61,-2.78%,"4,836,752",3.61M,1.34,190.29B,76.31,1.24,785.66,342.72118,Technology,Software - Infrastructure
+2026-06-03 19:40 ET,WMT,116.89,3.39%,"31,723,400",19.91M,1.59,930.22B,36.35,0.60,135.15,93.4325,Consumer Defensive,Discount Stores
+2026-06-03 19:40 ET,BMNR,16.90,-5.95%,"40,122,400",41.29M,0.97,9.63B,31.91,1.62,161.00,3.92331,Financial Services,Capital Markets
+2026-06-03 19:40 ET,AI,10.71,-4.20%,"18,375,979",5.15M,3.57,1.56B,61.17,2.03,64.43,7.6839,Technology,Software - Infrastructure
+2026-06-03 19:40 ET,NTSK,12.40,2.56%,"13,691,184",4.67M,2.93,5.04B,60.30,-,55.70,7.6661,Technology,Software - Infrastructure
+2026-06-03 19:40 ET,RIVN,18.27,5.67%,"51,430,372",29.00M,1.77,23.03B,73.57,1.62,22.69,11.5757,Consumer Cyclical,Auto Manufacturers
