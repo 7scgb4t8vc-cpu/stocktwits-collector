@@ -252,7 +252,7 @@ def export_to_excel():
 
 def main():
     et = pytz.timezone("America/New_York")
-timestamp = datetime.now(et).strftime("%Y-%m-%d %H:%M ET")
+    timestamp = datetime.now(et).strftime("%Y-%m-%d %H:%M ET")
     print(f"\n{'='*55}")
     print(f"StockTwits + FinViz Collector — {timestamp}")
     print(f"{'='*55}")
