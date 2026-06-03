@@ -2,11 +2,12 @@
 StockTwits + FinViz Collector
 ==============================
 Each run:
-1. Fetches top 10 trending stocks from StockTwits
-2. For each stock, fetches only NEW messages since last run (since_id)
-3. Collects FinViz data for the same trending stocks
-4. Updates frequency.csv with total mention counts per symbol
-5. Exports everything to a formatted Excel workbook
+1. Fetches top 15 trending stocks from StockTwits
+2. Tests each against FinViz — keeps only stocks FinViz has data for
+3. Takes the first 10 valid stocks
+4. Collects StockTwits messages + FinViz data for those same 10 stocks
+5. Updates frequency.csv with total mention counts per symbol
+6. Exports everything to a formatted Excel workbook
 
 Runs in under 60 seconds.
 """
@@ -18,7 +19,6 @@ from datetime import datetime
 from pathlib import Path
 
 from curl_cffi import requests as curl_requests
-import requests as req
 from bs4 import BeautifulSoup
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -28,7 +28,8 @@ from openpyxl.styles import Font, PatternFill, Alignment
 BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
-TOP_N_STOCKS  = 10
+TOP_N_FETCH   = 15   # fetch this many trending stocks
+TOP_N_KEEP    = 10   # keep this many after FinViz validation
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 FREQ_CSV      = Path("data/frequency.csv")
@@ -61,7 +62,7 @@ FV_HEADERS = {
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
 FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "rel_volume", "market_cap", "sector"]
 
-# ── Cursor (since_id) tracking ────────────────────────────────────────────────
+# ── Cursor tracking ───────────────────────────────────────────────────────────
 
 def load_cursors() -> dict:
     if CURSOR_FILE.exists():
@@ -104,16 +105,23 @@ def get_sentiment(msg: dict) -> str:
 
 # ── FinViz fetcher ────────────────────────────────────────────────────────────
 
-def fetch_finviz(symbol: str) -> dict:
-    """Scrape key metrics for a symbol from FinViz using curl_cffi."""
+def fetch_finviz(symbol: str) -> dict | None:
+    """
+    Scrape key metrics for a symbol from FinViz.
+    Returns None if the symbol is not found on FinViz.
+    """
     url  = f"https://finviz.com/quote.ashx?t={symbol}&p=d"
-    resp = curl_requests.get(url, headers=FV_HEADERS, impersonate="chrome120", timeout=20)
-    resp.raise_for_status()
+    try:
+        resp = curl_requests.get(url, headers=FV_HEADERS, impersonate="chrome120", timeout=20)
+        if resp.status_code != 200:
+            return None
+    except Exception:
+        return None
 
-    soup = BeautifulSoup(resp.text, "html.parser")
+    soup  = BeautifulSoup(resp.text, "html.parser")
 
-    # Build a flat label->value dict from the snapshot table
-    data = {}
+    # Build label->value dict from snapshot table
+    data  = {}
     table = soup.find("table", class_="snapshot-table2")
     if table:
         tds = table.find_all("td")
@@ -122,8 +130,9 @@ def fetch_finviz(symbol: str) -> dict:
             value = tds[i + 1].get_text(strip=True)
             data[label] = value
 
+    # If no data found, FinViz doesn't have this symbol
     if not data:
-        print(f"    Warning: no snapshot data found for {symbol}")
+        return None
 
     return {
         "price":      data.get("Price",      ""),
@@ -185,22 +194,19 @@ def export_to_excel():
         cell.alignment = Alignment(horizontal="center")
 
     # ── Sheet 1: Raw Messages ──
-    ws1       = wb.active
+    ws1 = wb.active
     ws1.title = "Raw Messages"
     sentiment_colors = {"Bullish": "C6EFCE", "Bearish": "FFC7CE", "None": "FFFFFF"}
 
     if DATA_CSV.exists():
         with open(DATA_CSV, "r", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
-
         for col, h in enumerate(CSV_FIELDS, 1):
             style_header(ws1.cell(row=1, column=col, value=h.upper()))
-
         for r, row in enumerate(rows, 2):
             fill = PatternFill("solid", fgColor=sentiment_colors.get(row.get("sentiment", "None"), "FFFFFF"))
             for col, key in enumerate(CSV_FIELDS, 1):
                 ws1.cell(row=r, column=col, value=row.get(key, "")).fill = fill
-
         ws1.column_dimensions["A"].width = 22
         ws1.column_dimensions["B"].width = 10
         ws1.column_dimensions["C"].width = 80
@@ -213,31 +219,27 @@ def export_to_excel():
     if FREQ_CSV.exists():
         with open(FREQ_CSV, "r", encoding="utf-8") as f:
             freq_rows = list(csv.DictReader(f))
-
         for col, h in enumerate(freq_cols, 1):
             style_header(ws2.cell(row=1, column=col, value=h.upper()))
         for r, row in enumerate(freq_rows, 2):
             for col, key in enumerate(freq_cols, 1):
                 ws2.cell(row=r, column=col, value=row.get(key, ""))
-
         ws2.column_dimensions["A"].width = 12
         ws2.column_dimensions["B"].width = 16
         ws2.column_dimensions["C"].width = 22
 
     # ── Sheet 3: FinViz Data ──
-    ws3       = wb.create_sheet("FinViz Data")
+    ws3 = wb.create_sheet("FinViz Data")
 
     if FINVIZ_CSV.exists():
         with open(FINVIZ_CSV, "r", encoding="utf-8") as f:
             fv_rows = list(csv.DictReader(f))
-
         for col, h in enumerate(FINVIZ_FIELDS, 1):
             style_header(ws3.cell(row=1, column=col, value=h.upper()))
         for r, row in enumerate(fv_rows, 2):
             for col, key in enumerate(FINVIZ_FIELDS, 1):
                 ws3.cell(row=r, column=col, value=row.get(key, ""))
-
-        col_widths = [22, 10, 10, 12, 12, 12, 14, 20]
+        col_widths = [22, 10, 10, 12, 15, 12, 14, 20]
         for i, w in enumerate(col_widths, 1):
             ws3.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
 
@@ -250,37 +252,61 @@ def export_to_excel():
 
 def main():
     timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
-    print(f"\n{'═'*50}")
+    print(f"\n{'═'*55}")
     print(f"StockTwits + FinViz Collector — {timestamp}")
-    print(f"{'═'*50}")
+    print(f"{'═'*55}")
 
     cursors = load_cursors()
 
-    # Step 1 — get trending stocks
+    # Step 1 — get top 15 trending stocks
     print("\nFetching trending stocks...")
     try:
         trending = fetch_trending()
     except Exception as e:
-        print(f"  Error: {e}")
+        print(f"  Error fetching trending: {e}")
         return
 
-    top_stocks = trending[:TOP_N_STOCKS]
-    symbols    = [s["symbol"] for s in top_stocks]
-    print(f"  Trending: {', '.join(symbols)}")
+    candidates = trending[:TOP_N_FETCH]
+    print(f"  Candidates: {', '.join(s['symbol'] for s in candidates)}")
+
+    # Step 2 — validate against FinViz, keep first 10 that have data
+    print(f"\nValidating against FinViz (need {TOP_N_KEEP})...")
+    valid_stocks = []
+    fv_cache     = {}
+
+    for stock in candidates:
+        if len(valid_stocks) >= TOP_N_KEEP:
+            break
+
+        symbol = stock.get("symbol", "")
+        print(f"  Checking {symbol}...", end=" ")
+        fv_data = fetch_finviz(symbol)
+
+        if fv_data:
+            print(f"✓ Price={fv_data['price']}")
+            valid_stocks.append(stock)
+            fv_cache[symbol] = fv_data
+        else:
+            print("✗ Not on FinViz, skipping.")
+
+        time.sleep(REQUEST_DELAY)
+
+    print(f"\n  Valid stocks ({len(valid_stocks)}): {', '.join(s['symbol'] for s in valid_stocks)}")
 
     st_rows = []
     fv_rows = []
 
-    for stock in top_stocks:
+    # Step 3 — collect StockTwits messages for valid stocks
+    print("\nCollecting StockTwits messages...")
+    for stock in valid_stocks:
         symbol   = stock.get("symbol", "")
         since_id = cursors.get(symbol)
 
-        # ── StockTwits messages ──
-        print(f"\n  [{symbol}] Fetching StockTwits messages...")
+        print(f"  [{symbol}] Fetching messages (since_id={since_id})...")
         try:
             messages = fetch_new_messages(symbol, since_id)
         except Exception as e:
-            print(f"  [{symbol}] StockTwits error: {e}")
+            print(f"  [{symbol}] Error: {e}")
             messages = []
 
         if messages:
@@ -296,26 +322,20 @@ def main():
         else:
             print(f"  [{symbol}] No new messages.")
 
-        # ── FinViz data ──
-        print(f"  [{symbol}] Fetching FinViz data...")
-        try:
-            fv = fetch_finviz(symbol)
-            fv_rows.append({"timestamp": timestamp, "symbol": symbol, **fv})
-            print(f"  [{symbol}] Price={fv['price']} Change={fv['change_pct']} Vol={fv['volume']}")
-        except Exception as e:
-            print(f"  [{symbol}] FinViz error: {e}")
+        # Step 4 — add FinViz row (already fetched, use cache)
+        fv = fv_cache[symbol]
+        fv_rows.append({"timestamp": timestamp, "symbol": symbol, **fv})
 
         time.sleep(REQUEST_DELAY)
 
-    # Save StockTwits messages
+    # Save all data
     if st_rows:
         append_to_csv(st_rows, DATA_CSV, CSV_FIELDS)
         save_cursors(cursors)
-        print(f"\n✓ {len(st_rows)} new messages appended.")
+        print(f"\n✓ {len(st_rows)} new StockTwits messages appended.")
     else:
         print("\n✓ No new StockTwits messages this run.")
 
-    # Save FinViz data
     if fv_rows:
         append_to_csv(fv_rows, FINVIZ_CSV, FINVIZ_FIELDS)
         print(f"✓ {len(fv_rows)} FinViz rows appended.")
