@@ -28,7 +28,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
-TOP_N_FETCH   = 15   # fetch this many trending stocks
+TOP_N_FETCH   = 20   # fetch this many trending stocks
 TOP_N_KEEP    = 10   # keep this many after FinViz validation
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
@@ -134,16 +134,13 @@ def fetch_finviz(symbol: str) -> dict | None:
     if not data:
         return None
 
-    # Debug: print all available keys to find correct sector label
-    print(f"    FinViz keys: {list(data.keys())}")
-
     return {
         "price":      data.get("Price",      ""),
         "change_pct": data.get("Change",     ""),
         "volume":     data.get("Volume",     ""),
         "rel_volume": data.get("Rel Volume", ""),
         "market_cap": data.get("Market Cap", ""),
-        "sector":     data.get("Sector",     ""),
+        "sector":     data.get("Index",      ""),
     }
 
 
