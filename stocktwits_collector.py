@@ -15,7 +15,8 @@ Runs in under 60 seconds.
 import json
 import time
 import csv
-from datetime import datetime, timezone
+from datetime import datetime
+import pytz
 from pathlib import Path
 
 from curl_cffi import requests as curl_requests
@@ -60,7 +61,7 @@ FV_HEADERS = {
 }
 
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
-FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "rel_volume", "market_cap", "sector"]
+FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "rel_volume", "market_cap"]
 
 # ── Cursor tracking ───────────────────────────────────────────────────────────
 
@@ -140,7 +141,6 @@ def fetch_finviz(symbol: str) -> dict | None:
         "volume":     data.get("Volume",     ""),
         "rel_volume": data.get("Rel Volume", ""),
         "market_cap": data.get("Market Cap", ""),
-        "sector":     data.get("Index",      ""),
     }
 
 
@@ -251,7 +251,8 @@ def export_to_excel():
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    et = pytz.timezone("America/New_York")
+timestamp = datetime.now(et).strftime("%Y-%m-%d %H:%M ET")
     print(f"\n{'='*55}")
     print(f"StockTwits + FinViz Collector — {timestamp}")
     print(f"{'='*55}")
