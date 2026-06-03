@@ -62,7 +62,7 @@ FV_HEADERS = {
 }
 
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
-FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "avg_volume", "rel_volume", "market_cap", "rsi", "beta", "sector", "industry"]
+FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "avg_volume", "rel_volume", "market_cap", "rsi", "beta", "52w_high", "52w_low", "sector", "industry"]
 
 # ── Cursor tracking ───────────────────────────────────────────────────────────
 
@@ -145,6 +145,8 @@ def fetch_finviz(symbol: str) -> dict | None:
         "market_cap": data.get("Market Cap", ""),
         "rsi":        data.get("RSI (14)",   ""),
         "beta":       data.get("Beta",       ""),
+        "52w_high":   data.get("52W High",  ""),
+        "52w_low":    data.get("52W Low",   ""),
         "sector":     "",
         "industry":   "",
     }
