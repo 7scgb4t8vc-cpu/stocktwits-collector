@@ -21,6 +21,7 @@ from pathlib import Path
 
 from curl_cffi import requests as curl_requests
 from bs4 import BeautifulSoup
+import yfinance as yf
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 
@@ -61,7 +62,7 @@ FV_HEADERS = {
 }
 
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
-FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "rel_volume", "market_cap"]
+FINVIZ_FIELDS = ["timestamp", "symbol", "price", "change_pct", "volume", "avg_volume", "rel_volume", "market_cap", "rsi", "beta", "sector", "industry"]
 
 # ── Cursor tracking ───────────────────────────────────────────────────────────
 
@@ -139,9 +140,27 @@ def fetch_finviz(symbol: str) -> dict | None:
         "price":      data.get("Price",      ""),
         "change_pct": data.get("Change",     ""),
         "volume":     data.get("Volume",     ""),
+        "avg_volume": data.get("Avg Volume", ""),
         "rel_volume": data.get("Rel Volume", ""),
         "market_cap": data.get("Market Cap", ""),
+        "rsi":        data.get("RSI (14)",   ""),
+        "beta":       data.get("Beta",       ""),
+        "sector":     "",
+        "industry":   "",
     }
+
+
+# ── yfinance sector/industry lookup ──────────────────────────────────────────
+
+def fetch_sector_industry(symbol: str) -> tuple:
+    """Get sector and industry for a symbol from Yahoo Finance."""
+    try:
+        info = yf.Ticker(symbol).info
+        sector   = info.get("sector",   "")
+        industry = info.get("industry", "")
+        return sector, industry
+    except Exception:
+        return "", ""
 
 
 # ── Output helpers ────────────────────────────────────────────────────────────
@@ -284,7 +303,10 @@ def main():
         fv_data = fetch_finviz(symbol)
 
         if fv_data and fv_data.get("market_cap"):
-            print(f"✓ Price={fv_data['price']} MarketCap={fv_data['market_cap']}")
+            sector, industry = fetch_sector_industry(symbol)
+            fv_data["sector"]   = sector
+            fv_data["industry"] = industry
+            print(f"✓ Price={fv_data['price']} MarketCap={fv_data['market_cap']} Sector={sector}")
             valid_stocks.append(stock)
             fv_cache[symbol] = fv_data
         elif fv_data and not fv_data.get("market_cap"):
