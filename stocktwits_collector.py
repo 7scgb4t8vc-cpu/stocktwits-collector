@@ -107,6 +107,20 @@ def get_sentiment(msg: dict) -> str:
 
 # ── FinViz fetcher ────────────────────────────────────────────────────────────
 
+def parse_52w(value: str) -> str:
+    """Extract just the price from FinViz 52W High/Low field (removes % distance)."""
+    if not value:
+        return ""
+    # FinViz format is like "-3.12%429.03" or "429.03-3.12%"
+    # We want just the numeric price part
+    import re
+    prices = re.findall(r"\d+\.\d+", value)
+    # Return the largest number (the actual price, not the % distance)
+    if prices:
+        return max(prices, key=lambda x: float(x))
+    return value
+
+
 def fetch_finviz(symbol: str) -> dict | None:
     """
     Scrape key metrics for a symbol from FinViz.
@@ -145,8 +159,8 @@ def fetch_finviz(symbol: str) -> dict | None:
         "market_cap": data.get("Market Cap", ""),
         "rsi":        data.get("RSI (14)",   ""),
         "beta":       data.get("Beta",       ""),
-        "52w_high":   data.get("52W High",  ""),
-        "52w_low":    data.get("52W Low",   ""),
+        "52w_high":   parse_52w(data.get("52W High",  "")),
+        "52w_low":    parse_52w(data.get("52W Low",   "")),
         "sector":     "",
         "industry":   "",
     }
