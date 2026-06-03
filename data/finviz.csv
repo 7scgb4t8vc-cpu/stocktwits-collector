@@ -1,0 +1,11 @@
+timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,beta,52w_high,52w_low,sector,industry
+2026-06-03 11:36 ET,BB,10.58,2.50%,"45,605,586",20.57M,6.97,6.20B,92.99,2.27,10.332.40%,3.12239.03%,Technology,Software - Infrastructure
+2026-06-03 11:36 ET,AVGO,489.04,1.55%,"14,425,560",24.17M,1.88,2315.44B,76.21,1.43,488.820.05%,241.11102.83%,Technology,Semiconductors
+2026-06-03 11:36 ET,KEEL,6.27,2.13%,"22,343,156",34.62M,2.03,3.79B,83.65,4.13,6.60-4.98%,0.70795.86%,Technology,Information Technology Services
+2026-06-03 11:36 ET,MRVL,307.32,5.68%,"62,811,161",28.91M,6.83,268.84B,87.31,2.25,291.305.50%,61.15402.57%,Technology,Semiconductors
+2026-06-03 11:36 ET,RIVN,17.87,3.35%,"23,907,991",29.00M,2.59,22.52B,71.88,1.62,22.69-21.24%,11.5754.45%,Consumer Cyclical,Auto Manufacturers
+2026-06-03 11:36 ET,DRTS,10.69,19.76%,"1,404,168",566.17K,7.80,941.27M,57.83,1.21,11.62-7.96%,2.81280.60%,Healthcare,Biotechnology
+2026-06-03 11:36 ET,MSFT,427.13,-3.21%,"14,687,631",34.62M,1.33,3172.91B,52.50,1.10,555.45-23.10%,356.2819.89%,Technology,Software - Infrastructure
+2026-06-03 11:36 ET,PANW,282.81,-4.84%,"7,159,216",8.27M,2.72,230.77B,71.02,0.94,302.95-6.65%,139.57102.63%,Technology,Software - Infrastructure
+2026-06-03 11:36 ET,AMZN,250.85,-2.21%,"16,576,437",44.96M,1.16,2698.42B,39.98,1.45,278.56-9.95%,196.0027.98%,Consumer Cyclical,Internet Retail
+2026-06-03 11:36 ET,NFLX,81.64,-2.02%,"12,080,326",38.82M,0.98,343.79B,27.47,1.49,134.12-39.12%,75.018.85%,Communication Services,Entertainment
