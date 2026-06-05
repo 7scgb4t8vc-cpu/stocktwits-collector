@@ -29,3 +29,13 @@ timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,be
 2026-06-04 15:53 ET,RIVN,18.00,-1.51%,"26,866,035",29.42M,0.97,22.68B,70.43,1.60,22.69,11.5755,Consumer Cyclical,Auto Manufacturers
 2026-06-04 15:53 ET,RCAT,14.95,8.45%,"19,789,508",16.39M,1.28,2.28B,66.09,1.25,20.37,5.77159,Industrials,Aerospace & Defense
 2026-06-04 15:53 ET,CMG,28.23,-1.79%,"18,123,273",16.79M,1.14,36.21B,25.66,0.99,58.42,28.160,Consumer Cyclical,Restaurants
+2026-06-05 13:25 ET,TSLA,395.69,-5.44%,"33,811,947",59.48M,0.97,1486.10B,41.86,1.80,498.83,273.2144,Consumer Cyclical,Auto Manufacturers
+2026-06-05 13:25 ET,ORCL,214.51,-9.24%,"13,879,938",27.48M,0.86,616.93B,56.00,1.65,345.72,134.5759,Technology,Software - Infrastructure
+2026-06-05 13:25 ET,MSTR,118.62,-8.31%,"22,914,218",18.23M,2.15,41.57B,28.91,3.49,457.22,104.1713,Technology,Software - Application
+2026-06-05 13:25 ET,PL,32.67,-24.94%,"26,966,914",13.59M,3.39,11.64B,35.45,2.02,51.76,4.90566,Industrials,Aerospace & Defense
+2026-06-05 13:25 ET,BNAI,23.98,46.76%,"7,664,961",604.75K,21.63,156.06M,55.13,0.41,86.28,1.181932,Technology,Software - Infrastructure
+2026-06-05 13:25 ET,STI,30.96,36.33%,"29,218,591",1.72M,29.04,239.80M,94.85,-0.35,38.15,2.94953,Industrials,Electrical Equipment & Parts
+2026-06-05 13:25 ET,MU,896.33,-10.01%,"39,769,108",48.43M,1.40,1010.82B,58.13,2.17,1089.29,103.38767,Technology,Semiconductors
+2026-06-05 13:25 ET,AVGO,394.54,-5.82%,"26,789,892",25.35M,1.80,1867.99B,41.81,1.44,495.00,241.1163,Technology,Semiconductors
+2026-06-05 13:25 ET,MRLN,9.15,27.37%,"23,240,882",1.51M,26.22,882.71M,55.65,1.51,46.21,5.7858,Industrials,Aerospace & Defense
+2026-06-05 13:25 ET,KEEL,5.05,-14.76%,"80,084,071",35.13M,3.89,3.05B,55.75,4.13,23.41,0.70622,Technology,Information Technology Services
