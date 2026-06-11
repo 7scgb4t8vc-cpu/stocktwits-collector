@@ -69,3 +69,13 @@ timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,be
 2026-06-10 14:44 ET,LMND,55.80,4.14%,"2,271,961",1.74M,1.68,4.29B,49.53,1.82,99.90,35.7056,Financial Services,Insurance - Property & Casualty
 2026-06-10 14:44 ET,FUBO,10.48,7.72%,"1,078,715",1.80M,0.77,1.14B,50.75,2.37,81.49,8.3126,Communication Services,Broadcasting
 2026-06-10 14:44 ET,UEC,9.48,-10.94%,"16,831,909",9.66M,2.24,4.65B,30.11,1.21,53.37,5.9060,Energy,Uranium
+2026-06-11 15:27 ET,MSFT,387.46,-2.49%,"29,904,129",34.54M,0.98,2878.26B,35.86,1.13,555.45,356.288,Technology,Software - Infrastructure
+2026-06-11 15:27 ET,SNDK,1858.17,13.08%,"10,221,030",15.48M,0.75,275.18B,66.97,5.06,1861.00,39.444611,Technology,Computer Hardware
+2026-06-11 15:27 ET,ADBE,221.99,-4.88%,"8,502,172",5.59M,1.72,89.73B,35.53,1.41,416.39,224.13,Technology,Software - Application
+2026-06-11 15:27 ET,ORCL,182.93,-9.11%,"53,165,568",27.07M,2.22,526.13B,41.65,1.67,345.72,134.5735,Technology,Software - Infrastructure
+2026-06-11 15:27 ET,VELO,31.44,38.62%,"14,384,776",3.04M,5.36,936.95M,70.47,2.46,26.5018,2.811018,Technology,Computer Hardware
+2026-06-11 15:27 ET,TE,8.19,5.95%,"31,917,640",26.76M,1.35,2.29B,48.35,2.23,34.43,1.15612,Industrials,Electrical Equipment & Parts
+2026-06-11 15:27 ET,SATS,126.26,9.56%,"12,010,457",6.95M,1.96,36.59B,52.15,1.01,147.25,16.60660,Communication Services,Telecom Services
+2026-06-11 15:27 ET,SPCE,5.99,27.28%,"96,053,655",22.63M,4.81,603.60M,63.98,2.69,32.64,2.13181,Industrials,Aerospace & Defense
+2026-06-11 15:27 ET,KLAC,2389.69,11.90%,"948,818",1.02M,1.06,312.16B,71.74,1.44,2304.413,832.24187,Technology,Semiconductor Equipment & Materials
+2026-06-11 15:27 ET,RKLB,113.49,8.03%,"18,254,787",25.62M,0.81,65.69B,49.31,2.59,151.00,25.24349,Industrials,Aerospace & Defense
