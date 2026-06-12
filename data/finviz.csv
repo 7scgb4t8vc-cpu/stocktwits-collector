@@ -79,3 +79,13 @@ timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,be
 2026-06-11 15:27 ET,SPCE,5.99,27.28%,"96,053,655",22.63M,4.81,603.60M,63.98,2.69,32.64,2.13181,Industrials,Aerospace & Defense
 2026-06-11 15:27 ET,KLAC,2389.69,11.90%,"948,818",1.02M,1.06,312.16B,71.74,1.44,2304.413,832.24187,Technology,Semiconductor Equipment & Materials
 2026-06-11 15:27 ET,RKLB,113.49,8.03%,"18,254,787",25.62M,0.81,65.69B,49.31,2.59,151.00,25.24349,Industrials,Aerospace & Defense
+2026-06-12 13:52 ET,SPCX,170.62,26.38%,"350,813,838",-,-,2230.98B,-,-,--,--,Industrials,Aerospace & Defense
+2026-06-12 13:52 ET,SNDK,2006.60,6.65%,"8,354,671",15.44M,0.83,297.16B,71.30,4.93,1895.005,39.444987,Technology,Computer Hardware
+2026-06-12 13:52 ET,RKLB,105.57,-8.03%,"49,732,335",25.74M,2.96,61.11B,45.16,2.55,151.00,25.24318,Industrials,Aerospace & Defense
+2026-06-12 13:52 ET,TTD,19.80,4.77%,"18,490,431",19.74M,1.44,9.31B,43.03,1.04,91.45,18.377,Communication Services,Advertising Agencies
+2026-06-12 13:52 ET,TSLA,400.88,0.43%,"42,726,728",58.91M,1.11,1505.59B,46.92,1.81,498.83,288.7738,Consumer Cyclical,Auto Manufacturers
+2026-06-12 13:52 ET,ASTS,83.85,-14.05%,"40,158,025",19.44M,3.17,32.55B,43.87,2.67,133.86,35.81134,Technology,Communication Equipment
+2026-06-12 13:52 ET,SATS,112.68,-12.06%,"36,333,464",7.12M,7.83,32.66B,41.12,0.97,147.25,16.73573,Communication Services,Telecom Services
+2026-06-12 13:52 ET,ADBE,203.08,-7.18%,"18,822,815",5.79M,4.99,82.08B,29.11,1.43,416.39,218.09,Technology,Software - Application
+2026-06-12 13:52 ET,RDW,15.52,-9.18%,"50,353,832",35.90M,2.15,3.09B,47.52,3.01,41.74,4.87218,Industrials,Aerospace & Defense
+2026-06-12 13:52 ET,LUNR,26.93,-12.11%,"16,588,178",15.37M,1.66,5.84B,42.65,1.78,46.75,7.78246,Industrials,Aerospace & Defense
