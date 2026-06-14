@@ -23,9 +23,6 @@ jobs:
       - name: Run collector
         run: python stocktwits_collector.py
 
-      - name: Backfill FinViz data
-        run: python finviz_backfill.py
-
       - name: Run NLP processor
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
