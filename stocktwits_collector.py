@@ -2,12 +2,13 @@
 StockTwits + FinViz Collector
 ==============================
 Each run:
-1. Fetches top 15 trending stocks from StockTwits
+1. Fetches top 20 trending stocks from StockTwits
 2. Tests each against FinViz — keeps only stocks FinViz has data for
-3. Takes the first 10 valid stocks
-4. Collects StockTwits messages + FinViz data for those same 10 stocks
-5. Updates frequency.csv with total mention counts per symbol
-6. Exports everything to a formatted Excel workbook
+3. Applies quality filters: volume > 100k, rel_volume > 1.0, positive change
+4. Takes the first 10 valid stocks
+5. Collects StockTwits messages + FinViz data for those same 10 stocks
+6. Updates frequency.csv with total mention counts per symbol
+7. Exports everything to a formatted Excel workbook
 
 Runs in under 60 seconds.
 """
@@ -15,6 +16,7 @@ Runs in under 60 seconds.
 import json
 import time
 import csv
+import re
 from datetime import datetime
 import pytz
 from pathlib import Path
@@ -38,6 +40,10 @@ FREQ_CSV      = Path("data/frequency.csv")
 FINVIZ_CSV    = Path("data/finviz.csv")
 EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
+
+# Quality filters
+MIN_VOLUME     = 100_000
+MIN_REL_VOLUME = 1.0
 
 ST_HEADERS = {
     "User-Agent": (
@@ -111,14 +117,59 @@ def parse_52w(value: str) -> str:
     """Extract just the price from FinViz 52W High/Low field (removes % distance)."""
     if not value:
         return ""
-    # FinViz format is like "-3.12%429.03" or "429.03-3.12%"
-    # We want just the numeric price part
-    import re
     prices = re.findall(r"\d+\.\d+", value)
-    # Return the largest number (the actual price, not the % distance)
     if prices:
         return max(prices, key=lambda x: float(x))
     return value
+
+
+def parse_volume(vol_str: str) -> float:
+    """Parse FinViz volume string (e.g. '1.23M', '456.78K', '1,234,567') to float."""
+    if not vol_str:
+        return 0.0
+    vol_str = vol_str.replace(",", "").strip()
+    try:
+        if "M" in vol_str:
+            return float(vol_str.replace("M", "")) * 1_000_000
+        elif "K" in vol_str:
+            return float(vol_str.replace("K", "")) * 1_000
+        else:
+            return float(vol_str)
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def parse_change(change_str: str) -> float:
+    """Parse FinViz change string (e.g. '+2.34%', '-1.20%') to float."""
+    if not change_str:
+        return 0.0
+    try:
+        return float(change_str.replace("%", "").strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def parse_rel_volume(rel_str: str) -> float:
+    """Parse FinViz relative volume string (e.g. '1.45') to float."""
+    if not rel_str:
+        return 0.0
+    try:
+        return float(rel_str.strip())
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def is_valid_for_collection(fv_data: dict) -> bool:
+    """
+    Quality filter: volume > 100k, rel_volume > 1.0, positive price change.
+    Targets stocks with meaningful activity — trends toward ~50 unique tickers
+    over the project's collection window.
+    """
+    volume    = parse_volume(fv_data.get("volume", ""))
+    rel_vol   = parse_rel_volume(fv_data.get("rel_volume", ""))
+    change    = parse_change(fv_data.get("change_pct", ""))
+
+    return volume > MIN_VOLUME and rel_vol > MIN_REL_VOLUME and change > 0
 
 
 def fetch_finviz(symbol: str) -> dict | None:
@@ -146,7 +197,6 @@ def fetch_finviz(symbol: str) -> dict | None:
             value = tds[i + 1].get_text(strip=True)
             data[label] = value
 
-    # If no data found, FinViz doesn't have this symbol
     if not data:
         return None
 
@@ -294,7 +344,7 @@ def main():
 
     cursors = load_cursors()
 
-    # Step 1 — get top 15 trending stocks
+    # Step 1 — get top trending stocks
     print("\nFetching trending stocks...")
     try:
         trending = fetch_trending()
@@ -305,8 +355,8 @@ def main():
     candidates = trending[:TOP_N_FETCH]
     print(f"  Candidates: {', '.join(s['symbol'] for s in candidates)}")
 
-    # Step 2 — validate against FinViz, keep first 10 that have data
-    print(f"\nValidating against FinViz (need {TOP_N_KEEP})...")
+    # Step 2 — validate against FinViz + quality filters, keep first 10
+    print(f"\nValidating against FinViz (need {TOP_N_KEEP}, filters: vol>{MIN_VOLUME:,}, rel_vol>{MIN_REL_VOLUME}, change>0)...")
     valid_stocks = []
     fv_cache     = {}
 
@@ -318,17 +368,26 @@ def main():
         print(f"  Checking {symbol}...", end=" ")
         fv_data = fetch_finviz(symbol)
 
-        if fv_data and fv_data.get("market_cap"):
+        if not fv_data:
+            print("✗ Not on FinViz, skipping.")
+        elif not fv_data.get("market_cap"):
+            print("✗ ETF or no market cap, skipping.")
+        elif not is_valid_for_collection(fv_data):
+            change  = fv_data.get("change_pct", "?")
+            vol     = fv_data.get("volume", "?")
+            rel_vol = fv_data.get("rel_volume", "?")
+            print(f"✗ Fails filters (vol={vol}, rel_vol={rel_vol}, chg={change}), skipping.")
+        else:
             sector, industry = fetch_sector_industry(symbol)
             fv_data["sector"]   = sector
             fv_data["industry"] = industry
-            print(f"✓ Price={fv_data['price']} MarketCap={fv_data['market_cap']} Sector={sector}")
+            print(
+                f"✓ Price={fv_data['price']} Chg={fv_data['change_pct']} "
+                f"Vol={fv_data['volume']} RelVol={fv_data['rel_volume']} "
+                f"MCap={fv_data['market_cap']} Sector={sector}"
+            )
             valid_stocks.append(stock)
             fv_cache[symbol] = fv_data
-        elif fv_data and not fv_data.get("market_cap"):
-            print("✗ ETF or no market cap, skipping.")
-        else:
-            print("✗ Not on FinViz, skipping.")
 
         time.sleep(REQUEST_DELAY)
 
