@@ -89,3 +89,4 @@ timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,be
 2026-06-12 13:52 ET,ADBE,203.08,-7.18%,"18,822,815",5.79M,4.99,82.08B,29.11,1.43,416.39,218.09,Technology,Software - Application
 2026-06-12 13:52 ET,RDW,15.52,-9.18%,"50,353,832",35.90M,2.15,3.09B,47.52,3.01,41.74,4.87218,Industrials,Aerospace & Defense
 2026-06-12 13:52 ET,LUNR,26.93,-12.11%,"16,588,178",15.37M,1.66,5.84B,42.65,1.78,46.75,7.78246,Industrials,Aerospace & Defense
+2026-06-14 11:08 ET,ROKU,143.66,20.08%,"14,922,301",2.48M,6.01,21.20B,69.09,2.03,133.467,73.9194,Communication Services,Entertainment
