@@ -33,7 +33,7 @@ BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
 TOP_N_FETCH   = 20   # fetch this many trending stocks
-TOP_N_KEEP    = 7   # keep this many after FinViz validation
+TOP_N_KEEP    = 7    # keep this many after FinViz validation
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 FREQ_CSV      = Path("data/frequency.csv")
@@ -241,6 +241,24 @@ def append_to_csv(rows: list, path: Path, fields: list):
         writer.writerows(rows)
 
 
+# ── FinViz upsert ─────────────────────────────────────────────────────────────
+
+def upsert_finviz_csv(new_rows: list, path: Path, fields: list):
+    """Update existing rows by symbol, insert if new. One row per symbol."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    existing = {}
+    if path.exists():
+        with open(path, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                existing[row["symbol"]] = row
+    for row in new_rows:
+        existing[row["symbol"]] = row
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(existing.values())
+
+
 # ── Frequency tracking ────────────────────────────────────────────────────────
 
 def update_frequency():
@@ -437,8 +455,8 @@ def main():
         print("\n✓ No new StockTwits messages this run.")
 
     if fv_rows:
-        append_to_csv(fv_rows, FINVIZ_CSV, FINVIZ_FIELDS)
-        print(f"✓ {len(fv_rows)} FinViz rows appended.")
+        upsert_finviz_csv(fv_rows, FINVIZ_CSV, FINVIZ_FIELDS)
+        print(f"✓ {len(fv_rows)} FinViz rows upserted (one row per symbol).")
 
     # Update frequency + export Excel
     print("\nUpdating ticker mention frequency...")
