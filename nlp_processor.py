@@ -193,9 +193,20 @@ def main():
             "clean_text":        clean_text(row.get("message", "")),
         })
 
+    # Remove duplicate posts (same clean_text seen more than once)
+    print("  Removing duplicate posts...")
+    seen_texts = set()
+    deduped    = []
+    for c in cleaned:
+        if c["clean_text"] not in seen_texts:
+            seen_texts.add(c["clean_text"])
+            deduped.append(c)
+    duplicates_removed = len(cleaned) - len(deduped)
+    print(f"  {duplicates_removed} duplicate(s) removed, {len(deduped)} unique messages remaining.")
+
     # Filter out empty messages after cleaning
-    to_classify = [c for c in cleaned if len(c["clean_text"]) > 5]
-    skipped     = len(cleaned) - len(to_classify)
+    to_classify = [c for c in deduped if len(c["clean_text"]) > 5]
+    skipped     = len(deduped) - len(to_classify)
     print(f"  {len(to_classify)} messages to classify, {skipped} skipped (too short after cleaning).")
 
     # Batch into chunks of BATCH_SIZE
