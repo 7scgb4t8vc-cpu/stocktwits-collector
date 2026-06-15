@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Momentum</h1>
+  <p class="page-subtitle">Top movers ranked by relative volume</p>
+</div>
+
+<div class="momentum-grid" id="momentum-grid">
+  <div class="loading">Loading...</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadMomentum() {
+  try {
+    const res  = await fetch("/api/momentum");
+    const rows = await res.json();
+    const grid = document.getElementById("momentum-grid");
+
+    if (!rows.length) {
+      grid.innerHTML = '<div class="empty">No data available.</div>';
+      return;
+    }
+
+    grid.innerHTML = rows.map(r => {
+      const chg      = parseFloat(r.change_pct) || 0;
+      const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+      const chgSign  = chg > 0 ? "+" : "";
+      const relVol   = parseFloat(r.rel_volume) || 0;
+      const rsi      = parseFloat(r.rsi) || 0;
+      const rsiClass = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
+
+      return `
+        <div class="momentum-card">
+          <div class="momentum-header">
+            <span class="ticker-badge">${r.symbol}</span>
+            <span class="momentum-price">$${r.price}</span>
+          </div>
+          <div class="momentum-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
+          <div class="momentum-stats">
+            <div class="mstat">
+              <span class="mstat-label">Rel Vol</span>
+              <span class="mstat-value">${relVol.toFixed(2)}x</span>
+            </div>
+            <div class="mstat">
+              <span class="mstat-label">Volume</span>
+              <span class="mstat-value">${r.volume}</span>
+            </div>
+            <div class="mstat">
+              <span class="mstat-label">RSI</span>
+              <span class="mstat-value ${rsiClass}">${rsi.toFixed(1)}</span>
+            </div>
+            <div class="mstat">
+              <span class="mstat-label">Market Cap</span>
+              <span class="mstat-value">${r.market_cap}</span>
+            </div>
+          </div>
+          <div class="momentum-sector">${r.sector || "—"} · ${r.industry || "—"}</div>
+        </div>`;
+    }).join("");
+
+  } catch(e) {
+    document.getElementById("momentum-grid").innerHTML =
+      '<div class="error">Failed to load data.</div>';
+  }
+}
+
+loadMomentum();
+setInterval(loadMomentum, 60000);
+</script>
+{% endblock %}
