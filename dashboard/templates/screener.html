@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Screener</h1>
+  <p class="page-subtitle">FinViz metrics for tracked stocks</p>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="filter-symbol" placeholder="Filter by symbol" class="filter-input" />
+  <select id="filter-sector" class="filter-select">
+    <option value="">All sectors</option>
+  </select>
+  <button class="btn-refresh" onclick="loadScreener()">↻ Refresh</button>
+</div>
+
+<div class="table-wrap">
+  <table class="data-table" id="screener-table">
+    <thead>
+      <tr>
+        <th>Symbol</th>
+        <th>Price</th>
+        <th>Change %</th>
+        <th>Volume</th>
+        <th>Rel Vol</th>
+        <th>Market Cap</th>
+        <th>RSI</th>
+        <th>Beta</th>
+        <th>52W High</th>
+        <th>52W Low</th>
+        <th>Sector</th>
+        <th>Industry</th>
+        <th>Updated</th>
+      </tr>
+    </thead>
+    <tbody id="screener-body">
+      <tr><td colspan="13" class="loading">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allRows = [];
+
+async function loadScreener() {
+  try {
+    const res = await fetch("/api/screener");
+    allRows   = await res.json();
+    populateSectors(allRows);
+    renderTable(allRows);
+  } catch(e) {
+    document.getElementById("screener-body").innerHTML =
+      '<tr><td colspan="13" class="error">Failed to load data.</td></tr>';
+  }
+}
+
+function populateSectors(rows) {
+  const sectors = [...new Set(rows.map(r => r.sector).filter(Boolean))].sort();
+  const sel = document.getElementById("filter-sector");
+  sel.innerHTML = '<option value="">All sectors</option>' +
+    sectors.map(s => `<option value="${s}">${s}</option>`).join("");
+}
+
+function renderTable(rows) {
+  const body = document.getElementById("screener-body");
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="13" class="empty">No data found.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r => {
+    const chg     = parseFloat(r.change_pct) || 0;
+    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    return `<tr>
+      <td><strong>${r.symbol}</strong></td>
+      <td>${r.price}</td>
+      <td class="${chgClass}">${r.change_pct}</td>
+      <td>${r.volume}</td>
+      <td>${r.rel_volume}</td>
+      <td>${r.market_cap}</td>
+      <td>${r.rsi}</td>
+      <td>${r.beta}</td>
+      <td>${r["52w_high"]}</td>
+      <td>${r["52w_low"]}</td>
+      <td>${r.sector}</td>
+      <td>${r.industry}</td>
+      <td>${r.timestamp}</td>
+    </tr>`;
+  }).join("");
+}
+
+function filterTable() {
+  const sym    = document.getElementById("filter-symbol").value.toUpperCase();
+  const sector = document.getElementById("filter-sector").value;
+  const filtered = allRows.filter(r =>
+    (!sym    || r.symbol.includes(sym)) &&
+    (!sector || r.sector === sector)
+  );
+  renderTable(filtered);
+}
+
+document.getElementById("filter-symbol").addEventListener("input", filterTable);
+document.getElementById("filter-sector").addEventListener("change", filterTable);
+
+loadScreener();
+setInterval(loadScreener, 60000);
+</script>
+{% endblock %}
