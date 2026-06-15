@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Charts</h1>
+  <p class="page-subtitle">Sentiment trends and mention frequency</p>
+</div>
+
+<div class="charts-grid">
+
+  <div class="chart-card">
+    <h2>Message volume over time</h2>
+    <canvas id="volume-chart" height="200"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h2>Sentiment breakdown by symbol</h2>
+    <canvas id="sentiment-chart" height="200"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h2>Top tickers by mention count</h2>
+    <canvas id="freq-chart" height="200"></canvas>
+  </div>
+
+  <div class="chart-card">
+    <h2>Bullish vs bearish ratio</h2>
+    <canvas id="ratio-chart" height="200"></canvas>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadCharts() {
+  const [chartsRes, freqRes] = await Promise.all([
+    fetch("/api/charts"),
+    fetch("/api/frequency")
+  ]);
+  const charts = await chartsRes.json();
+  const freq   = await freqRes.json();
+
+  // Volume over time
+  const timeLabels = charts.counts_over_time.map(([ts]) => ts);
+  const timeCounts = charts.counts_over_time.map(([, c]) => c);
+
+  new Chart(document.getElementById("volume-chart"), {
+    type: "line",
+    data: {
+      labels: timeLabels,
+      datasets: [{
+        label: "Messages",
+        data: timeCounts,
+        borderColor: "#378ADD",
+        backgroundColor: "rgba(55,138,221,0.08)",
+        tension: 0.3,
+        fill: true,
+        pointRadius: 3,
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 8 } } } }
+  });
+
+  // Sentiment by symbol
+  const symbols  = Object.keys(charts.sentiment_by_symbol);
+  const bullish  = symbols.map(s => charts.sentiment_by_symbol[s].bullish || 0);
+  const bearish  = symbols.map(s => charts.sentiment_by_symbol[s].bearish || 0);
+  const neutral  = symbols.map(s => charts.sentiment_by_symbol[s].neutral || 0);
+  const mixed    = symbols.map(s => charts.sentiment_by_symbol[s].mixed   || 0);
+
+  new Chart(document.getElementById("sentiment-chart"), {
+    type: "bar",
+    data: {
+      labels: symbols,
+      datasets: [
+        { label: "Bullish", data: bullish, backgroundColor: "#639922" },
+        { label: "Bearish", data: bearish, backgroundColor: "#E24B4A" },
+        { label: "Neutral", data: neutral, backgroundColor: "#888780" },
+        { label: "Mixed",   data: mixed,   backgroundColor: "#EF9F27" },
+      ]
+    },
+    options: { scales: { x: { stacked: true }, y: { stacked: true } } }
+  });
+
+  // Top tickers by mention count
+  const top10      = freq.slice(0, 10);
+  const freqLabels = top10.map(r => r.symbol);
+  const freqCounts = top10.map(r => parseInt(r.mention_count) || 0);
+
+  new Chart(document.getElementById("freq-chart"), {
+    type: "bar",
+    data: {
+      labels: freqLabels,
+      datasets: [{
+        label: "Mentions",
+        data: freqCounts,
+        backgroundColor: "#1D9E75",
+      }]
+    },
+    options: { plugins: { legend: { display: false } }, indexAxis: "y" }
+  });
+
+  // Bullish vs bearish ratio (doughnut)
+  const totalBullish = bullish.reduce((a, b) => a + b, 0);
+  const totalBearish = bearish.reduce((a, b) => a + b, 0);
+  const totalNeutral = neutral.reduce((a, b) => a + b, 0);
+  const totalMixed   = mixed.reduce((a, b) => a + b, 0);
+
+  new Chart(document.getElementById("ratio-chart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Bullish", "Bearish", "Neutral", "Mixed"],
+      datasets: [{
+        data: [totalBullish, totalBearish, totalNeutral, totalMixed],
+        backgroundColor: ["#639922", "#E24B4A", "#888780", "#EF9F27"],
+      }]
+    },
+    options: { plugins: { legend: { position: "bottom" } } }
+  });
+}
+
+loadCharts();
+</script>
+{% endblock %}
