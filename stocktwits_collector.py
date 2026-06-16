@@ -101,9 +101,9 @@ def fetch_finviz_screener(token: str) -> list[dict]:
         return []
 
     reader = csv.DictReader(io.StringIO(resp.text))
-    return list(reader)
-   if rows:
-        print(f"  FinViz columns: {list(rows[0].keys())}")  # temporary debug
+    rows = list(reader)
+    if rows:
+        print(f"  FinViz columns: {list(rows[0].keys())}")
     return rows
 
 
