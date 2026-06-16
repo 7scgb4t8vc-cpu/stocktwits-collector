@@ -1,38 +1,43 @@
 """
 StockTwits Dashboard — Flask App
 =================================
-Reads from CSV files committed by GitHub Actions and serves a live dashboard.
+Fetches CSV files directly from GitHub raw content URLs and serves a live dashboard.
 """
 
 import csv
+import io
 import os
-from pathlib import Path
+import requests
 from flask import Flask, render_template, jsonify, request
-from datetime import datetime
 
 app = Flask(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-DATA_DIR   = Path(os.environ.get("DATA_DIR", "../data"))
-ST_CSV     = DATA_DIR / "stocktwits.csv"
-FINVIZ_CSV = DATA_DIR / "finviz.csv"
-FREQ_CSV   = DATA_DIR / "frequency.csv"
-NLP_CSV    = DATA_DIR / "nlp_output.csv"
+GITHUB_USER = "7scgb4t8vc-cpu"
+GITHUB_REPO = "stocktwits-collector"
+GITHUB_BRANCH = "main"
+RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/data"
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
-def load_csv(path: Path) -> list:
-    if not path.exists():
+def load_csv_from_github(filename: str) -> list:
+    """Fetch a CSV file from GitHub raw content and parse it."""
+    url = f"{RAW_BASE}/{filename}"
+    try:
+        resp = requests.get(url, timeout=10)
+        if resp.status_code != 200:
+            return []
+        reader = csv.DictReader(io.StringIO(resp.text))
+        return list(reader)
+    except Exception:
         return []
-    with open(path, "r", encoding="utf-8") as f:
-        return list(csv.DictReader(f))
 
 
 def load_social():
     """Load StockTwits messages, merge NLP labels if available."""
-    st_rows  = load_csv(ST_CSV)
-    nlp_rows = load_csv(NLP_CSV)
+    st_rows  = load_csv_from_github("stocktwits.csv")
+    nlp_rows = load_csv_from_github("nlp_output.csv")
 
     nlp_map = {}
     for row in nlp_rows:
@@ -57,20 +62,19 @@ def load_social():
 
 def load_screener():
     """Load FinViz data for the screener table."""
-    return load_csv(FINVIZ_CSV)
+    return load_csv_from_github("finviz.csv")
 
 
 def load_frequency():
     """Load ticker mention frequency."""
-    return load_csv(FREQ_CSV)
+    return load_csv_from_github("frequency.csv")
 
 
 def load_charts_data():
     """Compute sentiment breakdown per symbol for charts."""
-    st_rows = load_csv(ST_CSV)
-    nlp_rows = load_csv(NLP_CSV)
+    st_rows  = load_csv_from_github("stocktwits.csv")
+    nlp_rows = load_csv_from_github("nlp_output.csv")
 
-    # Sentiment counts per symbol
     sentiment_by_symbol = {}
     for row in nlp_rows:
         symbol = row.get("symbol", "")
@@ -79,7 +83,6 @@ def load_charts_data():
             sentiment_by_symbol[symbol] = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
         sentiment_by_symbol[symbol][label] = sentiment_by_symbol[symbol].get(label, 0) + 1
 
-    # Message counts over time (by timestamp)
     counts_over_time = {}
     for row in st_rows:
         ts = row.get("timestamp", "")[:16]
@@ -93,7 +96,8 @@ def load_charts_data():
 
 def load_momentum():
     """Load FinViz data sorted by relative volume for momentum view."""
-    rows = load_csv(FINVIZ_CSV)
+    rows = load_csv_from_github("finviz.csv")
+
     def parse_float(v):
         try:
             return float(str(v).replace("%", "").replace(",", "").strip())
