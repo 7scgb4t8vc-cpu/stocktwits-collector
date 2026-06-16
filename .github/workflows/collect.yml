@@ -21,6 +21,8 @@ jobs:
         run: pip install curl-cffi openpyxl requests beautifulsoup4 pytz yfinance anthropic
 
       - name: Run collector
+        env:
+          FINVIZ_API_TOKEN: ${{ secrets.FINVIZ_API_TOKEN }}
         run: python stocktwits_collector.py
 
       - name: Run NLP processor
