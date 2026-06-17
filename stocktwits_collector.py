@@ -88,7 +88,6 @@ def fetch_finviz_screener(token: str) -> list[dict]:
     Filters applied on FinViz side: volume > 100k, rel vol > 1, change up.
     """
     url  = FINVIZ_TECHNICAL_URL.format(token=token)
-    print(f"  Fetching URL: {url[:80]}...")
     try:
         resp = curl_requests.get(url, impersonate=IMPERSONATE, timeout=20)
         print(f"  HTTP status: {resp.status_code}")
