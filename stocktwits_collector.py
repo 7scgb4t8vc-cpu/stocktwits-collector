@@ -71,7 +71,7 @@ FV_HEADERS = {
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
 FINVIZ_FIELDS = [
     "timestamp", "symbol", "price", "change_pct", "volume", "avg_volume",
-    "rel_volume", "market_cap", "rsi", "beta", "52w_high", "52w_low",
+    "market_cap", "rsi", "beta", "52w_high", "52w_low",
     "sector", "industry"
 ]
 
@@ -121,7 +121,6 @@ def parse_finviz_row(row: dict, symbol: str = "") -> dict:
         "change_pct": row.get("Change",                       ""),
         "volume":     row.get("Volume",                       ""),
         "avg_volume": row.get("Average Volume",               ""),
-        "rel_volume": row.get("Relative Volume",              ""),
         "market_cap": row.get("Market Cap",                   ""),
         "rsi":        row.get("Relative Strength Index (14)", ""),
         "beta":       row.get("Beta",                         ""),
@@ -350,7 +349,7 @@ def main():
         fv_data  = parse_finviz_row(fv_raw, symbol)
 
         print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
-              f"Vol={fv_data['volume']} RelVol={fv_data['rel_volume']} RSI={fv_data['rsi']}")
+              f"Vol={fv_data['volume']} RSI={fv_data['rsi']}")
 
         print(f"  [{symbol}] Fetching messages (since_id={since_id})...", end=" ")
         try:
