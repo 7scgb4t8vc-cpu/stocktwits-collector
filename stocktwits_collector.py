@@ -2,13 +2,14 @@
 StockTwits + FinViz Elite Collector
 =====================================
 Each run:
-1. Fetches pre-filtered stocks from FinViz Elite screener export
-   (filters: volume > 100k, rel volume > 1, change up — applied on FinViz side)
-2. Takes the first 7 valid stocks (excludes ETFs via market cap check)
+1. Fetches pre-filtered stocks from FinViz Elite screener export (v=171 Technical view)
+   Filters: volume > 100k, rel volume > 2, change up
+2. Takes the first 7 stocks
 3. Collects StockTwits messages for those stocks
-4. Upserts FinViz data (one row per symbol, always current)
-5. Updates frequency.csv with total mention counts per symbol
-6. Exports everything to a formatted Excel workbook
+4. Fetches sector/industry from yfinance
+5. Upserts FinViz data (one row per symbol, always current)
+6. Updates frequency.csv with total mention counts per symbol
+7. Exports everything to a formatted Excel workbook
 
 Runs in under 60 seconds.
 """
@@ -24,6 +25,7 @@ import pytz
 from pathlib import Path
 
 from curl_cffi import requests as curl_requests
+import requests as std_requests
 import yfinance as yf
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -41,9 +43,7 @@ FINVIZ_CSV    = Path("data/finviz.csv")
 EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
 
-# FinViz Elite screener export URL (filters applied on FinViz side)
-FINVIZ_OVERVIEW_URL  = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
-FINVIZ_TECHNICAL_URL = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}" 
+FINVIZ_TECHNICAL_URL = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
 
 ST_HEADERS = {
     "User-Agent": (
@@ -55,6 +55,17 @@ ST_HEADERS = {
     "Accept-Language": "en-US,en;q=0.9",
     "Referer":         "https://stocktwits.com/",
     "Origin":          "https://stocktwits.com",
+}
+
+FV_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://elite.finviz.com/",
 }
 
 CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
@@ -81,45 +92,55 @@ def save_cursors(cursors: dict):
 
 # ── FinViz Elite screener ─────────────────────────────────────────────────────
 
-def fetch_finviz_screener(token: str) -> list[dict]:
+def fetch_finviz_screener(token: str) -> list:
     """
-    Fetch pre-filtered stocks from FinViz Elite screener export.
+    Fetch pre-filtered stocks from FinViz Elite screener export (v=171 Technical view).
     Returns a list of dicts with FinViz columns.
-    Filters applied on FinViz side: volume > 100k, rel vol > 1, change up.
     """
-    url  = FINVIZ_TECHNICAL_URL.format(token=token)
+    url = FINVIZ_TECHNICAL_URL.format(token=token)
     try:
-        resp = curl_requests.get(url, impersonate=IMPERSONATE, timeout=20)
-        print(f"  HTTP status: {resp.status_code}")
-        resp.raise_for_status()
+        resp = std_requests.get(url, headers=FV_HEADERS, timeout=20)
+        if resp.status_code != 200:
+            print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
+            return []
+        rows = list(csv.DictReader(io.StringIO(resp.text)))
+        print(f"  {len(rows)} stocks passed FinViz filters.")
+        return rows
     except Exception as e:
         print(f"  Error fetching FinViz screener: {e}")
-        print(f"  Response text: {resp.text[:200] if resp else 'no response'}")
         return []
 
-    reader = csv.DictReader(io.StringIO(resp.text))
-    rows = list(reader)
-    if rows:
-        print(f"  FinViz columns: {list(rows[0].keys())}")
-    return rows
 
-
-def parse_finviz_row(row: dict) -> dict:
-    """Map FinViz Elite CSV columns to our internal field names."""
+def parse_finviz_row(row: dict, symbol: str = "") -> dict:
+    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names."""
+    sector, industry = fetch_sector_industry(symbol) if symbol else ("", "")
     return {
-        "price":      row.get("Price",           ""),
-        "change_pct": row.get("Change",          ""),
-        "volume":     row.get("Volume",          ""),
-        "avg_volume": row.get("Avg Volume",  ""),
-        "rel_volume": row.get("Rel Volume", ""),
-        "market_cap": row.get("Market Cap",      ""),
-        "rsi":        row.get("RSI (14)",        ""),
-        "beta":       row.get("Beta",            ""),
-        "52w_high":   row.get("52W High",        ""),
-        "52w_low":    row.get("52W Low",         ""),
-        "sector":     row.get("Sector",          ""),
-        "industry":   row.get("Industry",        ""),
+        "price":      row.get("Price",                        ""),
+        "change_pct": row.get("Change",                       ""),
+        "volume":     row.get("Volume",                       ""),
+        "avg_volume": row.get("Average Volume",               ""),
+        "rel_volume": row.get("Relative Volume",              ""),
+        "market_cap": row.get("Market Cap",                   ""),
+        "rsi":        row.get("Relative Strength Index (14)", ""),
+        "beta":       row.get("Beta",                         ""),
+        "52w_high":   row.get("52-Week High",                 ""),
+        "52w_low":    row.get("52-Week Low",                  ""),
+        "sector":     sector,
+        "industry":   industry,
     }
+
+
+# ── yfinance sector/industry lookup ──────────────────────────────────────────
+
+def fetch_sector_industry(symbol: str) -> tuple:
+    """Get sector and industry for a symbol from Yahoo Finance."""
+    try:
+        info     = yf.Ticker(symbol).info
+        sector   = info.get("sector",   "")
+        industry = info.get("industry", "")
+        return sector, industry
+    except Exception:
+        return "", ""
 
 
 # ── StockTwits fetchers ───────────────────────────────────────────────────────
@@ -277,7 +298,6 @@ def main():
     print(f"StockTwits + FinViz Elite Collector — {timestamp}")
     print(f"{'='*55}")
 
-    # Load API token from environment
     finviz_token = os.environ.get("FINVIZ_API_TOKEN", "")
     if not finviz_token:
         print("✗ FINVIZ_API_TOKEN environment variable not set.")
@@ -293,8 +313,6 @@ def main():
         print("  No results from FinViz screener — filters may be too strict or market is closed.")
         return
 
-    print(f"  {len(fv_screener_rows)} stocks passed FinViz filters.")
-
     # Step 2 — cross-reference with StockTwits trending, pick up to TOP_N_KEEP
     print("\nFetching StockTwits trending stocks...")
     try:
@@ -304,15 +322,14 @@ def main():
         print(f"  Error fetching trending: {e}")
         trending_syms = set()
 
-    # Build FinViz lookup by symbol
+    # Build FinViz lookup by ticker
     fv_lookup = {}
     for row in fv_screener_rows:
         sym = row.get("Ticker", "").strip()
         if sym:
             fv_lookup[sym] = row
 
-    # Prefer stocks that are both in FinViz results AND trending on StockTwits
-    # Fall back to any FinViz result if not enough overlap
+    # Prefer stocks trending on StockTwits, fill remaining from FinViz list
     prioritized = [s for s in fv_lookup if s in trending_syms]
     remaining   = [s for s in fv_lookup if s not in trending_syms]
     candidates  = (prioritized + remaining)[:TOP_N_KEEP]
@@ -331,9 +348,8 @@ def main():
         fv_data  = parse_finviz_row(fv_raw, symbol)
 
         print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
-              f"Vol={fv_data['volume']} RelVol={fv_data['rel_volume']}")
+              f"Vol={fv_data['volume']} RelVol={fv_data['rel_volume']} RSI={fv_data['rsi']}")
 
-        # Fetch StockTwits messages
         print(f"  [{symbol}] Fetching messages (since_id={since_id})...", end=" ")
         try:
             messages = fetch_new_messages(symbol, since_id)
