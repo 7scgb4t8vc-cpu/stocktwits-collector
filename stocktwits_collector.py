@@ -42,10 +42,8 @@ EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
 
 # FinViz Elite screener export URL (filters applied on FinViz side)
-FINVIZ_EXPORT_URL = (
-    "https://elite.finviz.com/export"
-    "?v=111&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
-)
+FINVIZ_OVERVIEW_URL  = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
+FINVIZ_TECHNICAL_URL = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}" 
 
 ST_HEADERS = {
     "User-Agent": (
@@ -331,7 +329,7 @@ def main():
     for symbol in candidates:
         since_id = cursors.get(symbol)
         fv_raw   = fv_lookup[symbol]
-        fv_data  = parse_finviz_row(fv_raw)
+        fv_data  = parse_finviz_row(fv_raw, symbol)
 
         print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
               f"Vol={fv_data['volume']} RelVol={fv_data['rel_volume']}")
