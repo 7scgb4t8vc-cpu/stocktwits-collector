@@ -11,18 +11,18 @@ timestamp,symbol,price,change_pct,volume,avg_volume,rel_volume,market_cap,rsi,be
 2026-06-16 16:48 ET,KRMN,51.70,7.11%,6364142,,,6851.60,,,,,Industrials,Aerospace & Defense
 2026-06-16 16:48 ET,LION,16.36,13.85%,16265022,,,4754.77,,,,,Financial,Shell Companies
 2026-06-16 16:48 ET,MGNI,18.55,10.75%,6374005,,,2656.64,,,,,Communication Services,Advertising Agencies
-2026-06-17 15:59 ET,RXT,7.54,21.42%,63413054,,,,69.17,3.01,-1.44%,1818.58%,Technology,Software - Infrastructure
+2026-06-17 16:03 ET,RXT,7.53,21.26%,64639476,,,,69.13,3.01,-1.57%,1816.03%,Technology,Software - Infrastructure
 2026-06-16 16:48 ET,WYFI,35.65,18.91%,4975888,,,1376.59,,,,,Technology,Information Technology Services
 2026-06-16 16:48 ET,ABCB,88.47,0.71%,1009561,,,5953.37,,,,,Financial,Banks - Regional
-2026-06-17 15:59 ET,ARQQ,22.62,13.47%,2707064,,,,73.24,2.31,-63.51%,96.40%,Technology,Software - Infrastructure
+2026-06-17 16:03 ET,ARQQ,22.60,13.34%,2763296,,,,73.20,2.31,-63.55%,96.18%,Technology,Software - Infrastructure
 2026-06-17 10:25 ET,BHVN,13.56,12.16%,1960505,,,2041.60,,,,,Healthcare,Biotechnology
 2026-06-17 10:25 ET,BTGO,6.05,11.15%,1391596,,,701.18,,,,,Financial,Capital Markets
 2026-06-17 10:25 ET,CPNG,19.15,6.21%,9123877,,,34375.48,,,,,Consumer Cyclical,Internet Retail
 2026-06-17 10:25 ET,EOSE,7.50,10.13%,13526949,,,2546.39,,,,,Industrials,Electrical Equipment & Parts
 2026-06-17 10:25 ET,FIG,18.86,4.89%,9260523,,,9965.18,,,,,Technology,Software - Application
 2026-06-17 10:25 ET,FRMI,8.40,6.66%,9369458,,,5358.82,,,,,Real Estate,REIT - Specialty
-2026-06-17 15:59 ET,HOOD,105.18,8.76%,66265805,,,,69.40,2.34,-31.64%,65.60%,Financial Services,Capital Markets
-2026-06-17 15:59 ET,OCUL,9.62,7.61%,6882611,,,,62.08,0.90,-41.48%,54.41%,Healthcare,Biotechnology
-2026-06-17 15:59 ET,PDYN,6.95,16.33%,9552538,,,,50.68,3.63,-46.58%,67.75%,Technology,Software - Infrastructure
-2026-06-17 15:59 ET,QURE,48.15,78.40%,19093985,,,,83.59,1.02,-32.66%,451.55%,Healthcare,Biotechnology
-2026-06-17 15:59 ET,ACON,3.12,6.12%,338216,,,,45.03,1.20,-74.06%,33.33%,Healthcare,Health Information Services
+2026-06-17 16:03 ET,HOOD,105.20,8.78%,69773888,,,,69.41,2.34,-31.63%,65.63%,Financial Services,Capital Markets
+2026-06-17 16:03 ET,OCUL,9.64,7.83%,7382912,,,,62.29,0.90,-41.36%,54.73%,Healthcare,Biotechnology
+2026-06-17 16:03 ET,PDYN,6.96,16.58%,9774788,,,,50.80,3.63,-46.46%,68.12%,Technology,Software - Infrastructure
+2026-06-17 16:03 ET,QURE,48.16,78.44%,19603366,,,,83.59,1.02,-32.64%,451.66%,Healthcare,Biotechnology
+2026-06-17 16:03 ET,ACON,3.11,5.78%,341167,,,,44.58,1.20,-74.15%,32.90%,Healthcare,Health Information Services
