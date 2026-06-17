@@ -44,11 +44,7 @@ CURSOR_FILE   = Path("data/cursors.json")
 # FinViz Elite screener export URL (filters applied on FinViz side)
 FINVIZ_EXPORT_URL = (
     "https://elite.finviz.com/export"
-    "?v=111"
-    "&f=sh_curvol_o100,sh_relvol_o2,ta_change_u"
-    "&ft=4"
-    "&c=1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70"
-    "&auth={token}"
+    "?v=111&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
 )
 
 ST_HEADERS = {
@@ -94,11 +90,14 @@ def fetch_finviz_screener(token: str) -> list[dict]:
     Filters applied on FinViz side: volume > 100k, rel vol > 1, change up.
     """
     url  = FINVIZ_EXPORT_URL.format(token=token)
+    print(f"  Fetching URL: {url[:80]}...")
     try:
         resp = curl_requests.get(url, impersonate=IMPERSONATE, timeout=20)
+        print(f"  HTTP status: {resp.status_code}")
         resp.raise_for_status()
     except Exception as e:
         print(f"  Error fetching FinViz screener: {e}")
+        print(f"  Response text: {resp.text[:200] if resp else 'no response'}")
         return []
 
     reader = csv.DictReader(io.StringIO(resp.text))
