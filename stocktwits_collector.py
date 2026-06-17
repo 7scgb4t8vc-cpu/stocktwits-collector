@@ -87,7 +87,7 @@ def fetch_finviz_screener(token: str) -> list[dict]:
     Returns a list of dicts with FinViz columns.
     Filters applied on FinViz side: volume > 100k, rel vol > 1, change up.
     """
-    url  = FINVIZ_EXPORT_URL.format(token=token)
+    url  = FINVIZ_TECHNICAL_URL.format(token=token)
     print(f"  Fetching URL: {url[:80]}...")
     try:
         resp = curl_requests.get(url, impersonate=IMPERSONATE, timeout=20)
