@@ -1,0 +1,8 @@
+timestamp,symbol,price,change_pct,volume,avg_volume,market_cap,rsi,beta,52w_high,52w_low,sector,industry
+2026-06-17 16:07 ET,HOOD,105.20,8.78%,69849626,,,69.41,2.34,-31.63%,65.63%,Financial Services,Capital Markets
+2026-06-17 16:07 ET,QURE,48.16,78.44%,19606816,,,83.59,1.02,-32.64%,451.66%,Healthcare,Biotechnology
+2026-06-17 16:07 ET,RXT,7.53,21.26%,64823665,,,69.13,3.01,-1.57%,1816.03%,Technology,Software - Infrastructure
+2026-06-17 16:07 ET,ACON,3.11,5.78%,341174,,,44.58,1.20,-74.15%,32.90%,Healthcare,Health Information Services
+2026-06-17 16:07 ET,AIBZ,8.77,15.39%,1008877,,,65.95,,-14.44%,352.06%,Technology,Software - Infrastructure
+2026-06-17 16:07 ET,ALBT,0.36,15.59%,2850774,,,49.71,-0.04,-92.42%,71.19%,Real Estate,Real Estate Services
+2026-06-17 16:07 ET,ALOT,28.35,69.86%,2391650,,,91.91,0.99,59.99%,307.33%,Technology,Computer Hardware
