@@ -145,7 +145,7 @@ def api_social():
     if label:
         rows = [r for r in rows if r["sentiment"].lower() == label.lower()
                 or r["nlp_label"].lower() == label.lower()]
-    return jsonify(rows[:200])
+    return jsonify(rows)
 
 
 @app.route("/api/screener")
