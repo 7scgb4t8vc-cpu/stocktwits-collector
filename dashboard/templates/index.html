@@ -4,6 +4,10 @@
 <div class="page-header">
   <h1>Dashboard</h1>
   <p class="page-subtitle">Overview of StockTwits sentiment and market activity</p>
+  <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.75rem">
+    <button class="btn-refresh" id="btn-trigger" onclick="triggerRefresh()">⚡ Fetch Fresh Data</button>
+    <span id="trigger-status" style="font-size:13px;color:var(--muted)"></span>
+  </div>
 </div>
 
 <div class="stats-bar" id="stats-bar">
@@ -110,55 +114,30 @@ async function loadDashboard() {
   }
 }
 
+async function triggerRefresh() {
+  const btn    = document.getElementById("btn-trigger");
+  const status = document.getElementById("trigger-status");
+  btn.disabled = true;
+  status.textContent = "Triggering workflow...";
+  try {
+    const res  = await fetch("/api/trigger-refresh", { method: "POST" });
+    const data = await res.json();
+    if (data.status === "triggered") {
+      status.textContent = "✅ Running! Data updates in ~30s.";
+      setTimeout(() => loadDashboard(), 35000);
+    } else {
+      status.textContent = "❌ Failed: " + data.error;
+    }
+  } catch (e) {
+    status.textContent = "❌ Error triggering workflow.";
+  }
+  setTimeout(() => { btn.disabled = false; status.textContent = ""; }, 40000);
+}
+
 function escapeHtml(t) {
   return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 }
 
 window.registerPageLoader(loadDashboard);
 </script>
-
-<style>
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-top: 1rem;
-}
-.dash-section--wide { grid-column: 1 / -1; }
-.section-title {
-  font-size: 1rem;
-  font-weight: 600;
-  margin-bottom: 0.75rem;
-  color: var(--text-secondary, #aaa);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-.dash-row {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.4rem 0;
-  border-bottom: 1px solid var(--border, #222);
-}
-.dash-bar-wrap {
-  flex: 1;
-  background: var(--border, #222);
-  border-radius: 4px;
-  height: 6px;
-  overflow: hidden;
-}
-.dash-bar {
-  display: block;
-  height: 100%;
-  background: var(--accent, #3b82f6);
-  border-radius: 4px;
-}
-.dash-count { font-size: 0.8rem; color: var(--text-secondary, #aaa); min-width: 2rem; text-align: right; }
-.dash-label { flex: 1; font-size: 0.8rem; color: var(--text-secondary, #aaa); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dash-meta  { font-size: 0.75rem; color: var(--text-secondary, #aaa); }
-@media (max-width: 600px) {
-  .dashboard-grid { grid-template-columns: 1fr; }
-  .dash-section--wide { grid-column: 1; }
-}
-</style>
 {% endblock %}
