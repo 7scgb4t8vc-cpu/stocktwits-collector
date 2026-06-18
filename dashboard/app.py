@@ -22,7 +22,6 @@ RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITH
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
 def load_csv_from_github(filename: str) -> list:
-    """Fetch a CSV file from GitHub raw content and parse it."""
     url = f"{RAW_BASE}/{filename}"
     try:
         resp = requests.get(url, timeout=10)
@@ -35,7 +34,6 @@ def load_csv_from_github(filename: str) -> list:
 
 
 def load_social():
-    """Load StockTwits messages, merge NLP labels if available."""
     st_rows  = load_csv_from_github("stocktwits.csv")
     nlp_rows = load_csv_from_github("nlp_output.csv")
 
@@ -61,17 +59,14 @@ def load_social():
 
 
 def load_screener():
-    """Load FinViz data for the screener table."""
     return load_csv_from_github("finviz.csv")
 
 
 def load_frequency():
-    """Load ticker mention frequency."""
     return load_csv_from_github("frequency.csv")
 
 
 def load_charts_data():
-    """Compute sentiment breakdown per symbol for charts."""
     st_rows  = load_csv_from_github("stocktwits.csv")
     nlp_rows = load_csv_from_github("nlp_output.csv")
 
@@ -95,7 +90,6 @@ def load_charts_data():
 
 
 def load_momentum():
-    """Load FinViz data sorted by relative volume for momentum view."""
     rows = load_csv_from_github("finviz.csv")
 
     def parse_float(v):
@@ -171,6 +165,26 @@ def api_charts():
 @app.route("/api/momentum")
 def api_momentum():
     return jsonify(load_momentum())
+
+
+@app.route("/api/trigger-refresh", methods=["POST"])
+def trigger_refresh():
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        return jsonify({"error": "No token configured"}), 500
+
+    resp = requests.post(
+        f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/actions/workflows/collect.yml/dispatches",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+        },
+        json={"ref": GITHUB_BRANCH},
+        timeout=10,
+    )
+    if resp.status_code == 204:
+        return jsonify({"status": "triggered"})
+    return jsonify({"error": resp.text}), resp.status_code
 
 
 if __name__ == "__main__":
