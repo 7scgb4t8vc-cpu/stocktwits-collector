@@ -4,7 +4,7 @@ StockTwits + FinViz Elite Collector
 Each run:
 1. Fetches pre-filtered stocks from FinViz Elite screener export (v=171 Technical view)
    Filters: volume > 100k, rel volume > 2, change up
-2. Takes the first 7 stocks
+2. Cross-references against a fixed 26-stock watchlist
 3. Collects StockTwits messages for those stocks
 4. Fetches sector/industry from yfinance
 5. Upserts FinViz data (one row per symbol, always current)
@@ -42,6 +42,13 @@ FREQ_CSV      = Path("data/frequency.csv")
 FINVIZ_CSV    = Path("data/finviz.csv")
 EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
+
+# Fixed watchlist — locked in, no longer dynamically selected from trending
+WATCHLIST = [
+    "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
+    "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
+    "ABG", "ABNB", "ABTC", "ABUS", "ACA", "ACH", "ACLO", "ACMR", "ACR"
+]
 
 FINVIZ_TECHNICAL_URL = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
 
@@ -312,8 +319,8 @@ def main():
         print("  No results from FinViz screener — filters may be too strict or market is closed.")
         return
 
-    # Step 2 — cross-reference with StockTwits trending, pick up to TOP_N_KEEP
-    print("\nFetching StockTwits trending stocks...")
+    # Step 2 — cross-reference fixed watchlist against FinViz filter results
+    print("\nFetching StockTwits trending stocks (for reference only)...")
     try:
         trending      = fetch_trending()
         trending_syms = {s["symbol"] for s in trending}
@@ -328,13 +335,15 @@ def main():
         if sym:
             fv_lookup[sym] = row
 
-    # Prefer stocks trending on StockTwits, fill remaining from FinViz list
-    prioritized = [s for s in fv_lookup if s in trending_syms]
-    remaining   = [s for s in fv_lookup if s not in trending_syms]
-    candidates  = (prioritized + remaining)[:TOP_N_KEEP]
+    # Use fixed watchlist — only track symbols that are also in the FinViz filter results
+    candidates = [s for s in WATCHLIST if s in fv_lookup][:TOP_N_KEEP]
+    skipped    = [s for s in WATCHLIST if s not in fv_lookup]
 
-    print(f"  Trending overlap: {prioritized[:TOP_N_KEEP]}")
+    print(f"  Watchlist: {WATCHLIST}")
+    print(f"  Trending overlap: {[s for s in WATCHLIST if s in trending_syms]}")
     print(f"  Selected ({len(candidates)}): {', '.join(candidates)}")
+    if skipped:
+        print(f"  Skipped (not in today's FinViz filter results): {', '.join(skipped)}")
 
     st_rows = []
     fv_rows = []
