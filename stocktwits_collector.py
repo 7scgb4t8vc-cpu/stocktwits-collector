@@ -35,7 +35,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
-TOP_N_KEEP    = 7
+TOP_N_KEEP    = 20
 MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 FREQ_CSV      = Path("data/frequency.csv")
