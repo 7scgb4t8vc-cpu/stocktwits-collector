@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <p class="page-subtitle">Overview of StockTwits sentiment and market activity</p>
+</div>
+
+<div class="stats-bar" id="stats-bar">
+  <div class="stat-chip"><span id="stat-total">—</span> messages</div>
+  <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> bullish</div>
+  <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
+  <div class="stat-chip neutral-chip"><span id="stat-neutral">—</span> neutral</div>
+</div>
+
+<div class="dashboard-grid">
+
+  <div class="dash-section">
+    <h2 class="section-title">🔥 Top Mentioned Symbols</h2>
+    <div id="frequency-list" class="loading">Loading...</div>
+  </div>
+
+  <div class="dash-section">
+    <h2 class="section-title">⚡ Top Momentum</h2>
+    <div id="momentum-list" class="loading">Loading...</div>
+  </div>
+
+  <div class="dash-section dash-section--wide">
+    <h2 class="section-title">💬 Latest Messages</h2>
+    <div id="feed" class="loading">Loading...</div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadDashboard() {
+  const [socialRes, freqRes, momRes] = await Promise.all([
+    fetch("/api/social"),
+    fetch("/api/frequency"),
+    fetch("/api/momentum"),
+  ]);
+
+  const social = await socialRes.json();
+  const freq   = await freqRes.json();
+  const mom    = await momRes.json();
+
+  let bullish = 0, bearish = 0, neutral = 0;
+  social.forEach(r => {
+    const l = (r.nlp_label || r.sentiment || "").toLowerCase();
+    if (l === "bullish") bullish++;
+    else if (l === "bearish") bearish++;
+    else neutral++;
+  });
+  document.getElementById("stat-total").textContent   = social.length;
+  document.getElementById("stat-bullish").textContent = bullish;
+  document.getElementById("stat-bearish").textContent = bearish;
+  document.getElementById("stat-neutral").textContent = neutral;
+
+  const freqEl = document.getElementById("frequency-list");
+  if (!freq.length) {
+    freqEl.innerHTML = '<div class="empty">No data.</div>';
+  } else {
+    freqEl.innerHTML = freq.slice(0, 10).map(r => `
+      <div class="dash-row">
+        <span class="ticker-badge">${r.symbol}</span>
+        <span class="dash-bar-wrap">
+          <span class="dash-bar" style="width:${Math.min(100, (r.count / freq[0].count) * 100)}%"></span>
+        </span>
+        <span class="dash-count">${r.count}</span>
+      </div>`).join("");
+  }
+
+  const momEl = document.getElementById("momentum-list");
+  if (!mom.length) {
+    momEl.innerHTML = '<div class="empty">No data.</div>';
+  } else {
+    momEl.innerHTML = mom.slice(0, 10).map(r => {
+      const chg    = parseFloat(r.change_pct) || 0;
+      const chgCls = chg >= 0 ? "bullish" : "bearish";
+      const sign   = chg >= 0 ? "+" : "";
+      return `
+      <div class="dash-row">
+        <span class="ticker-badge">${r.ticker || r.symbol || ""}</span>
+        <span class="dash-label">${r.company || ""}</span>
+        <span class="sentiment-badge badge-${chgCls}">${sign}${chg.toFixed(2)}%</span>
+        <span class="dash-meta">Vol ${r.rel_volume || "—"}x</span>
+      </div>`;
+    }).join("");
+  }
+
+  const feedEl = document.getElementById("feed");
+  if (!social.length) {
+    feedEl.innerHTML = '<div class="empty">No messages.</div>';
+  } else {
+    feedEl.innerHTML = social.slice(0, 10).map(r => {
+      const label = r.nlp_label || r.sentiment || "none";
+      return `
+        <div class="feed-card sentiment-${label.toLowerCase()}">
+          <div class="card-header">
+            <span class="ticker-badge">${r.symbol}</span>
+            <span class="sentiment-badge badge-${label.toLowerCase()}">${label}</span>
+            <span class="card-time">${r.timestamp}</span>
+          </div>
+          <p class="card-message">${escapeHtml(r.message)}</p>
+        </div>`;
+    }).join("");
+  }
+}
+
+function escapeHtml(t) {
+  return t.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+window.registerPageLoader(loadDashboard);
+</script>
+
+<style>
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+.dash-section--wide { grid-column: 1 / -1; }
+.section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  color: var(--text-secondary, #aaa);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.dash-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+  border-bottom: 1px solid var(--border, #222);
+}
+.dash-bar-wrap {
+  flex: 1;
+  background: var(--border, #222);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+}
+.dash-bar {
+  display: block;
+  height: 100%;
+  background: var(--accent, #3b82f6);
+  border-radius: 4px;
+}
+.dash-count { font-size: 0.8rem; color: var(--text-secondary, #aaa); min-width: 2rem; text-align: right; }
+.dash-label { flex: 1; font-size: 0.8rem; color: var(--text-secondary, #aaa); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-meta  { font-size: 0.75rem; color: var(--text-secondary, #aaa); }
+@media (max-width: 600px) {
+  .dashboard-grid { grid-template-columns: 1fr; }
+  .dash-section--wide { grid-column: 1; }
+}
+</style>
+{% endblock %}
