@@ -115,7 +115,7 @@ def load_momentum():
 
 @app.route("/")
 def index():
-    return render_template("social.html", page="social")
+    return render_template("index.html", page="home")
 
 
 @app.route("/social")
