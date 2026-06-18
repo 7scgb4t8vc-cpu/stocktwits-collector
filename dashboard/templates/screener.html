@@ -3,108 +3,292 @@
 
 <div class="page-header">
   <h1>Screener</h1>
-  <p class="page-subtitle">FinViz metrics for tracked stocks</p>
+  <p class="page-subtitle">FinViz metrics with StockTwits sentiment — refreshes on your schedule</p>
 </div>
 
-<div class="filter-bar">
-  <input type="text" id="filter-symbol" placeholder="Filter by symbol" class="filter-input" />
+<div class="filter-bar" style="flex-wrap: wrap; gap: 10px; align-items: center;">
+  <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
   <select id="filter-sector" class="filter-select">
     <option value="">All sectors</option>
   </select>
-  <button class="btn-refresh" onclick="loadScreener()">↻ Refresh</button>
+
+  <div class="timeframe-group" style="display:flex; align-items:center; gap:6px; margin-left:auto;">
+    <label style="font-size:13px; color:var(--color-muted, #888); white-space:nowrap;">Auto-refresh:</label>
+    <select id="timeframe-select" class="filter-select" style="width:auto;">
+      <option value="3600">Hourly</option>
+      <option value="86400">Daily</option>
+      <option value="604800">Weekly</option>
+      <option value="2592000">Monthly</option>
+      <option value="31536000">Yearly</option>
+    </select>
+    <span id="refresh-countdown" style="font-size:13px; color:var(--color-muted, #888); min-width:80px; text-align:right;"></span>
+  </div>
+
+  <button class="btn-refresh" onclick="loadScreener()">↻ Refresh now</button>
 </div>
 
-<div class="table-wrap">
-  <table class="data-table" id="screener-table">
+<div class="stats-bar" id="stats-bar" style="margin:12px 0; display:flex; gap:12px; flex-wrap:wrap;">
+  <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
+  <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> bullish</div>
+  <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
+  <div class="stat-chip"><span id="stat-last-updated">—</span></div>
+</div>
+
+<div class="table-wrap" style="overflow-x:auto;">
+  <table class="data-table sortable-table" id="screener-table">
     <thead>
       <tr>
-        <th>Symbol</th>
-        <th>Price</th>
-        <th>Change %</th>
-        <th>Volume</th>
-        <th>Rel Vol</th>
-        <th>Market Cap</th>
-        <th>RSI</th>
-        <th>Beta</th>
-        <th>52W High</th>
-        <th>52W Low</th>
-        <th>Sector</th>
-        <th>Industry</th>
-        <th>Updated</th>
+        <th data-col="symbol"     class="sortable">Symbol <span class="sort-arrow">↕</span></th>
+        <th data-col="price"      class="sortable">Price <span class="sort-arrow">↕</span></th>
+        <th data-col="change_pct" class="sortable">Change % <span class="sort-arrow">↕</span></th>
+        <th data-col="volume"     class="sortable">Volume <span class="sort-arrow">↕</span></th>
+        <th data-col="rel_volume" class="sortable">Rel Vol <span class="sort-arrow">↕</span></th>
+        <th data-col="market_cap" class="sortable">Mkt Cap <span class="sort-arrow">↕</span></th>
+        <th data-col="rsi"        class="sortable">RSI <span class="sort-arrow">↕</span></th>
+        <th data-col="beta"       class="sortable">Beta <span class="sort-arrow">↕</span></th>
+        <th data-col="52w_high"   class="sortable">52W High <span class="sort-arrow">↕</span></th>
+        <th data-col="52w_low"    class="sortable">52W Low <span class="sort-arrow">↕</span></th>
+        <th data-col="sentiment"  class="sortable">Sentiment <span class="sort-arrow">↕</span></th>
+        <th data-col="sector"     class="sortable">Sector <span class="sort-arrow">↕</span></th>
+        <th data-col="industry"   class="sortable">Industry <span class="sort-arrow">↕</span></th>
+        <th data-col="timestamp"  class="sortable">Updated <span class="sort-arrow">↕</span></th>
       </tr>
     </thead>
     <tbody id="screener-body">
-      <tr><td colspan="13" class="loading">Loading...</td></tr>
+      <tr><td colspan="14" class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
+
+<style>
+.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.sortable:hover { background: rgba(0,0,0,0.04); }
+.sort-arrow { font-size: 11px; opacity: 0.4; margin-left: 3px; }
+th.sort-asc  .sort-arrow { opacity: 1; }
+th.sort-desc .sort-arrow { opacity: 1; }
+th.sort-asc  .sort-arrow::after { content: "↑"; }
+th.sort-desc .sort-arrow::after { content: "↓"; }
+th.sort-asc  .sort-arrow,
+th.sort-desc .sort-arrow { font-size: 13px; }
+.sentiment-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-bullish  { background: #C6EFCE; color: #1e6b38; }
+.badge-bearish  { background: #FFC7CE; color: #9b1c1c; }
+.badge-none, .badge-neutral { background: #f0f0f0; color: #555; }
+</style>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-let allRows = [];
+let allRows      = [];
+let sortCol      = "";
+let sortDir      = 1;
+let refreshTimer = null;
+let countdownInterval = null;
+let nextRefreshAt = 0;
+
+const TIMEFRAME_LABELS = {
+  "3600":    "Hourly",
+  "86400":   "Daily",
+  "604800":  "Weekly",
+  "2592000": "Monthly",
+  "31536000":"Yearly",
+};
+
+function getIntervalSeconds() {
+  return parseInt(document.getElementById("timeframe-select").value, 10);
+}
+
+function scheduleRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  if (countdownInterval) clearInterval(countdownInterval);
+
+  const secs = getIntervalSeconds();
+  nextRefreshAt = Date.now() + secs * 1000;
+
+  refreshTimer = setInterval(() => {
+    loadScreener();
+    nextRefreshAt = Date.now() + secs * 1000;
+  }, secs * 1000);
+
+  countdownInterval = setInterval(updateCountdown, 1000);
+  updateCountdown();
+}
+
+function updateCountdown() {
+  const remaining = Math.max(0, Math.round((nextRefreshAt - Date.now()) / 1000));
+  const el = document.getElementById("refresh-countdown");
+  if (!el) return;
+  if (remaining >= 3600) {
+    const h = Math.floor(remaining / 3600);
+    const m = Math.floor((remaining % 3600) / 60);
+    el.textContent = `next in ${h}h ${m}m`;
+  } else if (remaining >= 60) {
+    const m = Math.floor(remaining / 60);
+    const s = remaining % 60;
+    el.textContent = `next in ${m}m ${s}s`;
+  } else {
+    el.textContent = `next in ${remaining}s`;
+  }
+}
 
 async function loadScreener() {
   try {
-    const res = await fetch("/api/screener");
-    allRows   = await res.json();
+    const [screenerRes, socialRes] = await Promise.all([
+      fetch("/api/screener"),
+      fetch("/api/social?limit=500"),
+    ]);
+    const screenerRows = await screenerRes.json();
+    const socialRows   = await socialRes.json();
+
+    const sentimentMap = {};
+    for (const msg of socialRows) {
+      const sym   = msg.symbol;
+      const label = (msg.nlp_label || msg.sentiment || "None").toLowerCase();
+      if (!sentimentMap[sym]) sentimentMap[sym] = { bullish: 0, bearish: 0, none: 0 };
+      if (label === "bullish") sentimentMap[sym].bullish++;
+      else if (label === "bearish") sentimentMap[sym].bearish++;
+      else sentimentMap[sym].none++;
+    }
+
+    allRows = screenerRows.map(r => {
+      const sym   = r.symbol || "";
+      const sc    = sentimentMap[sym] || { bullish: 0, bearish: 0, none: 0 };
+      const total = sc.bullish + sc.bearish + sc.none || 1;
+      let dominant = "None";
+      if (sc.bullish > sc.bearish && sc.bullish > sc.none) dominant = "Bullish";
+      else if (sc.bearish > sc.bullish && sc.bearish > sc.none) dominant = "Bearish";
+      return { ...r, sentiment: dominant, _sentiment_counts: sc };
+    });
+
     populateSectors(allRows);
-    renderTable(allRows);
+    applyFilters();
+    updateStats(allRows, sentimentMap);
+
+    document.getElementById("stat-last-updated").textContent =
+      "Updated " + new Date().toLocaleTimeString();
+
   } catch(e) {
     document.getElementById("screener-body").innerHTML =
-      '<tr><td colspan="13" class="error">Failed to load data.</td></tr>';
+      '<tr><td colspan="14" class="error">Failed to load data.</td></tr>';
   }
+}
+
+function updateStats(rows, sentimentMap) {
+  let bull = 0, bear = 0;
+  rows.forEach(r => {
+    const sc = r._sentiment_counts || {};
+    if ((sc.bullish || 0) > (sc.bearish || 0)) bull++;
+    else if ((sc.bearish || 0) > (sc.bullish || 0)) bear++;
+  });
+  document.getElementById("stat-total").textContent   = rows.length;
+  document.getElementById("stat-bullish").textContent = bull;
+  document.getElementById("stat-bearish").textContent = bear;
 }
 
 function populateSectors(rows) {
   const sectors = [...new Set(rows.map(r => r.sector).filter(Boolean))].sort();
-  const sel = document.getElementById("filter-sector");
+  const sel     = document.getElementById("filter-sector");
+  const current = sel.value;
   sel.innerHTML = '<option value="">All sectors</option>' +
-    sectors.map(s => `<option value="${s}">${s}</option>`).join("");
+    sectors.map(s => `<option value="${s}"${s===current?" selected":""}>${s}</option>`).join("");
+}
+
+function applyFilters() {
+  const sym    = document.getElementById("filter-symbol").value.toUpperCase();
+  const sector = document.getElementById("filter-sector").value;
+  let filtered = allRows.filter(r =>
+    (!sym    || r.symbol.includes(sym) || (r.sector||"").toUpperCase().includes(sym) || (r.industry||"").toUpperCase().includes(sym)) &&
+    (!sector || r.sector === sector)
+  );
+  if (sortCol) filtered = sortRows(filtered, sortCol, sortDir);
+  renderTable(filtered);
+}
+
+function parseNum(v) {
+  if (v === undefined || v === null || v === "") return NaN;
+  return parseFloat(String(v).replace(/[%,$,B,M,K,x]/gi, "").replace(/,/g, "").trim());
+}
+
+function sortRows(rows, col, dir) {
+  return [...rows].sort((a, b) => {
+    const av = parseNum(a[col]);
+    const bv = parseNum(b[col]);
+    if (!isNaN(av) && !isNaN(bv)) return (av - bv) * dir;
+    return String(a[col] || "").localeCompare(String(b[col] || "")) * dir;
+  });
 }
 
 function renderTable(rows) {
   const body = document.getElementById("screener-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="13" class="empty">No data found.</td></tr>';
+    body.innerHTML = '<tr><td colspan="14" class="empty">No stocks match your filters.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(r => {
-    const chg     = parseFloat(r.change_pct) || 0;
+    const chg      = parseFloat(r.change_pct) || 0;
     const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const chgStr   = chg > 0 ? `+${r.change_pct}` : r.change_pct;
+    const rsi      = parseFloat(r.rsi);
+    const rsiClass = rsi >= 70 ? "negative" : rsi <= 30 ? "positive" : "";
+    const sent     = r.sentiment || "None";
+    const sentKey  = sent.toLowerCase();
+    const sc       = r._sentiment_counts || {};
+    const scTitle  = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
+
     return `<tr>
       <td><strong>${r.symbol}</strong></td>
-      <td>${r.price}</td>
-      <td class="${chgClass}">${r.change_pct}</td>
-      <td>${r.volume}</td>
-      <td>${r.rel_volume}</td>
-      <td>${r.market_cap}</td>
-      <td>${r.rsi}</td>
-      <td>${r.beta}</td>
-      <td>${r["52w_high"]}</td>
-      <td>${r["52w_low"]}</td>
-      <td>${r.sector}</td>
-      <td>${r.industry}</td>
-      <td>${r.timestamp}</td>
+      <td>${r.price || "—"}</td>
+      <td class="${chgClass}">${chgStr || "—"}</td>
+      <td>${r.volume || "—"}</td>
+      <td>${r.rel_volume || "—"}</td>
+      <td>${r.market_cap || "—"}</td>
+      <td class="${rsiClass}">${r.rsi || "—"}</td>
+      <td>${r.beta || "—"}</td>
+      <td>${r["52w_high"] || "—"}</td>
+      <td>${r["52w_low"] || "—"}</td>
+      <td title="${scTitle}">
+        <span class="sentiment-badge badge-${sentKey}">${sent}</span>
+      </td>
+      <td>${r.sector || "—"}</td>
+      <td>${r.industry || "—"}</td>
+      <td>${r.timestamp || "—"}</td>
     </tr>`;
   }).join("");
 }
 
-function filterTable() {
-  const sym    = document.getElementById("filter-symbol").value.toUpperCase();
-  const sector = document.getElementById("filter-sector").value;
-  const filtered = allRows.filter(r =>
-    (!sym    || r.symbol.includes(sym)) &&
-    (!sector || r.sector === sector)
-  );
-  renderTable(filtered);
-}
+document.getElementById("filter-symbol").addEventListener("input", applyFilters);
+document.getElementById("filter-sector").addEventListener("change", applyFilters);
 
-document.getElementById("filter-symbol").addEventListener("input", filterTable);
-document.getElementById("filter-sector").addEventListener("change", filterTable);
+document.getElementById("timeframe-select").addEventListener("change", () => {
+  scheduleRefresh();
+});
+
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir *= -1;
+      th.className = sortDir === 1 ? "sortable sort-asc" : "sortable sort-desc";
+    } else {
+      document.querySelectorAll("th.sortable").forEach(t =>
+        t.classList.remove("sort-asc", "sort-desc"));
+      sortCol = col;
+      sortDir = 1;
+      th.className = "sortable sort-asc";
+    }
+    applyFilters();
+  });
+});
 
 loadScreener();
-setInterval(loadScreener, 60000);
+scheduleRefresh();
 </script>
 {% endblock %}
