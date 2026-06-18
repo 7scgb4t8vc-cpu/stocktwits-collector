@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Screener</h1>
+  <p class="page-subtitle">FinViz metrics with StockTwits sentiment</p>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
+  <select id="filter-sector" class="filter-select">
+    <option value="">All sectors</option>
+  </select>
+  <button class="btn-refresh" onclick="loadScreener()">↻ Refresh now</button>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
+  <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> net bullish</div>
+  <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> net bearish</div>
+  <div class="stat-chip"><span id="stat-updated">—</span></div>
+</div>
+
+<div class="table-wrap">
+  <table class="data-table" id="screener-table">
+    <thead>
+      <tr>
+        <th class="sortable" data-col="symbol">Symbol <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="price">Price <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="change_pct">Change % <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="volume">Volume <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="rel_volume">Rel Vol <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="market_cap">Mkt Cap <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="rsi">RSI <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="beta">Beta <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="52w_high">52W High <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="52w_low">52W Low <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="sentiment">Sentiment <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="sector">Sector <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="industry">Industry <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="timestamp">Updated <span class="sort-arrow">↕</span></th>
+      </tr>
+    </thead>
+    <tbody id="screener-body">
+      <tr><td colspan="14" class="loading">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<style>
+.sortable { cursor: pointer; user-select: none; }
+.sortable:hover { color: var(--text); }
+.sort-arrow { font-size: 11px; opacity: 0.35; margin-left: 3px; }
+th.sort-asc  .sort-arrow,
+th.sort-desc .sort-arrow { opacity: 1; }
+th.sort-asc  .sort-arrow::after { content: "↑"; }
+th.sort-desc .sort-arrow::after { content: "↓"; }
+th.sort-asc  .sort-arrow,
+th.sort-desc .sort-arrow { font-size: 13px; }
+.sent-badge {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.sent-bullish { background: rgba(99,153,34,0.15); color: #7db83a; border: 1px solid rgba(99,153,34,0.3); }
+.sent-bearish { background: rgba(226,75,74,0.15);  color: #e86a69; border: 1px solid rgba(226,75,74,0.3); }
+.sent-none    { background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allRows = [];
+let sortCol = "";
+let sortDir = 1;
+
+async function loadScreener() {
+  try {
+    const [screenerRes, socialRes] = await Promise.all([
+      fetch("/api/screener"),
+      fetch("/api/social"),
+    ]);
+    const screenerRows = await screenerRes.json();
+    const socialRows   = await socialRes.json();
+
+    // Build sentiment map from social data
+    const sentMap = {};
+    for (const msg of socialRows) {
+      const sym   = msg.symbol;
+      const label = (msg.nlp_label || msg.sentiment || "none").toLowerCase();
+      if (!sentMap[sym]) sentMap[sym] = { bullish: 0, bearish: 0, none: 0 };
+      if (label === "bullish") sentMap[sym].bullish++;
+      else if (label === "bearish") sentMap[sym].bearish++;
+      else sentMap[sym].none++;
+    }
+
+    allRows = screenerRows.map(r => {
+      const sc = sentMap[r.symbol] || { bullish: 0, bearish: 0, none: 0 };
+      let dominant = "None";
+      if (sc.bullish > sc.bearish && sc.bullish > sc.none) dominant = "Bullish";
+      else if (sc.bearish > sc.bullish && sc.bearish > sc.none) dominant = "Bearish";
+      return { ...r, sentiment: dominant, _sc: sc };
+    });
+
+    populateSectors(allRows);
+    applyFilters();
+
+    // Stats
+    let bull = 0, bear = 0;
+    allRows.forEach(r => {
+      if (r.sentiment === "Bullish") bull++;
+      else if (r.sentiment === "Bearish") bear++;
+    });
+    document.getElementById("stat-total").textContent   = allRows.length;
+    document.getElementById("stat-bullish").textContent = bull;
+    document.getElementById("stat-bearish").textContent = bear;
+    document.getElementById("stat-updated").textContent =
+      "Updated " + new Date().toLocaleTimeString();
+
+  } catch (e) {
+    document.getElementById("screener-body").innerHTML =
+      '<tr><td colspan="14" class="error">Failed to load data.</td></tr>';
+  }
+}
+
+function populateSectors(rows) {
+  const sectors = [...new Set(rows.map(r => r.sector).filter(Boolean))].sort();
+  const sel     = document.getElementById("filter-sector");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All sectors</option>' +
+    sectors.map(s => `<option value="${s}"${s === current ? " selected" : ""}>${s}</option>`).join("");
+}
+
+function applyFilters() {
+  const sym    = document.getElementById("filter-symbol").value.toUpperCase();
+  const sector = document.getElementById("filter-sector").value;
+  let filtered = allRows.filter(r =>
+    (!sym    || r.symbol.includes(sym) || (r.sector || "").toUpperCase().includes(sym) || (r.industry || "").toUpperCase().includes(sym)) &&
+    (!sector || r.sector === sector)
+  );
+  if (sortCol) filtered = sortRows(filtered);
+  renderTable(filtered);
+}
+
+function parseNum(v) {
+  return parseFloat(String(v || "").replace(/[%$BMKx,]/gi, "").trim());
+}
+
+function sortRows(rows) {
+  return [...rows].sort((a, b) => {
+    const av = parseNum(a[sortCol]), bv = parseNum(b[sortCol]);
+    if (!isNaN(av) && !isNaN(bv)) return (av - bv) * sortDir;
+    return String(a[sortCol] || "").localeCompare(String(b[sortCol] || "")) * sortDir;
+  });
+}
+
+function renderTable(rows) {
+  const body = document.getElementById("screener-body");
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="14" class="empty">No stocks match your filters.</td></tr>';
+    return;
+  }
+  body.innerHTML = rows.map(r => {
+    const chg      = parseFloat(r.change_pct) || 0;
+    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const chgStr   = chg > 0 ? `+${r.change_pct}` : r.change_pct;
+    const rsi      = parseFloat(r.rsi);
+    const rsiClass = rsi >= 70 ? "negative" : rsi <= 30 ? "positive" : "";
+    const sent     = r.sentiment || "None";
+    const sc       = r._sc || {};
+    const scTip    = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
+    return `<tr>
+      <td><strong>${r.symbol}</strong></td>
+      <td>${r.price || "—"}</td>
+      <td class="${chgClass}">${chgStr || "—"}</td>
+      <td>${r.volume || "—"}</td>
+      <td>${r.rel_volume || "—"}</td>
+      <td>${r.market_cap || "—"}</td>
+      <td class="${rsiClass}">${r.rsi || "—"}</td>
+      <td>${r.beta || "—"}</td>
+      <td>${r["52w_high"] || "—"}</td>
+      <td>${r["52w_low"] || "—"}</td>
+      <td title="${scTip}">
+        <span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
+      </td>
+      <td>${r.sector || "—"}</td>
+      <td>${r.industry || "—"}</td>
+      <td>${r.timestamp || "—"}</td>
+    </tr>`;
+  }).join("");
+}
+
+// Sort headers
+document.querySelectorAll("th.sortable").forEach(th => {
+  th.addEventListener("click", () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir *= -1;
+    } else {
+      document.querySelectorAll("th.sortable").forEach(t => t.classList.remove("sort-asc", "sort-desc"));
+      sortCol = col;
+      sortDir = 1;
+    }
+    th.className = "sortable " + (sortDir === 1 ? "sort-asc" : "sort-desc");
+    applyFilters();
+  });
+});
+
+document.getElementById("filter-symbol").addEventListener("input", applyFilters);
+document.getElementById("filter-sector").addEventListener("change", applyFilters);
+
+window.registerPageLoader(loadScreener);
+</script>
+{% endblock %}
