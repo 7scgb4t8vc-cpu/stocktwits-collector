@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>Momentum</h1>
+  <p class="page-subtitle">Top movers ranked by relative volume</p>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
+  <button class="btn-refresh" onclick="loadMomentum()">↻ Refresh now</button>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
+  <div class="stat-chip positive"><span id="stat-gainers">—</span> gainers</div>
+  <div class="stat-chip negative"><span id="stat-losers">—</span> losers</div>
+  <div class="stat-chip"><span id="stat-updated">—</span></div>
+</div>
+
+<div class="momentum-grid" id="momentum-grid">
+  <div class="loading">Loading...</div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allMomentumRows = [];
+
+async function loadMomentum() {
+  try {
+    const res  = await fetch("/api/momentum");
+    allMomentumRows = await res.json();
+
+    // Stats
+    let gainers = 0, losers = 0;
+    allMomentumRows.forEach(r => {
+      const chg = parseFloat(r.change_pct) || 0;
+      if (chg > 0) gainers++;
+      else if (chg < 0) losers++;
+    });
+    document.getElementById("stat-total").textContent   = allMomentumRows.length;
+    document.getElementById("stat-gainers").textContent = gainers;
+    document.getElementById("stat-losers").textContent  = losers;
+    document.getElementById("stat-updated").textContent =
+      "Updated " + new Date().toLocaleTimeString();
+
+    renderMomentum(allMomentumRows);
+
+  } catch (e) {
+    document.getElementById("momentum-grid").innerHTML =
+      '<div class="error">Failed to load data.</div>';
+  }
+}
+
+function renderMomentum(rows) {
+  const grid = document.getElementById("momentum-grid");
+
+  if (!rows.length) {
+    grid.innerHTML = '<div class="empty">No data available.</div>';
+    return;
+  }
+
+  grid.innerHTML = rows.map(r => {
+    const chg      = parseFloat(r.change_pct) || 0;
+    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const chgSign  = chg > 0 ? "+" : "";
+    const relVol   = parseFloat(r.rel_volume) || 0;
+    const rsi      = parseFloat(r.rsi) || 0;
+    const rsiClass = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
+    const beta     = parseFloat(r.beta) || 0;
+
+    return `
+      <div class="momentum-card">
+        <div class="momentum-header">
+          <span class="ticker-badge">${r.symbol}</span>
+          <span class="momentum-price">$${r.price || "—"}</span>
+        </div>
+        <div class="momentum-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
+        <div class="momentum-stats">
+          <div class="mstat">
+            <span class="mstat-label">Rel Vol</span>
+            <span class="mstat-value">${relVol.toFixed(2)}x</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">Volume</span>
+            <span class="mstat-value">${r.volume || "—"}</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">RSI</span>
+            <span class="mstat-value ${rsiClass}">${rsi.toFixed(1)}</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">Beta</span>
+            <span class="mstat-value">${beta.toFixed(2)}</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">52W High</span>
+            <span class="mstat-value">${r["52w_high"] || "—"}</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">Mkt Cap</span>
+            <span class="mstat-value">${r.market_cap || "—"}</span>
+          </div>
+        </div>
+        <div class="momentum-sector">${r.sector || "—"} · ${r.industry || "—"}</div>
+      </div>`;
+  }).join("");
+}
+
+function filterMomentum() {
+  const sym = document.getElementById("filter-symbol").value.toUpperCase();
+  const filtered = allMomentumRows.filter(r =>
+    !sym ||
+    r.symbol.includes(sym) ||
+    (r.sector || "").toUpperCase().includes(sym) ||
+    (r.industry || "").toUpperCase().includes(sym)
+  );
+  renderMomentum(filtered);
+}
+
+document.getElementById("filter-symbol").addEventListener("input", filterMomentum);
+
+window.registerPageLoader(loadMomentum);
+</script>
+{% endblock %}
