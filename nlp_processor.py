@@ -4,7 +4,10 @@ NLP Sentiment Processor
 Reads stocktwits.csv, cleans message text, then sends ALL messages
 in a single batched Claude API call to classify sentiment.
 
-Outputs a new "NLP Sentiment" sheet in stocktwits_data.xlsx.
+Outputs:
+  - data/nlp_output.csv     : per-message label, score, clean text (read by the Flask dashboard)
+  - data/sentiment_scores.csv : per-stock aggregate sentiment score (signed avg of nlp_score)
+  - "NLP Sentiment" sheet in stocktwits_data.xlsx
 
 Each message gets:
   - nlp_label  : bullish | bearish | neutral | mixed
@@ -23,13 +26,16 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-DATA_CSV   = Path("data/stocktwits.csv")
-EXCEL_FILE = Path("data/stocktwits_data.xlsx")
+DATA_CSV       = Path("data/stocktwits.csv")
+NLP_CSV        = Path("data/nlp_output.csv")
+SENTIMENT_CSV  = Path("data/sentiment_scores.csv")
+EXCEL_FILE     = Path("data/stocktwits_data.xlsx")
 MODEL      = "claude-haiku-4-5"   # fast + cheap; ideal for bulk classification
 MAX_TOKENS = 8000
 BATCH_SIZE = 500                   # max messages per API call (context window safety)
 
 NLP_FIELDS = ["timestamp", "symbol", "clean_text", "original_sentiment", "nlp_label", "nlp_score"]
+SENTIMENT_FIELDS = ["symbol", "sentiment_score", "bullish_count", "bearish_count", "neutral_count", "mixed_count", "total_messages"]
 
 # ── Text cleaning ─────────────────────────────────────────────────────────────
 
@@ -102,6 +108,83 @@ Format: [{{"id": 1, "label": "bullish", "score": 0.85}}, ...]"""
     return {r["id"]: {"label": r["label"], "score": r["score"]} for r in results}
 
 
+# ── Per-stock sentiment score ─────────────────────────────────────────────────
+
+def compute_sentiment_scores(nlp_rows: list[dict]) -> list[dict]:
+    """
+    Aggregate per-message nlp_label + nlp_score into a single signed
+    sentiment score per symbol, in the range -1.0 (very bearish) to
+    +1.0 (very bullish).
+
+    Signing rule per message:
+      bullish ->  +score
+      bearish ->  -score
+      mixed   ->  +/-(score / 2)   (counted as half-weight in both directions, net ~0 unless skewed)
+      neutral ->   0
+    Per-stock score = average of signed values across all its messages.
+    """
+    by_symbol = {}
+    for row in nlp_rows:
+        sym = row.get("symbol", "")
+        if not sym:
+            continue
+        by_symbol.setdefault(sym, []).append(row)
+
+    output = []
+    for sym, rows in by_symbol.items():
+        signed_total = 0.0
+        counts = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
+
+        for row in rows:
+            label = row.get("nlp_label", "neutral")
+            score = float(row.get("nlp_score", 0.0) or 0.0)
+            counts[label] = counts.get(label, 0) + 1
+
+            if label == "bullish":
+                signed_total += score
+            elif label == "bearish":
+                signed_total -= score
+            elif label == "mixed":
+                signed_total += 0.0  # net neutral contribution; strength still counted via 'mixed_count'
+            # neutral contributes 0
+
+        total = len(rows)
+        avg_signed = signed_total / total if total else 0.0
+        avg_signed = max(-1.0, min(1.0, avg_signed))  # clamp just in case
+
+        output.append({
+            "symbol":          sym,
+            "sentiment_score": round(avg_signed, 4),
+            "bullish_count":   counts["bullish"],
+            "bearish_count":   counts["bearish"],
+            "neutral_count":   counts["neutral"],
+            "mixed_count":     counts["mixed"],
+            "total_messages":  total,
+        })
+
+    return sorted(output, key=lambda r: r["sentiment_score"], reverse=True)
+
+
+# ── CSV export ─────────────────────────────────────────────────────────────────
+
+def write_nlp_csv(nlp_rows: list[dict]):
+    NLP_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with open(NLP_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=NLP_FIELDS)
+        writer.writeheader()
+        writer.writerows(nlp_rows)
+    print(f"  Saved {NLP_CSV} — {len(nlp_rows)} rows.")
+
+
+def write_sentiment_csv(sentiment_rows: list[dict]):
+    SENTIMENT_CSV.parent.mkdir(parents=True, exist_ok=True)
+    with open(SENTIMENT_CSV, "w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=SENTIMENT_FIELDS)
+        writer.writeheader()
+        writer.writerows(sentiment_rows)
+    print(f"  Saved {SENTIMENT_CSV} — {len(sentiment_rows)} symbols.")
+
+
 # ── Excel export ──────────────────────────────────────────────────────────────
 
 def write_nlp_sheet(nlp_rows: list[dict]):
@@ -154,6 +237,53 @@ def write_nlp_sheet(nlp_rows: list[dict]):
 
     wb.save(EXCEL_FILE)
     print(f"  Saved 'NLP Sentiment' sheet → {EXCEL_FILE}")
+
+
+def write_sentiment_sheet(sentiment_rows: list[dict]):
+    """Add or replace the 'Sentiment Scores' sheet in the existing Excel workbook."""
+    if not EXCEL_FILE.exists():
+        return
+
+    wb = openpyxl.load_workbook(EXCEL_FILE)
+
+    if "Sentiment Scores" in wb.sheetnames:
+        del wb["Sentiment Scores"]
+
+    ws = wb.create_sheet("Sentiment Scores")
+
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill("solid", fgColor="1F4E79")
+
+    headers = ["SYMBOL", "SENTIMENT SCORE", "BULLISH", "BEARISH", "NEUTRAL", "MIXED", "TOTAL MESSAGES"]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font      = header_font
+        cell.fill      = header_fill
+        cell.alignment = Alignment(horizontal="center")
+
+    for r, row in enumerate(sentiment_rows, 2):
+        score = row["sentiment_score"]
+        if score > 0.15:
+            fill_color = "C6EFCE"  # green
+        elif score < -0.15:
+            fill_color = "FFC7CE"  # red
+        else:
+            fill_color = "FFFFFF"  # neutral
+        fill = PatternFill("solid", fgColor=fill_color)
+        for col, key in enumerate(SENTIMENT_FIELDS, 1):
+            cell = ws.cell(row=r, column=col, value=row.get(key, ""))
+            cell.fill = fill
+
+    ws.column_dimensions["A"].width = 12
+    ws.column_dimensions["B"].width = 16
+    ws.column_dimensions["C"].width = 10
+    ws.column_dimensions["D"].width = 10
+    ws.column_dimensions["E"].width = 10
+    ws.column_dimensions["F"].width = 10
+    ws.column_dimensions["G"].width = 16
+
+    wb.save(EXCEL_FILE)
+    print(f"  Saved 'Sentiment Scores' sheet → {EXCEL_FILE}")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -245,9 +375,23 @@ def main():
     for label, count in sorted(label_counts.items()):
         print(f"    {label:10s}: {count}")
 
+    # Per-stock sentiment score
+    print("\n  Computing per-stock sentiment scores...")
+    sentiment_rows = compute_sentiment_scores(nlp_rows)
+    for row in sentiment_rows:
+        print(f"    {row['symbol']:6s} score={row['sentiment_score']:+.3f}  "
+              f"(bull={row['bullish_count']} bear={row['bearish_count']} "
+              f"neu={row['neutral_count']} mix={row['mixed_count']})")
+
+    # Write CSVs (these are what the Flask dashboard reads)
+    print("\n  Writing CSV outputs...")
+    write_nlp_csv(nlp_rows)
+    write_sentiment_csv(sentiment_rows)
+
     # Write to Excel
-    print("\n  Writing NLP Sentiment sheet to Excel...")
+    print("\n  Writing Excel sheets...")
     write_nlp_sheet(nlp_rows)
+    write_sentiment_sheet(sentiment_rows)
 
     print("\n✓ NLP processing complete!")
 
