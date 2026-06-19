@@ -40,6 +40,7 @@ MAX_NEW_MSGS  = 10
 DATA_CSV      = Path("data/stocktwits.csv")
 FREQ_CSV      = Path("data/frequency.csv")
 FINVIZ_CSV    = Path("data/finviz.csv")
+PRICE_LOG_CSV = Path("data/price_history.csv")
 EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
 CURSOR_FILE   = Path("data/cursors.json")
 
@@ -81,6 +82,7 @@ FINVIZ_FIELDS = [
     "market_cap", "rsi", "beta", "52w_high", "52w_low",
     "sector", "industry"
 ]
+PRICE_FIELDS  = ["timestamp", "symbol", "price", "change_pct", "volume"]
 
 # ── Cursor tracking ───────────────────────────────────────────────────────────
 
@@ -392,6 +394,19 @@ def main():
     if fv_rows:
         upsert_finviz_csv(fv_rows, FINVIZ_CSV, FINVIZ_FIELDS)
         print(f"✓ {len(fv_rows)} FinViz rows upserted.")
+
+        price_rows = [
+            {
+                "timestamp":  r["timestamp"],
+                "symbol":     r["symbol"],
+                "price":      r.get("price", ""),
+                "change_pct": r.get("change_pct", ""),
+                "volume":     r.get("volume", ""),
+            }
+            for r in fv_rows
+        ]
+        append_to_csv(price_rows, PRICE_LOG_CSV, PRICE_FIELDS)
+        print(f"✓ {len(price_rows)} price history rows appended.")
 
     print("\nUpdating ticker mention frequency...")
     update_frequency()
