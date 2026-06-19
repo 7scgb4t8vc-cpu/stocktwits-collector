@@ -3,25 +3,29 @@
 
 <div class="page-header">
   <h1>Charts</h1>
-  <p class="page-subtitle">Sentiment trends and mention frequency</p>
+  <p class="page-subtitle">Price, message volume, and sentiment over time for a single stock</p>
 </div>
 
-<div class="charts-grid">
+<div class="filter-bar">
+  <select id="symbol-select" class="filter-select">
+    <option value="">Select a symbol…</option>
+  </select>
+</div>
+
+<div id="charts-empty" class="empty">Select a symbol above to view its charts.</div>
+
+<div class="charts-grid" id="charts-grid" style="display:none">
+  <div class="chart-card">
+    <h2>Price over time</h2>
+    <canvas id="price-chart" height="200"></canvas>
+  </div>
   <div class="chart-card">
     <h2>Message volume over time</h2>
     <canvas id="volume-chart" height="200"></canvas>
   </div>
-  <div class="chart-card">
-    <h2>Sentiment breakdown by symbol</h2>
+  <div class="chart-card dash-section--wide">
+    <h2>Sentiment breakdown over time</h2>
     <canvas id="sentiment-chart" height="200"></canvas>
-  </div>
-  <div class="chart-card">
-    <h2>Top tickers by mention count</h2>
-    <canvas id="freq-chart" height="200"></canvas>
-  </div>
-  <div class="chart-card">
-    <h2>Bullish vs bearish ratio</h2>
-    <canvas id="ratio-chart" height="200"></canvas>
   </div>
 </div>
 
@@ -30,73 +34,95 @@
 {% block scripts %}
 <script>
 let _charts = {};
+let _currentSymbol = "";
 
 function destroyCharts() {
   Object.values(_charts).forEach(c => { try { c.destroy(); } catch(e) {} });
   _charts = {};
 }
 
-async function loadCharts() {
-  try {
-    const [chartsRes, freqRes] = await Promise.all([
-      fetch("/api/charts"),
-      fetch("/api/frequency"),
-    ]);
-    const charts = await chartsRes.json();
-    const freq   = await freqRes.json();
+const chartDefaults = {
+  plugins: { legend: { labels: { color: "#8b949e" } } },
+  scales: {
+    x: { ticks: { color: "#8b949e", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+    y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
+  }
+};
 
+async function loadSymbolList() {
+  const res = await fetch("/api/symbols");
+  const symbols = await res.json();
+  const sel = document.getElementById("symbol-select");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select a symbol…</option>' +
+    symbols.map(s => `<option value="${s}">${s}</option>`).join("");
+  if (current) sel.value = current;
+}
+
+async function loadSymbolCharts(symbol) {
+  if (!symbol) {
+    document.getElementById("charts-empty").style.display = "block";
+    document.getElementById("charts-grid").style.display = "none";
+    destroyCharts();
+    return;
+  }
+
+  document.getElementById("charts-empty").style.display = "none";
+  document.getElementById("charts-grid").style.display = "grid";
+
+  try {
+    const res  = await fetch(`/api/charts/${symbol}`);
+    const data = await res.json();
     destroyCharts();
 
-    const chartDefaults = {
-      plugins: { legend: { labels: { color: "#8b90a0" } } },
-      scales: {
-        x: { ticks: { color: "#8b90a0" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        y: { ticks: { color: "#8b90a0" }, grid: { color: "rgba(255,255,255,0.05)" } },
-      }
-    };
-
-    // Volume over time
-    const timeLabels = charts.counts_over_time.map(([ts]) => ts);
-    const timeCounts = charts.counts_over_time.map(([, c]) => c);
-    _charts.volume = new Chart(document.getElementById("volume-chart"), {
+    // Price over time
+    const priceLabels = data.price_series.map(p => p.timestamp);
+    const priceValues = data.price_series.map(p => parseFloat(p.price) || null);
+    _charts.price = new Chart(document.getElementById("price-chart"), {
       type: "line",
       data: {
-        labels: timeLabels,
+        labels: priceLabels,
         datasets: [{
-          label: "Messages",
-          data: timeCounts,
-          borderColor: "#378ADD",
-          backgroundColor: "rgba(55,138,221,0.08)",
+          label: `${symbol} price`,
+          data: priceValues,
+          borderColor: "#58a6ff",
+          backgroundColor: "rgba(88,166,255,0.08)",
           tension: 0.3,
           fill: true,
           pointRadius: 3,
+          spanGaps: true,
         }]
       },
-      options: {
-        ...chartDefaults,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ...chartDefaults.scales.x, ticks: { ...chartDefaults.scales.x.ticks, maxTicksLimit: 8 } },
-          y: chartDefaults.scales.y,
-        }
-      }
+      options: { ...chartDefaults, plugins: { legend: { display: false } } }
     });
 
-    // Sentiment by symbol
-    const symbols = Object.keys(charts.sentiment_by_symbol);
-    const bullish = symbols.map(s => charts.sentiment_by_symbol[s].bullish || 0);
-    const bearish = symbols.map(s => charts.sentiment_by_symbol[s].bearish || 0);
-    const neutral = symbols.map(s => charts.sentiment_by_symbol[s].neutral || 0);
-    const mixed   = symbols.map(s => charts.sentiment_by_symbol[s].mixed   || 0);
+    // Message volume over time
+    const volLabels = data.volume_series.map(v => v.timestamp);
+    const volCounts  = data.volume_series.map(v => v.count);
+    _charts.volume = new Chart(document.getElementById("volume-chart"), {
+      type: "bar",
+      data: {
+        labels: volLabels,
+        datasets: [{
+          label: "Messages",
+          data: volCounts,
+          backgroundColor: "#3fb950",
+        }]
+      },
+      options: { ...chartDefaults, plugins: { legend: { display: false } } }
+    });
+
+    // Sentiment breakdown over time (stacked)
+    const sentLabels = data.sentiment_series.map(s => s.timestamp);
     _charts.sentiment = new Chart(document.getElementById("sentiment-chart"), {
       type: "bar",
       data: {
-        labels: symbols,
+        labels: sentLabels,
         datasets: [
-          { label: "Bullish", data: bullish, backgroundColor: "#639922" },
-          { label: "Bearish", data: bearish, backgroundColor: "#E24B4A" },
-          { label: "Neutral", data: neutral, backgroundColor: "#888780" },
-          { label: "Mixed",   data: mixed,   backgroundColor: "#EF9F27" },
+          { label: "Bullish", data: data.sentiment_series.map(s => s.bullish), backgroundColor: "#3fb950" },
+          { label: "Bearish", data: data.sentiment_series.map(s => s.bearish), backgroundColor: "#f85149" },
+          { label: "Neutral", data: data.sentiment_series.map(s => s.neutral), backgroundColor: "#8b949e" },
+          { label: "Mixed",   data: data.sentiment_series.map(s => s.mixed),   backgroundColor: "#d29922" },
         ]
       },
       options: {
@@ -108,46 +134,20 @@ async function loadCharts() {
       }
     });
 
-    // Top tickers by mention count
-    const top10      = freq.slice(0, 10);
-    const freqLabels = top10.map(r => r.symbol);
-    const freqCounts = top10.map(r => parseInt(r.mention_count) || 0);
-    _charts.freq = new Chart(document.getElementById("freq-chart"), {
-      type: "bar",
-      data: {
-        labels: freqLabels,
-        datasets: [{ label: "Mentions", data: freqCounts, backgroundColor: "#1D9E75" }]
-      },
-      options: {
-        ...chartDefaults,
-        indexAxis: "y",
-        plugins: { legend: { display: false } },
-      }
-    });
-
-    // Bullish vs bearish doughnut
-    const totalBullish = bullish.reduce((a, b) => a + b, 0);
-    const totalBearish = bearish.reduce((a, b) => a + b, 0);
-    const totalNeutral = neutral.reduce((a, b) => a + b, 0);
-    const totalMixed   = mixed.reduce((a, b)   => a + b, 0);
-    _charts.ratio = new Chart(document.getElementById("ratio-chart"), {
-      type: "doughnut",
-      data: {
-        labels: ["Bullish", "Bearish", "Neutral", "Mixed"],
-        datasets: [{
-          data: [totalBullish, totalBearish, totalNeutral, totalMixed],
-          backgroundColor: ["#639922", "#E24B4A", "#888780", "#EF9F27"],
-        }]
-      },
-      options: {
-        plugins: { legend: { position: "bottom", labels: { color: "#8b90a0" } } }
-      }
-    });
-
   } catch (e) {
-    console.error("Charts load error:", e);
+    console.error("Symbol charts load error:", e);
   }
 }
+
+async function loadCharts() {
+  await loadSymbolList();
+  if (_currentSymbol) await loadSymbolCharts(_currentSymbol);
+}
+
+document.getElementById("symbol-select").addEventListener("change", (e) => {
+  _currentSymbol = e.target.value;
+  loadSymbolCharts(_currentSymbol);
+});
 
 window.registerPageLoader(loadCharts);
 </script>
