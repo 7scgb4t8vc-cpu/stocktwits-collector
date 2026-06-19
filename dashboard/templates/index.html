@@ -68,13 +68,13 @@ async function loadDashboard() {
     freqEl.innerHTML = '<div class="empty">No data.</div>';
   } else {
     freqEl.innerHTML = freq.slice(0, 10).map(r => `
-      <div class="dash-row">
-        <span class="ticker-badge">${r.symbol}</span>
-        <span class="dash-bar-wrap">
-          <span class="dash-bar" style="width:${Math.min(100, (r.count / freq[0].count) * 100)}%"></span>
-        </span>
-        <span class="dash-count">${r.count}</span>
-      </div>`).join("");
+  <div class="dash-row">
+    <span class="ticker-badge">${r.symbol}</span>
+    <span class="dash-bar-wrap">
+      <span class="dash-bar" style="width:${Math.min(100, (r.mention_count / freq[0].mention_count) * 100)}%"></span>
+    </span>
+    <span class="dash-count">${r.mention_count}</span>
+  </div>`).join("");
   }
 
   const momEl = document.getElementById("momentum-list");
