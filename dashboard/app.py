@@ -5,7 +5,6 @@ Fetches CSV files directly from GitHub raw content URLs and serves a live dashbo
 """
 
 import csv
-
 import io
 import os
 import requests
@@ -90,6 +89,56 @@ def load_charts_data():
     }
 
 
+def load_symbol_chart_data(symbol: str):
+    """Build price, message volume, and sentiment time series for a single symbol."""
+    symbol = symbol.upper()
+
+    price_rows = load_csv_from_github("price_history.csv")
+    price_rows = [r for r in price_rows if r.get("symbol", "").upper() == symbol]
+    price_series = [
+        {"timestamp": r.get("timestamp", ""), "price": r.get("price", "")}
+        for r in price_rows
+    ]
+
+    st_rows  = load_csv_from_github("stocktwits.csv")
+    nlp_rows = load_csv_from_github("nlp_output.csv")
+
+    nlp_map = {}
+    for row in nlp_rows:
+        key = (row.get("timestamp", ""), row.get("symbol", ""))
+        nlp_map[key] = row
+
+    st_rows = [r for r in st_rows if r.get("symbol", "").upper() == symbol]
+
+    volume_by_ts = {}
+    sentiment_by_ts = {}
+    for row in st_rows:
+        ts = row.get("timestamp", "")
+        volume_by_ts[ts] = volume_by_ts.get(ts, 0) + 1
+
+        key = (ts, row.get("symbol", ""))
+        nlp = nlp_map.get(key, {})
+        label = (nlp.get("nlp_label") or row.get("sentiment") or "neutral").lower()
+        if label not in ("bullish", "bearish", "neutral", "mixed"):
+            label = "neutral"
+
+        if ts not in sentiment_by_ts:
+            sentiment_by_ts[ts] = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
+        sentiment_by_ts[ts][label] += 1
+
+    timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
+
+    return {
+        "symbol": symbol,
+        "price_series": price_series,
+        "volume_series": [{"timestamp": ts, "count": volume_by_ts.get(ts, 0)} for ts in timestamps],
+        "sentiment_series": [
+            {"timestamp": ts, **sentiment_by_ts.get(ts, {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0})}
+            for ts in timestamps
+        ],
+    }
+
+
 def load_momentum():
     rows = load_csv_from_github("finviz.csv")
 
@@ -158,9 +207,21 @@ def api_frequency():
     return jsonify(load_frequency())
 
 
+@app.route("/api/symbols")
+def api_symbols():
+    freq = load_frequency()
+    symbols = sorted({r["symbol"] for r in freq if r.get("symbol")})
+    return jsonify(symbols)
+
+
 @app.route("/api/charts")
 def api_charts():
     return jsonify(load_charts_data())
+
+
+@app.route("/api/charts/<symbol>")
+def api_charts_symbol(symbol):
+    return jsonify(load_symbol_chart_data(symbol))
 
 
 @app.route("/api/momentum")
