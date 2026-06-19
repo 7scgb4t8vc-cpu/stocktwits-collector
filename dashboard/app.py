@@ -19,6 +19,13 @@ GITHUB_REPO = "stocktwits-collector"
 GITHUB_BRANCH = "main"
 RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/data"
 
+# Locked-in watchlist — only these symbols should appear anywhere in the dashboard
+WATCHLIST = {
+    "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
+    "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
+    "ABG", "ABNB", "ABTC", "ABUS", "ACA", "ACH", "ACLO", "ACMR", "ACR"
+}
+
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
 def load_csv_from_github(filename: str) -> list:
@@ -44,11 +51,14 @@ def load_social():
 
     result = []
     for row in reversed(st_rows):
-        key = (row.get("timestamp", ""), row.get("symbol", ""))
+        sym = row.get("symbol", "")
+        if sym not in WATCHLIST:
+            continue
+        key = (row.get("timestamp", ""), sym)
         nlp = nlp_map.get(key, {})
         result.append({
             "timestamp":  row.get("timestamp", ""),
-            "symbol":     row.get("symbol", ""),
+            "symbol":     sym,
             "message":    row.get("message", ""),
             "sentiment":  row.get("sentiment", "None"),
             "nlp_label":  nlp.get("nlp_label", ""),
@@ -59,16 +69,21 @@ def load_social():
 
 
 def load_screener():
-    return load_csv_from_github("finviz.csv")
+    rows = load_csv_from_github("finviz.csv")
+    return [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
 
 def load_frequency():
-    return load_csv_from_github("frequency.csv")
+    rows = load_csv_from_github("frequency.csv")
+    return [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
 
 def load_charts_data():
     st_rows  = load_csv_from_github("stocktwits.csv")
     nlp_rows = load_csv_from_github("nlp_output.csv")
+
+    st_rows  = [r for r in st_rows  if r.get("symbol", "") in WATCHLIST]
+    nlp_rows = [r for r in nlp_rows if r.get("symbol", "") in WATCHLIST]
 
     sentiment_by_symbol = {}
     for row in nlp_rows:
@@ -141,6 +156,7 @@ def load_symbol_chart_data(symbol: str):
 
 def load_momentum():
     rows = load_csv_from_github("finviz.csv")
+    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
     def parse_float(v):
         try:
@@ -189,7 +205,7 @@ def api_social():
     symbol = request.args.get("symbol", "").upper()
     label  = request.args.get("label", "")
     rows   = load_social()
-    if symbol:
+    if symbol and symbol in WATCHLIST:
         rows = [r for r in rows if r["symbol"] == symbol]
     if label:
         rows = [r for r in rows if r["sentiment"].lower() == label.lower()
@@ -209,9 +225,7 @@ def api_frequency():
 
 @app.route("/api/symbols")
 def api_symbols():
-    freq = load_frequency()
-    symbols = sorted({r["symbol"] for r in freq if r.get("symbol")})
-    return jsonify(symbols)
+    return jsonify(sorted(WATCHLIST))
 
 
 @app.route("/api/charts")
@@ -221,6 +235,8 @@ def api_charts():
 
 @app.route("/api/charts/<symbol>")
 def api_charts_symbol(symbol):
+    if symbol.upper() not in WATCHLIST:
+        return jsonify({"error": "Symbol not tracked"}), 404
     return jsonify(load_symbol_chart_data(symbol))
 
 
