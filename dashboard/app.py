@@ -171,6 +171,11 @@ def load_momentum():
     return sorted(rows, key=lambda r: r["_rel_vol"], reverse=True)
 
 
+def load_sentiment_scores():
+    rows = load_csv_from_github("sentiment_scores.csv")
+    return {r["symbol"]: r for r in rows if r.get("symbol", "") in WATCHLIST}
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -243,6 +248,11 @@ def api_charts_symbol(symbol):
 @app.route("/api/momentum")
 def api_momentum():
     return jsonify(load_momentum())
+
+
+@app.route("/api/sentiment-scores")
+def api_sentiment_scores():
+    return jsonify(load_sentiment_scores())
 
 
 @app.route("/api/trigger-refresh", methods=["POST"])
