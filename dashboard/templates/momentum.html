@@ -22,18 +22,28 @@
   <div class="loading">Loading...</div>
 </div>
 
+<style>
+.score-pos { color: #7db83a; font-weight: 600; }
+.score-neg { color: #e86a69; font-weight: 600; }
+.score-neu { color: var(--muted); }
+</style>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
 let allMomentumRows = [];
+let scoreMap = {};
 
 async function loadMomentum() {
   try {
-    const res  = await fetch("/api/momentum");
-    allMomentumRows = await res.json();
+    const [momRes, scoreRes] = await Promise.all([
+      fetch("/api/momentum"),
+      fetch("/api/sentiment-scores"),
+    ]);
+    allMomentumRows = await momRes.json();
+    scoreMap        = await scoreRes.json();
 
-    // Stats
     let gainers = 0, losers = 0;
     allMomentumRows.forEach(r => {
       const chg = parseFloat(r.change_pct) || 0;
@@ -54,6 +64,13 @@ async function loadMomentum() {
   }
 }
 
+function formatScore(score) {
+  if (score === null || score === undefined || isNaN(score)) return '<span class="score-neu">—</span>';
+  const cls = score > 0.1 ? "score-pos" : score < -0.1 ? "score-neg" : "score-neu";
+  const sign = score > 0 ? "+" : "";
+  return `<span class="${cls}">${sign}${score.toFixed(2)}</span>`;
+}
+
 function renderMomentum(rows) {
   const grid = document.getElementById("momentum-grid");
 
@@ -70,6 +87,9 @@ function renderMomentum(rows) {
     const rsi      = parseFloat(r.rsi) || 0;
     const rsiClass = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
     const beta     = parseFloat(r.beta) || 0;
+
+    const scoreRow = scoreMap[r.symbol];
+    const score    = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
 
     return `
       <div class="momentum-card">
@@ -102,6 +122,10 @@ function renderMomentum(rows) {
           <div class="mstat">
             <span class="mstat-label">Mkt Cap</span>
             <span class="mstat-value">${r.market_cap || "—"}</span>
+          </div>
+          <div class="mstat">
+            <span class="mstat-label">Sentiment</span>
+            <span class="mstat-value">${formatScore(score)}</span>
           </div>
         </div>
         <div class="momentum-sector">${r.sector || "—"} · ${r.industry || "—"}</div>
