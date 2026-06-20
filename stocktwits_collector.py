@@ -80,7 +80,7 @@ CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
 FINVIZ_FIELDS = [
     "timestamp", "symbol", "price", "change_pct", "volume", "avg_volume",
     "market_cap", "rsi", "beta", "52w_high", "52w_low",
-    "sector", "industry"
+    "sector", "industry", "rel_volume"
 ]
 PRICE_FIELDS  = ["timestamp", "symbol", "price", "change_pct", "volume"]
 
@@ -121,34 +121,67 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict, symbol: str = "") -> dict:
-    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names."""
-    sector, industry = fetch_sector_industry(symbol) if symbol else ("", "")
+    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names.
+    Market Cap and Relative Volume aren't in this FinViz view's export, so they're
+    sourced from yfinance instead (already fetched for sector/industry, no extra cost)."""
+    sector, industry, market_cap, rel_volume = (
+        fetch_sector_industry(symbol) if symbol else ("", "", "", "")
+    )
     return {
         "price":      row.get("Price",                        ""),
         "change_pct": row.get("Change",                       ""),
         "volume":     row.get("Volume",                       ""),
         "avg_volume": row.get("Average Volume",               ""),
-        "market_cap": row.get("Market Cap",                   ""),
+        "market_cap": market_cap,
         "rsi":        row.get("Relative Strength Index (14)", ""),
         "beta":       row.get("Beta",                         ""),
         "52w_high":   row.get("52-Week High",                 ""),
         "52w_low":    row.get("52-Week Low",                  ""),
         "sector":     sector,
         "industry":   industry,
+        "rel_volume": rel_volume,
     }
 
 
 # ── yfinance sector/industry lookup ──────────────────────────────────────────
 
-def fetch_sector_industry(symbol: str) -> tuple:
-    """Get sector and industry for a symbol from Yahoo Finance."""
+def format_market_cap(value) -> str:
+    """Format a raw market cap number into a FinViz-style string like '1.23B' or '456.7M'."""
+    if not value:
+        return ""
     try:
-        info     = yf.Ticker(symbol).info
-        sector   = info.get("sector",   "")
-        industry = info.get("industry", "")
-        return sector, industry
+        value = float(value)
+    except (TypeError, ValueError):
+        return ""
+    if value >= 1_000_000_000_000:
+        return f"{value / 1_000_000_000_000:.2f}T"
+    if value >= 1_000_000_000:
+        return f"{value / 1_000_000_000:.2f}B"
+    if value >= 1_000_000:
+        return f"{value / 1_000_000:.2f}M"
+    if value >= 1_000:
+        return f"{value / 1_000:.2f}K"
+    return str(value)
+
+
+def fetch_sector_industry(symbol: str) -> tuple:
+    """Get sector, industry, market cap, and relative volume for a symbol from Yahoo Finance."""
+    try:
+        info          = yf.Ticker(symbol).info
+        sector        = info.get("sector",   "")
+        industry      = info.get("industry", "")
+        market_cap    = format_market_cap(info.get("marketCap", ""))
+        avg_volume_10 = info.get("averageVolume10days") or info.get("averageVolume")
+        volume_today  = info.get("volume") or info.get("regularMarketVolume")
+        rel_volume    = ""
+        if avg_volume_10 and volume_today:
+            try:
+                rel_volume = round(volume_today / avg_volume_10, 2)
+            except (ZeroDivisionError, TypeError):
+                rel_volume = ""
+        return sector, industry, market_cap, rel_volume
     except Exception:
-        return "", ""
+        return "", "", "", ""
 
 
 # ── StockTwits fetchers ───────────────────────────────────────────────────────
