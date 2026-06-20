@@ -20,6 +20,7 @@ Each message gets:
 import csv
 import re
 import os
+import html
 from pathlib import Path
 
 import openpyxl
@@ -52,6 +53,7 @@ def clean_text(text: str) -> str:
     text = re.sub(r"http\S+|www\.\S+", "", text)
     text = re.sub(r"\$[A-Z]{1,5}", "", text)
     text = re.sub(r"@\w+", "", text)
+    text = html.unescape(text)  # decode &#39; &quot; &amp; etc. before stripping non-ASCII
     text = text.encode("ascii", "ignore").decode("ascii")
     text = re.sub(r"[^a-zA-Z0-9\s\.\,\!\?\'\-]", "", text)
     text = re.sub(r"\s+", " ", text).strip()
