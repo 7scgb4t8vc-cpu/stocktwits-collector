@@ -77,9 +77,18 @@ async function loadSocial() {
     }
 
     feed.innerHTML = rows.map(r => {
-      const label     = r.nlp_label || r.sentiment || "none";
-      const score     = r.nlp_score ? parseFloat(r.nlp_score).toFixed(2) : "";
-      const scoreHtml = score ? `<span class="score-badge">score ${score}</span>` : "";
+     const label     = r.nlp_label || r.sentiment || "none";
+      const rawScore  = r.nlp_score ? parseFloat(r.nlp_score) : null;
+      let signedScore = rawScore;
+      if (rawScore !== null) {
+        const l = label.toLowerCase();
+        if (l === "bearish") signedScore = -Math.abs(rawScore);
+        else if (l === "bullish") signedScore = Math.abs(rawScore);
+        else if (l === "mixed" || l === "neutral") signedScore = 0;
+      }
+      const scoreHtml = signedScore !== null
+        ? `<span class="score-badge">score ${signedScore > 0 ? "+" : ""}${signedScore.toFixed(2)}</span>`
+        : "";
       return `
         <div class="feed-card sentiment-${label.toLowerCase()}">
           <div class="card-header">
