@@ -88,7 +88,7 @@ Rules:
 - Ignore messages that are too short or meaningless — classify as "neutral" with score 0.1
 
 Messages to classify:
-{json.dumps(messages, indent=2)}
+{json.dumps(messages, indent=2, ensure_ascii=False)}
 
 Return ONLY a valid JSON array. No explanation, no markdown, no extra text.
 Format: [{{"id": 1, "label": "bullish", "score": 0.85}}, ...]"""
@@ -100,6 +100,7 @@ Format: [{{"id": 1, "label": "bullish", "score": 0.85}}, ...]"""
     )
 
     raw = response.content[0].text.strip()
+    raw = raw.encode("utf-8", "ignore").decode("utf-8")
 
     # Strip markdown fences if present
     raw = re.sub(r"^```json\s*|^```\s*|```$", "", raw, flags=re.MULTILINE).strip()
@@ -352,7 +353,8 @@ def main():
             results.update(batch_results)
             print("✓")
         except Exception as e:
-            print(f"✗ Error: {e}")
+            safe_err = str(e).encode("ascii", "backslashreplace").decode("ascii")
+            print(f"✗ Error: {safe_err}")
 
     # Assemble final rows
     nlp_rows = []
