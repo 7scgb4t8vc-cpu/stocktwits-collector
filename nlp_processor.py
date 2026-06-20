@@ -353,8 +353,12 @@ def main():
             results.update(batch_results)
             print("✓")
         except Exception as e:
+            import traceback
             safe_err = str(e).encode("ascii", "backslashreplace").decode("ascii")
             print(f"✗ Error: {safe_err}")
+            tb = traceback.format_exc()
+            safe_tb = tb.encode("ascii", "backslashreplace").decode("ascii")
+            print(safe_tb)
 
     # Assemble final rows
     nlp_rows = []
