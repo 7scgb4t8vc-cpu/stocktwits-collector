@@ -2,26 +2,26 @@ timestamp,symbol,price,change_pct,volume,avg_volume,market_cap,rsi,beta,52w_high
 2026-06-17 16:11 ET,HOOD,105.20,8.78%,69867964,,,69.41,2.34,-31.63%,65.63%,Financial Services,Capital Markets
 2026-06-17 16:11 ET,QURE,48.16,78.44%,19608187,,,83.59,1.02,-32.64%,451.66%,Healthcare,Biotechnology
 2026-06-17 16:11 ET,RXT,7.53,21.26%,64858659,,,69.13,3.01,-1.57%,1816.03%,Technology,Software - Infrastructure
-2026-06-20 14:05 ET,ACON,3.12,0.32%,227837,,,45.07,1.17,-74.06%,33.33%,Healthcare,Health Information Services
-2026-06-20 14:05 ET,AIBZ,9.02,2.85%,661527,,,66.90,,-12.00%,364.95%,Technology,Software - Infrastructure
+2026-06-20 14:17 ET,ACON,3.12,0.32%,227837,,,45.07,1.17,-74.06%,33.33%,Healthcare,Health Information Services
+2026-06-20 14:17 ET,AIBZ,9.02,2.85%,661527,,,66.90,,-12.00%,364.95%,Technology,Software - Infrastructure
 2026-06-17 16:11 ET,ALBT,0.36,15.59%,2850776,,,49.71,-0.04,-92.42%,71.19%,Real Estate,Real Estate Services
-2026-06-20 14:05 ET,ALOT,28.57,0.78%,1027282,,,92.03,0.79,-0.38%,310.49%,Technology,Computer Hardware
-2026-06-20 14:05 ET,ARDX,6.05,3.60%,9839094,,,54.58,0.59,-27.98%,73.35%,Healthcare,Biotechnology
-2026-06-20 14:05 ET,BFLY,8.90,55.87%,60481423,,,84.59,2.12,44.95%,574.24%,Healthcare,Medical Devices
-2026-06-20 14:05 ET,CAT,985.82,3.13%,6175063,,,65.45,1.57,1.04%,176.17%,Industrials,Farm & Heavy Construction Machinery
-2026-06-20 14:05 ET,DIS,103.89,3.00%,22943658,,,57.40,1.38,-16.68%,12.70%,Communication Services,Entertainment
-2026-06-20 14:05 ET,HQ,32.00,35.54%,8691692,,,84.99,0.12,28.00%,286.01%,Technology,Software - Infrastructure
-2026-06-20 14:05 ET,MRNA,63.96,3.50%,24078835,,,74.90,0.94,2.66%,187.07%,Healthcare,Biotechnology
-2026-06-20 14:05 ET,QS,8.04,16.52%,85585773,,,53.26,2.64,-57.84%,93.27%,Consumer Cyclical,Auto Parts
-2026-06-20 14:05 ET,UUUU,16.56,8.24%,28609661,,,47.75,1.50,-40.65%,210.69%,Energy,Uranium
-2026-06-20 14:05 ET,AAT,24.05,0.84%,940163,,,64.46,0.98,-3.22%,35.72%,Real Estate,REIT - Diversified
-2026-06-20 14:05 ET,ABCB,87.59,1.84%,1381698,,,57.05,0.92,-2.68%,47.11%,Financial Services,Banks - Regional
-2026-06-20 14:05 ET,ABG,197.05,3.64%,530178,,,53.03,0.75,-28.21%,14.56%,Consumer Cyclical,Auto & Truck Dealerships
-2026-06-20 14:05 ET,ABNB,142.41,1.33%,7413230,,,63.03,1.14,-3.29%,28.52%,Consumer Cyclical,Travel Services
-2026-06-20 14:05 ET,ABTC,0.85,0.90%,37288197,,,37.07,3.80,-94.14%,10.44%,Financial Services,Capital Markets
-2026-06-20 14:05 ET,ABUS,4.55,2.71%,5045877,,,59.24,0.63,-10.78%,49.67%,Healthcare,Biotechnology
-2026-06-20 14:05 ET,ACA,135.84,2.04%,686892,,,66.26,1.05,-0.12%,65.84%,Industrials,Engineering & Construction
-2026-06-20 14:05 ET,ACH,3.23,2.22%,2196336,,,57.15,1.58,-66.18%,75.54%,Healthcare,Medical Distribution
-2026-06-20 14:05 ET,ACLO,50.42,0.09%,135092,,,56.26,0.04,-1.03%,0.55%,,
+2026-06-20 14:17 ET,ALOT,28.57,0.78%,1027282,,,92.03,0.79,-0.38%,310.49%,Technology,Computer Hardware
+2026-06-20 14:17 ET,ARDX,6.05,3.60%,9839094,,,54.58,0.59,-27.98%,73.35%,Healthcare,Biotechnology
+2026-06-20 14:17 ET,BFLY,8.90,55.87%,60481423,,,84.59,2.12,44.95%,574.24%,Healthcare,Medical Devices
+2026-06-20 14:17 ET,CAT,985.82,3.13%,6175063,,,65.45,1.57,1.04%,176.17%,Industrials,Farm & Heavy Construction Machinery
+2026-06-20 14:17 ET,DIS,103.89,3.00%,22943658,,,57.40,1.38,-16.68%,12.70%,Communication Services,Entertainment
+2026-06-20 14:17 ET,HQ,32.00,35.54%,8691692,,,84.99,0.12,28.00%,286.01%,Technology,Software - Infrastructure
+2026-06-20 14:17 ET,MRNA,63.96,3.50%,24078835,,,74.90,0.94,2.66%,187.07%,Healthcare,Biotechnology
+2026-06-20 14:17 ET,QS,8.04,16.52%,85585773,,,53.26,2.64,-57.84%,93.27%,Consumer Cyclical,Auto Parts
+2026-06-20 14:17 ET,UUUU,16.56,8.24%,28609661,,,47.75,1.50,-40.65%,210.69%,Energy,Uranium
+2026-06-20 14:17 ET,AAT,24.05,0.84%,940163,,,64.46,0.98,-3.22%,35.72%,Real Estate,REIT - Diversified
+2026-06-20 14:17 ET,ABCB,87.59,1.84%,1381698,,,57.05,0.92,-2.68%,47.11%,Financial Services,Banks - Regional
+2026-06-20 14:17 ET,ABG,197.05,3.64%,530178,,,53.03,0.75,-28.21%,14.56%,Consumer Cyclical,Auto & Truck Dealerships
+2026-06-20 14:17 ET,ABNB,142.41,1.33%,7413230,,,63.03,1.14,-3.29%,28.52%,Consumer Cyclical,Travel Services
+2026-06-20 14:17 ET,ABTC,0.85,0.90%,37288197,,,37.07,3.80,-94.14%,10.44%,Financial Services,Capital Markets
+2026-06-20 14:17 ET,ABUS,4.55,2.71%,5045877,,,59.24,0.63,-10.78%,49.67%,Healthcare,Biotechnology
+2026-06-20 14:17 ET,ACA,135.84,2.04%,686892,,,66.26,1.05,-0.12%,65.84%,Industrials,Engineering & Construction
+2026-06-20 14:17 ET,ACH,3.23,2.22%,2196336,,,57.15,1.58,-66.18%,75.54%,Healthcare,Medical Distribution
+2026-06-20 14:17 ET,ACLO,50.42,0.09%,135092,,,56.26,0.04,-1.03%,0.55%,,
 2026-06-18 18:54 ET,ACMR,109.87,14.22%,2982100,,,72.18,1.94,4.65%,377.07%,Technology,Semiconductor Equipment & Materials
 2026-06-18 18:54 ET,ACR,16.61,0.67%,198882,,,28.87,1.11,-32.51%,6.41%,Real Estate,REIT - Mortgage
