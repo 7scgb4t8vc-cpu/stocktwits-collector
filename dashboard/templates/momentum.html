@@ -26,6 +26,8 @@
 .score-pos { color: #7db83a; font-weight: 600; }
 .score-neg { color: #e86a69; font-weight: 600; }
 .score-neu { color: var(--muted); }
+.momentum-card.is-gainer { border-top-color: var(--green); }
+.momentum-card.is-loser  { border-top-color: var(--red); }
 </style>
 
 {% endblock %}
@@ -80,19 +82,20 @@ function renderMomentum(rows) {
   }
 
   grid.innerHTML = rows.map(r => {
-    const chg      = parseFloat(r.change_pct) || 0;
-    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
-    const chgSign  = chg > 0 ? "+" : "";
-    const relVol   = parseFloat(r.rel_volume) || 0;
-    const rsi      = parseFloat(r.rsi) || 0;
-    const rsiClass = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
-    const beta     = parseFloat(r.beta) || 0;
+    const chg       = parseFloat(r.change_pct) || 0;
+    const chgClass  = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const cardClass = chg > 0 ? "is-gainer" : chg < 0 ? "is-loser" : "";
+    const chgSign   = chg > 0 ? "+" : "";
+    const relVol    = parseFloat(r.rel_volume) || 0;
+    const rsi       = parseFloat(r.rsi) || 0;
+    const rsiClass  = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
+    const beta      = parseFloat(r.beta) || 0;
 
     const scoreRow = scoreMap[r.symbol];
     const score    = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
 
     return `
-      <div class="momentum-card">
+      <div class="momentum-card ${cardClass}">
         <div class="momentum-header">
           <span class="ticker-badge">${r.symbol}</span>
           <span class="momentum-price">$${r.price || "—"}</span>
