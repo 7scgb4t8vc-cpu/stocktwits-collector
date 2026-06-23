@@ -86,8 +86,8 @@ def compute_sentiment_scores(scored_messages: list) -> list:
         counts = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
 
         for row in rows:
-            label = row.get("sentiment", "neutral")
-            score = float(row.get("sentiment_score", 0.0) or 0.0)
+            label = row.get("nlp_label", "neutral")
+            score = float(row.get("nlp_score", 0.0) or 0.0)
             counts[label] = counts.get(label, 0) + 1
 
             if label == "bullish":
