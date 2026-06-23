@@ -1,34 +1,26 @@
 """
-StockTwits + FinViz Elite Collector
+StockTwits + FinViz Elite Collector (MongoDB version)
 =====================================
 Each run:
 1. Fetches pre-filtered stocks from FinViz Elite screener export (v=171 Technical view)
-   Filters: volume > 100k, rel volume > 2, change up
 2. Cross-references against a fixed 26-stock watchlist
 3. Collects StockTwits messages for those stocks
-4. Fetches sector/industry from yfinance
-5. Upserts FinViz data (one row per symbol, always current)
-6. Updates frequency.csv with total mention counts per symbol
-7. Exports everything to a formatted Excel workbook
+4. Saves messages + FinViz data to MongoDB
 
 Runs in under 60 seconds.
 """
 
-import json
 import time
 import csv
 import io
 import os
-import re
 from datetime import datetime
 import pytz
-from pathlib import Path
 
 from curl_cffi import requests as curl_requests
 import requests as std_requests
-import yfinance as yf
-import openpyxl
-from openpyxl.styles import Font, PatternFill, Alignment
+
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -37,14 +29,7 @@ IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
 TOP_N_KEEP    = 20
 MAX_NEW_MSGS  = 10
-DATA_CSV      = Path("data/stocktwits.csv")
-FREQ_CSV      = Path("data/frequency.csv")
-FINVIZ_CSV    = Path("data/finviz.csv")
-PRICE_LOG_CSV = Path("data/price_history.csv")
-EXCEL_FILE    = Path("data/stocktwits_data.xlsx")
-CURSOR_FILE   = Path("data/cursors.json")
 
-# Fixed watchlist — locked in, no longer dynamically selected from trending
 WATCHLIST = [
     "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
     "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
@@ -76,36 +61,10 @@ FV_HEADERS = {
     "Referer": "https://elite.finviz.com/",
 }
 
-CSV_FIELDS    = ["timestamp", "symbol", "message", "sentiment"]
-FINVIZ_FIELDS = [
-    "timestamp", "symbol", "price", "change_pct", "volume", "avg_volume",
-    "market_cap", "rsi", "beta", "52w_high", "52w_low",
-    "sector", "industry", "rel_volume"
-]
-PRICE_FIELDS  = ["timestamp", "symbol", "price", "change_pct", "volume"]
-
-# ── Cursor tracking ───────────────────────────────────────────────────────────
-
-def load_cursors() -> dict:
-    if CURSOR_FILE.exists():
-        with open(CURSOR_FILE, "r") as f:
-            return json.load(f)
-    return {}
-
-
-def save_cursors(cursors: dict):
-    CURSOR_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(CURSOR_FILE, "w") as f:
-        json.dump(cursors, f, indent=2)
-
 
 # ── FinViz Elite screener ─────────────────────────────────────────────────────
 
 def fetch_finviz_screener(token: str) -> list:
-    """
-    Fetch pre-filtered stocks from FinViz Elite screener export (v=171 Technical view).
-    Returns a list of dicts with FinViz columns.
-    """
     url = FINVIZ_TECHNICAL_URL.format(token=token)
     try:
         resp = std_requests.get(url, headers=FV_HEADERS, timeout=20)
@@ -120,68 +79,19 @@ def fetch_finviz_screener(token: str) -> list:
         return []
 
 
-def parse_finviz_row(row: dict, symbol: str = "") -> dict:
+def parse_finviz_row(row: dict) -> dict:
     """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names.
-    Market Cap and Relative Volume aren't in this FinViz view's export, so they're
-    sourced from yfinance instead (already fetched for sector/industry, no extra cost)."""
-    sector, industry, market_cap, rel_volume = (
-        fetch_sector_industry(symbol) if symbol else ("", "", "", "")
-    )
+    No market cap / relative volume — not in this FinViz view, and yfinance was dropped."""
     return {
         "price":      row.get("Price",                        ""),
         "change_pct": row.get("Change",                       ""),
         "volume":     row.get("Volume",                       ""),
         "avg_volume": row.get("Average Volume",               ""),
-        "market_cap": market_cap,
         "rsi":        row.get("Relative Strength Index (14)", ""),
         "beta":       row.get("Beta",                         ""),
         "52w_high":   row.get("52-Week High",                 ""),
         "52w_low":    row.get("52-Week Low",                  ""),
-        "sector":     sector,
-        "industry":   industry,
-        "rel_volume": rel_volume,
     }
-
-
-# ── yfinance sector/industry lookup ──────────────────────────────────────────
-
-def format_market_cap(value) -> str:
-    """Format a raw market cap number into a FinViz-style string like '1.23B' or '456.7M'."""
-    if not value:
-        return ""
-    try:
-        value = float(value)
-    except (TypeError, ValueError):
-        return ""
-    if value >= 1_000_000_000_000:
-        return f"{value / 1_000_000_000_000:.2f}T"
-    if value >= 1_000_000_000:
-        return f"{value / 1_000_000_000:.2f}B"
-    if value >= 1_000_000:
-        return f"{value / 1_000_000:.2f}M"
-    if value >= 1_000:
-        return f"{value / 1_000:.2f}K"
-    return str(value)
-
-
-def fetch_sector_industry(symbol: str) -> tuple:
-    """Get sector, industry, market cap, and relative volume for a symbol from Yahoo Finance."""
-    try:
-        info          = yf.Ticker(symbol).info
-        sector        = info.get("sector",   "")
-        industry      = info.get("industry", "")
-        market_cap    = format_market_cap(info.get("marketCap", ""))
-        avg_volume_10 = info.get("averageVolume10days") or info.get("averageVolume")
-        volume_today  = info.get("volume") or info.get("regularMarketVolume")
-        rel_volume    = ""
-        if avg_volume_10 and volume_today:
-            try:
-                rel_volume = round(volume_today / avg_volume_10, 2)
-            except (ZeroDivisionError, TypeError):
-                rel_volume = ""
-        return sector, industry, market_cap, rel_volume
-    except Exception:
-        return "", "", "", ""
 
 
 # ── StockTwits fetchers ───────────────────────────────────────────────────────
@@ -210,126 +120,6 @@ def get_sentiment(msg: dict) -> str:
     return "None"
 
 
-# ── Output helpers ────────────────────────────────────────────────────────────
-
-def append_to_csv(rows: list, path: Path, fields: list):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    write_header = not path.exists()
-    with open(path, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        if write_header:
-            writer.writeheader()
-        writer.writerows(rows)
-
-
-def upsert_finviz_csv(new_rows: list, path: Path, fields: list):
-    """Update existing rows by symbol, insert if new. One row per symbol."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    existing = {}
-    if path.exists():
-        with open(path, "r", encoding="utf-8") as f:
-            for row in csv.DictReader(f):
-                existing[row["symbol"]] = row
-    for row in new_rows:
-        existing[row["symbol"]] = row
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fields)
-        writer.writeheader()
-        writer.writerows(existing.values())
-
-
-# ── Frequency tracking ────────────────────────────────────────────────────────
-
-def update_frequency():
-    if not DATA_CSV.exists():
-        return
-
-    counts    = {}
-    last_seen = {}
-
-    with open(DATA_CSV, "r", encoding="utf-8") as f:
-        for row in csv.DictReader(f):
-            s = row["symbol"]
-            counts[s]    = counts.get(s, 0) + 1
-            last_seen[s] = row["timestamp"]
-
-    FREQ_CSV.parent.mkdir(parents=True, exist_ok=True)
-    with open(FREQ_CSV, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["symbol", "mention_count", "last_seen"])
-        writer.writeheader()
-        for s, c in sorted(counts.items(), key=lambda x: x[1], reverse=True):
-            writer.writerow({"symbol": s, "mention_count": c, "last_seen": last_seen[s]})
-
-    print(f"  Updated {FREQ_CSV} — {len(counts)} symbols tracked.")
-
-
-# ── Excel export ──────────────────────────────────────────────────────────────
-
-def export_to_excel():
-    wb          = openpyxl.Workbook()
-    header_font = Font(bold=True, color="FFFFFF")
-    header_fill = PatternFill("solid", fgColor="1F4E79")
-
-    def style_header(cell):
-        cell.font      = header_font
-        cell.fill      = header_fill
-        cell.alignment = Alignment(horizontal="center")
-
-    # ── Sheet 1: Raw Messages ──
-    ws1 = wb.active
-    ws1.title = "Raw Messages"
-    sentiment_colors = {"Bullish": "C6EFCE", "Bearish": "FFC7CE", "None": "FFFFFF"}
-
-    if DATA_CSV.exists():
-        with open(DATA_CSV, "r", encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
-        for col, h in enumerate(CSV_FIELDS, 1):
-            style_header(ws1.cell(row=1, column=col, value=h.upper()))
-        for r, row in enumerate(rows, 2):
-            fill = PatternFill("solid", fgColor=sentiment_colors.get(row.get("sentiment", "None"), "FFFFFF"))
-            for col, key in enumerate(CSV_FIELDS, 1):
-                ws1.cell(row=r, column=col, value=row.get(key, "")).fill = fill
-        ws1.column_dimensions["A"].width = 22
-        ws1.column_dimensions["B"].width = 10
-        ws1.column_dimensions["C"].width = 80
-        ws1.column_dimensions["D"].width = 12
-
-    # ── Sheet 2: Ticker Frequency ──
-    ws2       = wb.create_sheet("Ticker Frequency")
-    freq_cols = ["symbol", "mention_count", "last_seen"]
-
-    if FREQ_CSV.exists():
-        with open(FREQ_CSV, "r", encoding="utf-8") as f:
-            freq_rows = list(csv.DictReader(f))
-        for col, h in enumerate(freq_cols, 1):
-            style_header(ws2.cell(row=1, column=col, value=h.upper()))
-        for r, row in enumerate(freq_rows, 2):
-            for col, key in enumerate(freq_cols, 1):
-                ws2.cell(row=r, column=col, value=row.get(key, ""))
-        ws2.column_dimensions["A"].width = 12
-        ws2.column_dimensions["B"].width = 16
-        ws2.column_dimensions["C"].width = 22
-
-    # ── Sheet 3: FinViz Data ──
-    ws3 = wb.create_sheet("FinViz Data")
-
-    if FINVIZ_CSV.exists():
-        with open(FINVIZ_CSV, "r", encoding="utf-8") as f:
-            fv_rows = list(csv.DictReader(f))
-        for col, h in enumerate(FINVIZ_FIELDS, 1):
-            style_header(ws3.cell(row=1, column=col, value=h.upper()))
-        for r, row in enumerate(fv_rows, 2):
-            for col, key in enumerate(FINVIZ_FIELDS, 1):
-                ws3.cell(row=r, column=col, value=row.get(key, ""))
-        col_widths = [22, 10, 10, 12, 15, 12, 14, 20]
-        for i, w in enumerate(col_widths, 1):
-            ws3.column_dimensions[openpyxl.utils.get_column_letter(i)].width = w
-
-    EXCEL_FILE.parent.mkdir(parents=True, exist_ok=True)
-    wb.save(EXCEL_FILE)
-    print(f"  Saved Excel workbook → {EXCEL_FILE}")
-
-
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
@@ -346,7 +136,6 @@ def main():
 
     cursors = load_cursors()
 
-    # Step 1 — fetch pre-filtered stocks from FinViz Elite
     print("\nFetching FinViz Elite screener results...")
     fv_screener_rows = fetch_finviz_screener(finviz_token)
 
@@ -354,7 +143,6 @@ def main():
         print("  No results from FinViz screener — filters may be too strict or market is closed.")
         return
 
-    # Step 2 — cross-reference fixed watchlist against FinViz filter results
     print("\nFetching StockTwits trending stocks (for reference only)...")
     try:
         trending      = fetch_trending()
@@ -363,14 +151,12 @@ def main():
         print(f"  Error fetching trending: {e}")
         trending_syms = set()
 
-    # Build FinViz lookup by ticker
     fv_lookup = {}
     for row in fv_screener_rows:
         sym = row.get("Ticker", "").strip()
         if sym:
             fv_lookup[sym] = row
 
-    # Use fixed watchlist — only track symbols that are also in the FinViz filter results
     candidates = [s for s in WATCHLIST if s in fv_lookup][:TOP_N_KEEP]
     skipped    = [s for s in WATCHLIST if s not in fv_lookup]
 
@@ -383,12 +169,11 @@ def main():
     st_rows = []
     fv_rows = []
 
-    # Step 3 — collect StockTwits messages + save FinViz data
     print("\nCollecting StockTwits messages...")
     for symbol in candidates:
         since_id = cursors.get(symbol)
         fv_raw   = fv_lookup[symbol]
-        fv_data  = parse_finviz_row(fv_raw, symbol)
+        fv_data  = parse_finviz_row(fv_raw)
 
         print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
               f"Vol={fv_data['volume']} RSI={fv_data['rsi']}")
@@ -404,6 +189,7 @@ def main():
             cursors[symbol] = messages[0]["id"]
             for msg in messages:
                 st_rows.append({
+                    "_id":       msg["id"],
                     "timestamp": timestamp,
                     "symbol":    symbol,
                     "message":   msg.get("body", "").replace("\n", " ")[:280],
@@ -413,39 +199,19 @@ def main():
         else:
             print("No new messages.")
 
-        fv_rows.append({"timestamp": timestamp, "symbol": symbol, **fv_data})
+        fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
         time.sleep(REQUEST_DELAY)
 
-    # Save all data
     if st_rows:
-        append_to_csv(st_rows, DATA_CSV, CSV_FIELDS)
+        insert_messages(st_rows)
         save_cursors(cursors)
-        print(f"\n✓ {len(st_rows)} new StockTwits messages appended.")
+        print(f"\n✓ {len(st_rows)} new StockTwits messages saved to MongoDB.")
     else:
         print("\n✓ No new StockTwits messages this run.")
 
     if fv_rows:
-        upsert_finviz_csv(fv_rows, FINVIZ_CSV, FINVIZ_FIELDS)
-        print(f"✓ {len(fv_rows)} FinViz rows upserted.")
-
-        price_rows = [
-            {
-                "timestamp":  r["timestamp"],
-                "symbol":     r["symbol"],
-                "price":      r.get("price", ""),
-                "change_pct": r.get("change_pct", ""),
-                "volume":     r.get("volume", ""),
-            }
-            for r in fv_rows
-        ]
-        append_to_csv(price_rows, PRICE_LOG_CSV, PRICE_FIELDS)
-        print(f"✓ {len(price_rows)} price history rows appended.")
-
-    print("\nUpdating ticker mention frequency...")
-    update_frequency()
-
-    print("\nExporting to Excel...")
-    export_to_excel()
+        upsert_finviz(fv_rows)
+        print(f"✓ {len(fv_rows)} FinViz rows upserted to MongoDB.")
 
     print("\n✓ All done!")
 
