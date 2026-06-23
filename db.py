@@ -32,15 +32,15 @@ def get_messages(symbol=None, scored_only=False, unscored_only=False):
     if symbol:
         query["symbol"] = symbol
     if scored_only:
-        query["sentiment"] = {"$exists": True}
+        query["nlp_label"] = {"$exists": True}
     if unscored_only:
-        query["sentiment"] = {"$exists": False}
+        query["nlp_label"] = {"$exists": False}
     return list(coll.find(query))
 
 def update_sentiment(message_id, sentiment, score):
     messages_collection().update_one(
         {"_id": message_id},
-        {"$set": {"sentiment": sentiment, "sentiment_score": score}}
+        {"$set": {"nlp_label": sentiment, "nlp_score": score}}
     )
 
 def finviz_collection():
