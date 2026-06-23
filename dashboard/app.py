@@ -1,14 +1,14 @@
 """
 StockTwits Dashboard — Flask App
 =================================
-Fetches CSV files directly from GitHub raw content URLs and serves a live dashboard.
+Reads from MongoDB and serves the live dashboard.
 """
 
-import csv
-import io
 import os
 import requests
 from flask import Flask, render_template, jsonify, request
+
+from db import get_db, get_messages, get_finviz, load_cursors, get_price_history
 
 app = Flask(__name__)
 
@@ -17,9 +17,7 @@ app = Flask(__name__)
 GITHUB_USER = "7scgb4t8vc-cpu"
 GITHUB_REPO = "stocktwits-collector"
 GITHUB_BRANCH = "main"
-RAW_BASE = f"https://raw.githubusercontent.com/{GITHUB_USER}/{GITHUB_REPO}/{GITHUB_BRANCH}/data"
 
-# Locked-in watchlist — only these symbols should appear anywhere in the dashboard
 WATCHLIST = {
     "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
     "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
@@ -28,73 +26,63 @@ WATCHLIST = {
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
-def load_csv_from_github(filename: str) -> list:
-    url = f"{RAW_BASE}/{filename}"
-    try:
-        resp = requests.get(url, timeout=10)
-        if resp.status_code != 200:
-            return []
-        reader = csv.DictReader(io.StringIO(resp.text))
-        return list(reader)
-    except Exception:
-        return []
-
-
 def load_social():
-    st_rows  = load_csv_from_github("stocktwits.csv")
-    nlp_rows = load_csv_from_github("nlp_output.csv")
-
-    nlp_map = {}
-    for row in nlp_rows:
-        key = (row.get("timestamp", ""), row.get("symbol", ""))
-        nlp_map[key] = row
+    rows = get_messages()
+    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    rows.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
 
     result = []
-    for row in reversed(st_rows):
-        sym = row.get("symbol", "")
-        if sym not in WATCHLIST:
-            continue
-        key = (row.get("timestamp", ""), sym)
-        nlp = nlp_map.get(key, {})
+    for row in rows:
         result.append({
             "timestamp":  row.get("timestamp", ""),
-            "symbol":     sym,
+            "symbol":     row.get("symbol", ""),
             "message":    row.get("message", ""),
-            "sentiment":  row.get("sentiment", "None"),
-            "nlp_label":  nlp.get("nlp_label", ""),
-            "nlp_score":  nlp.get("nlp_score", ""),
-            "clean_text": nlp.get("clean_text", ""),
+            "sentiment":  row.get("sentiment", "neutral"),
+            "nlp_label":  row.get("sentiment", ""),
+            "nlp_score":  row.get("sentiment_score", ""),
         })
     return result
 
 
 def load_screener():
-    rows = load_csv_from_github("finviz.csv")
+    rows = get_finviz()
     return [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
 
 def load_frequency():
-    rows = load_csv_from_github("frequency.csv")
-    return [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    rows = get_messages()
+    counts = {}
+    last_seen = {}
+    for row in rows:
+        sym = row.get("symbol", "")
+        if sym not in WATCHLIST:
+            continue
+        counts[sym] = counts.get(sym, 0) + 1
+        ts = row.get("timestamp", "")
+        if sym not in last_seen or ts > last_seen[sym]:
+            last_seen[sym] = ts
+
+    result = [
+        {"symbol": sym, "mention_count": c, "last_seen": last_seen.get(sym, "")}
+        for sym, c in counts.items()
+    ]
+    return sorted(result, key=lambda r: r["mention_count"], reverse=True)
 
 
 def load_charts_data():
-    st_rows  = load_csv_from_github("stocktwits.csv")
-    nlp_rows = load_csv_from_github("nlp_output.csv")
-
-    st_rows  = [r for r in st_rows  if r.get("symbol", "") in WATCHLIST]
-    nlp_rows = [r for r in nlp_rows if r.get("symbol", "") in WATCHLIST]
+    rows = get_messages()
+    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
     sentiment_by_symbol = {}
-    for row in nlp_rows:
+    counts_over_time = {}
+    for row in rows:
         symbol = row.get("symbol", "")
-        label  = row.get("nlp_label", "neutral")
+        label  = row.get("sentiment", "neutral") or "neutral"
         if symbol not in sentiment_by_symbol:
             sentiment_by_symbol[symbol] = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
-        sentiment_by_symbol[symbol][label] = sentiment_by_symbol[symbol].get(label, 0) + 1
+        if label in sentiment_by_symbol[symbol]:
+            sentiment_by_symbol[symbol][label] += 1
 
-    counts_over_time = {}
-    for row in st_rows:
         ts = row.get("timestamp", "")[:16]
         counts_over_time[ts] = counts_over_time.get(ts, 0) + 1
 
@@ -105,35 +93,17 @@ def load_charts_data():
 
 
 def load_symbol_chart_data(symbol: str):
-    """Build price, message volume, and sentiment time series for a single symbol."""
+    """Build message volume and sentiment time series for a single symbol."""
     symbol = symbol.upper()
-
-    price_rows = load_csv_from_github("price_history.csv")
-    price_rows = [r for r in price_rows if r.get("symbol", "").upper() == symbol]
-    price_series = [
-        {"timestamp": r.get("timestamp", ""), "price": r.get("price", "")}
-        for r in price_rows
-    ]
-
-    st_rows  = load_csv_from_github("stocktwits.csv")
-    nlp_rows = load_csv_from_github("nlp_output.csv")
-
-    nlp_map = {}
-    for row in nlp_rows:
-        key = (row.get("timestamp", ""), row.get("symbol", ""))
-        nlp_map[key] = row
-
-    st_rows = [r for r in st_rows if r.get("symbol", "").upper() == symbol]
+    rows = get_messages(symbol=symbol)
 
     volume_by_ts = {}
     sentiment_by_ts = {}
-    for row in st_rows:
+    for row in rows:
         ts = row.get("timestamp", "")
         volume_by_ts[ts] = volume_by_ts.get(ts, 0) + 1
 
-        key = (ts, row.get("symbol", ""))
-        nlp = nlp_map.get(key, {})
-        label = (nlp.get("nlp_label") or row.get("sentiment") or "neutral").lower()
+        label = (row.get("sentiment") or "neutral").lower()
         if label not in ("bullish", "bearish", "neutral", "mixed"):
             label = "neutral"
 
@@ -142,6 +112,10 @@ def load_symbol_chart_data(symbol: str):
         sentiment_by_ts[ts][label] += 1
 
     timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
+
+    # Real price-over-time history
+    price_rows = get_price_history(symbol)
+    price_series = [{"timestamp": r.get("timestamp", ""), "price": r.get("price", "")} for r in price_rows]
 
     return {
         "symbol": symbol,
@@ -155,7 +129,7 @@ def load_symbol_chart_data(symbol: str):
 
 
 def load_momentum():
-    rows = load_csv_from_github("finviz.csv")
+    rows = get_finviz()
     rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
 
     def parse_float(v):
@@ -166,13 +140,14 @@ def load_momentum():
 
     for row in rows:
         row["_rel_vol"] = parse_float(row.get("rel_volume", "0"))
-        row["_change"]  = parse_float(row.get("change_pct", "0").replace("%", ""))
+        row["_change"]  = parse_float(str(row.get("change_pct", "0")).replace("%", ""))
 
     return sorted(rows, key=lambda r: r["_rel_vol"], reverse=True)
 
 
 def load_sentiment_scores():
-    rows = load_csv_from_github("sentiment_scores.csv")
+    coll = get_db()["sentiment_scores"]
+    rows = list(coll.find())
     return {r["symbol"]: r for r in rows if r.get("symbol", "") in WATCHLIST}
 
 
