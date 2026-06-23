@@ -42,3 +42,9 @@ def update_sentiment(message_id, sentiment, score):
         {"_id": message_id},
         {"$set": {"sentiment": sentiment, "sentiment_score": score}}
     )
+
+def finviz_collection():
+    return get_db()["finviz"]
+
+def upsert_finviz(rows):
+    coll =
