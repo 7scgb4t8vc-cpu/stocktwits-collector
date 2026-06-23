@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -200,6 +200,7 @@ def main():
             print("No new messages.")
 
         fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
+        log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
         time.sleep(REQUEST_DELAY)
 
     if st_rows:
