@@ -47,4 +47,48 @@ def finviz_collection():
     return get_db()["finviz"]
 
 def upsert_finviz(rows):
-    coll =
+    coll = finviz_collection()
+    for row in rows:
+        coll.update_one(
+            {"symbol": row["symbol"]},
+            {"$set": row},
+            upsert=True
+        )
+
+def get_finviz(symbol=None):
+    coll = finviz_collection()
+    if symbol:
+        return coll.find_one({"symbol": symbol})
+    return list(coll.find())
+
+def price_history_collection():
+    return get_db()["price_history"]
+
+def log_price(symbol, timestamp, price, change_pct, volume):
+    price_history_collection().insert_one({
+        "symbol": symbol,
+        "timestamp": timestamp,
+        "price": price,
+        "change_pct": change_pct,
+        "volume": volume,
+    })
+
+def get_price_history(symbol):
+    rows = list(price_history_collection().find({"symbol": symbol}))
+    return sorted(rows, key=lambda r: r.get("timestamp", ""))
+
+def cursors_collection():
+    return get_db()["cursors"]
+
+def load_cursors():
+    docs = cursors_collection().find()
+    return {d["symbol"]: d["since_id"] for d in docs}
+
+def save_cursors(cursors):
+    coll = cursors_collection()
+    for symbol, since_id in cursors.items():
+        coll.update_one(
+            {"symbol": symbol},
+            {"$set": {"since_id": since_id}},
+            upsert=True
+        )
