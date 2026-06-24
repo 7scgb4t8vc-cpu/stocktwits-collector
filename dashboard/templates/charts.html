@@ -15,6 +15,11 @@
 <div id="charts-empty" class="empty">Select a symbol above to view its charts.</div>
 
 <div class="charts-grid" id="charts-grid" style="display:none">
+  <div class="chart-card dash-section--wide">
+    <h2>Price chart (candlestick, volume, SMA)</h2>
+    <canvas id="ohlc-chart" height="260"></canvas>
+    <canvas id="ohlc-volume-chart" height="100" style="margin-top:8px"></canvas>
+  </div>
   <div class="chart-card">
     <h2>Price over time</h2>
     <canvas id="price-chart" height="200"></canvas>
@@ -32,6 +37,9 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.0.1/chartjs-adapter-moment.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
 <script>
 let _charts = {};
 let _currentSymbol = "";
@@ -59,6 +67,87 @@ async function loadSymbolList() {
   if (current) sel.value = current;
 }
 
+async function loadOhlcChart(symbol) {
+  try {
+    const res = await fetch(`/api/ohlc/${symbol}`);
+    const data = await res.json();
+    const candles = data.candles || [];
+
+    if (!candles.length) return;
+
+    const ohlcData = candles.map(c => ({
+      x: new Date(c.date).getTime(),
+      o: c.open, h: c.high, l: c.low, c: c.close
+    }));
+    const sma50Data = candles
+      .filter(c => c.sma50 !== null && c.sma50 !== undefined)
+      .map(c => ({ x: new Date(c.date).getTime(), y: c.sma50 }));
+    const sma200Data = candles
+      .filter(c => c.sma200 !== null && c.sma200 !== undefined)
+      .map(c => ({ x: new Date(c.date).getTime(), y: c.sma200 }));
+    const volLabels = candles.map(c => c.date);
+    const volValues = candles.map(c => c.volume);
+    const volColors = candles.map(c => c.close >= c.open ? "rgba(63,185,80,0.6)" : "rgba(248,81,73,0.6)");
+
+    _charts.ohlc = new Chart(document.getElementById("ohlc-chart"), {
+      type: "candlestick",
+      data: {
+        datasets: [
+          {
+            label: symbol,
+            data: ohlcData,
+            color: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
+            borderColor: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
+          },
+          {
+            type: "line",
+            label: "SMA 50",
+            data: sma50Data,
+            borderColor: "#d29922",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+          {
+            type: "line",
+            label: "SMA 200",
+            data: sma200Data,
+            borderColor: "#a371f7",
+            borderWidth: 1.5,
+            pointRadius: 0,
+            fill: false,
+          },
+        ]
+      },
+      options: {
+        plugins: { legend: { labels: { color: "#8b949e" } } },
+        scales: {
+          x: { type: "time", time: { unit: "month" }, ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
+          y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        }
+      }
+    });
+
+    _charts.ohlcVolume = new Chart(document.getElementById("ohlc-volume-chart"), {
+      type: "bar",
+      data: {
+        labels: volLabels,
+        datasets: [{ label: "Volume", data: volValues, backgroundColor: volColors }]
+      },
+      options: {
+        ...chartDefaults,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: "#8b949e", maxTicksLimit: 8, display: false }, grid: { display: false } },
+          y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        }
+      }
+    });
+  } catch (e) {
+    console.error("OHLC chart load error:", e);
+  }
+}
+
 async function loadSymbolCharts(symbol) {
   if (!symbol) {
     document.getElementById("charts-empty").style.display = "block";
@@ -74,6 +163,8 @@ async function loadSymbolCharts(symbol) {
     const res  = await fetch(`/api/charts/${symbol}`);
     const data = await res.json();
     destroyCharts();
+
+    await loadOhlcChart(symbol);
 
     // Price over time
     const priceLabels = data.price_series.map(p => p.timestamp);
