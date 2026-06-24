@@ -81,10 +81,12 @@ async function loadOhlcChart(symbol) {
     }));
     const sma50Data = candles
       .filter(c => c.sma50 !== null && c.sma50 !== undefined)
-      .map(c => ({ x: new Date(c.date).getTime(), y: c.sma50 }));
+      .map(c => ({ x: new Date(c.date).getTime(), y: Number(c.sma50) }))
+      .sort((a, b) => a.x - b.x);
     const sma200Data = candles
       .filter(c => c.sma200 !== null && c.sma200 !== undefined)
-      .map(c => ({ x: new Date(c.date).getTime(), y: c.sma200 }));
+      .map(c => ({ x: new Date(c.date).getTime(), y: Number(c.sma200) }))
+      .sort((a, b) => a.x - b.x);
     const volLabels = candles.map(c => c.date);
     const volValues = candles.map(c => c.volume);
     const volColors = candles.map(c => c.close >= c.open ? "rgba(63,185,80,0.6)" : "rgba(248,81,73,0.6)");
@@ -98,24 +100,35 @@ async function loadOhlcChart(symbol) {
             data: ohlcData,
             color: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
             borderColor: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
+            order: 2,
           },
           {
             type: "line",
             label: "SMA 50",
             data: sma50Data,
             borderColor: "#d29922",
+            backgroundColor: "transparent",
             borderWidth: 1.5,
             pointRadius: 0,
+            pointHoverRadius: 0,
             fill: false,
+            spanGaps: true,
+            parsing: false,
+            order: 1,
           },
           {
             type: "line",
             label: "SMA 200",
             data: sma200Data,
             borderColor: "#a371f7",
+            backgroundColor: "transparent",
             borderWidth: 1.5,
             pointRadius: 0,
+            pointHoverRadius: 0,
             fill: false,
+            spanGaps: true,
+            parsing: false,
+            order: 1,
           },
         ]
       },
