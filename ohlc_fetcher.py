@@ -38,7 +38,7 @@ def fetch_ohlc(symbol: str, token: str) -> list:
         if resp.status_code != 200:
             print(f"  [{symbol}] HTTP {resp.status_code} — {resp.text[:200]}")
             return []
-        reader = csv.DictReader(io.StringIO(resp.text), delimiter="\t")
+        reader = csv.DictReader(io.StringIO(resp.text))
         rows = []
         for r in reader:
             try:
