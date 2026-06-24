@@ -187,6 +187,8 @@ def load_momentum():
 def load_sentiment_scores():
     coll = get_db()["sentiment_scores"]
     rows = list(coll.find())
+    for r in rows:
+        r.pop("_id", None)
     return {r["symbol"]: r for r in rows if r.get("symbol", "") in WATCHLIST}
 
 
