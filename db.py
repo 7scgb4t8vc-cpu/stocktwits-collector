@@ -58,8 +58,15 @@ def upsert_finviz(rows):
 def get_finviz(symbol=None):
     coll = finviz_collection()
     if symbol:
-        return coll.find_one({"symbol": symbol})
-    return list(coll.find())
+        doc = coll.find_one({"symbol": symbol})
+        if doc:
+            doc.pop("_id", None)
+        return doc
+    docs = list(coll.find())
+    for d in docs:
+        d.pop("_id", None)
+    return docs
+
 def ohlc_collection():
     return get_db()["ohlc_history"]
 
@@ -75,7 +82,10 @@ def save_ohlc(symbol, rows):
 
 def get_ohlc(symbol, limit_days=300):
     rows = list(ohlc_collection().find({"symbol": symbol}).sort("date", -1).limit(limit_days))
+    for r in rows:
+        r.pop("_id", None)
     return sorted(rows, key=lambda r: r["date"])
+
 def price_history_collection():
     return get_db()["price_history"]
 
@@ -90,6 +100,8 @@ def log_price(symbol, timestamp, price, change_pct, volume):
 
 def get_price_history(symbol):
     rows = list(price_history_collection().find({"symbol": symbol}))
+    for r in rows:
+        r.pop("_id", None)
     return sorted(rows, key=lambda r: r.get("timestamp", ""))
 
 def cursors_collection():
