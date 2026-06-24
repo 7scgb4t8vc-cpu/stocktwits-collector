@@ -36,7 +36,7 @@ def fetch_ohlc(symbol: str, token: str) -> list:
     try:
         resp = requests.get(url, headers=HEADERS, timeout=20)
         if resp.status_code != 200:
-            print(f"  [{symbol}] HTTP {resp.status_code}")
+            print(f"  [{symbol}] HTTP {resp.status_code} — {resp.text[:200]}")
             return []
         reader = csv.DictReader(io.StringIO(resp.text), delimiter="\t")
         rows = []
@@ -52,7 +52,8 @@ def fetch_ohlc(symbol: str, token: str) -> list:
                 })
             except (KeyError, ValueError):
                 continue
-        # Keep last 300 trading days (~1.2 years), enough for 200-day SMA + buffer
+        if not rows:
+            print(f"  [{symbol}] Parsed 0 rows. Raw response start: {resp.text[:200]!r}")
         return rows[-300:]
     except Exception as e:
         print(f"  [{symbol}] Error: {e}")
