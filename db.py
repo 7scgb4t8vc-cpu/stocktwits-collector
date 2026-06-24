@@ -60,7 +60,22 @@ def get_finviz(symbol=None):
     if symbol:
         return coll.find_one({"symbol": symbol})
     return list(coll.find())
+def ohlc_collection():
+    return get_db()["ohlc_history"]
 
+def save_ohlc(symbol, rows):
+    """rows: list of dicts with date, open, high, low, close, volume"""
+    coll = ohlc_collection()
+    for row in rows:
+        coll.update_one(
+            {"symbol": symbol, "date": row["date"]},
+            {"$set": {**row, "symbol": symbol}},
+            upsert=True
+        )
+
+def get_ohlc(symbol, limit_days=300):
+    rows = list(ohlc_collection().find({"symbol": symbol}).sort("date", -1).limit(limit_days))
+    return sorted(rows, key=lambda r: r["date"])
 def price_history_collection():
     return get_db()["price_history"]
 
