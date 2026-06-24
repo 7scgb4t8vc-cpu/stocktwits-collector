@@ -8,7 +8,7 @@ import os
 import requests
 from flask import Flask, render_template, jsonify, request
 
-from db import get_db, get_messages, get_finviz, load_cursors, get_price_history
+from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc
 
 app = Flask(__name__)
 
@@ -37,9 +37,9 @@ def load_social():
             "timestamp":  row.get("timestamp", ""),
             "symbol":     row.get("symbol", ""),
             "message":    row.get("message", ""),
-            "sentiment":  row.get("sentiment", "neutral"),
-            "nlp_label":  row.get("sentiment", ""),
-            "nlp_score":  row.get("sentiment_score", ""),
+            "sentiment":  row.get("sentiment", "None"),
+            "nlp_label":  row.get("nlp_label", ""),
+            "nlp_score":  row.get("nlp_score", ""),
         })
     return result
 
@@ -77,7 +77,7 @@ def load_charts_data():
     counts_over_time = {}
     for row in rows:
         symbol = row.get("symbol", "")
-        label  = row.get("sentiment", "neutral") or "neutral"
+        label  = row.get("nlp_label", "neutral") or "neutral"
         if symbol not in sentiment_by_symbol:
             sentiment_by_symbol[symbol] = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
         if label in sentiment_by_symbol[symbol]:
@@ -103,7 +103,7 @@ def load_symbol_chart_data(symbol: str):
         ts = row.get("timestamp", "")
         volume_by_ts[ts] = volume_by_ts.get(ts, 0) + 1
 
-        label = (row.get("sentiment") or "neutral").lower()
+        label = (row.get("nlp_label") or "neutral").lower()
         if label not in ("bullish", "bearish", "neutral", "mixed"):
             label = "neutral"
 
@@ -113,7 +113,6 @@ def load_symbol_chart_data(symbol: str):
 
     timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
 
-    # Real price-over-time history
     price_rows = get_price_history(symbol)
     price_series = [{"timestamp": r.get("timestamp", ""), "price": r.get("price", "")} for r in price_rows]
 
@@ -126,6 +125,46 @@ def load_symbol_chart_data(symbol: str):
             for ts in timestamps
         ],
     }
+
+
+def compute_sma(closes: list, period: int) -> list:
+    """Returns a list same length as closes, with None where not enough data yet."""
+    result = []
+    for i in range(len(closes)):
+        if i + 1 < period:
+            result.append(None)
+        else:
+            window = closes[i + 1 - period:i + 1]
+            result.append(round(sum(window) / period, 2))
+    return result
+
+
+def load_ohlc_data(symbol: str):
+    """Candlestick OHLC + volume + 50/200-day SMA for a single symbol."""
+    symbol = symbol.upper()
+    rows = get_ohlc(symbol)
+    if not rows:
+        return {"symbol": symbol, "candles": []}
+
+    closes = [r["close"] for r in rows]
+    sma50  = compute_sma(closes, 50)
+    sma200 = compute_sma(closes, 200)
+
+    candles = [
+        {
+            "date":   r["date"],
+            "open":   r["open"],
+            "high":   r["high"],
+            "low":    r["low"],
+            "close":  r["close"],
+            "volume": r["volume"],
+            "sma50":  sma50[i],
+            "sma200": sma200[i],
+        }
+        for i, r in enumerate(rows)
+    ]
+
+    return {"symbol": symbol, "candles": candles}
 
 
 def load_momentum():
@@ -218,6 +257,13 @@ def api_charts_symbol(symbol):
     if symbol.upper() not in WATCHLIST:
         return jsonify({"error": "Symbol not tracked"}), 404
     return jsonify(load_symbol_chart_data(symbol))
+
+
+@app.route("/api/ohlc/<symbol>")
+def api_ohlc(symbol):
+    if symbol.upper() not in WATCHLIST:
+        return jsonify({"error": "Symbol not tracked"}), 404
+    return jsonify(load_ohlc_data(symbol))
 
 
 @app.route("/api/momentum")
