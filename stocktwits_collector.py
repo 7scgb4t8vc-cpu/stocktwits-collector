@@ -2,12 +2,10 @@
 StockTwits + FinViz Elite Collector (MongoDB version)
 =====================================
 Each run:
-1. Fetches pre-filtered stocks from FinViz Elite screener export (v=171 Technical view)
-2. Cross-references against a fixed 26-stock watchlist
-3. Collects StockTwits messages for those stocks
+1. On first run: fetches stocks from FinViz Elite screener, picks top 30 by volume, saves as permanent watchlist
+2. On subsequent runs: uses saved watchlist from MongoDB
+3. Collects StockTwits messages for watchlist stocks
 4. Saves messages + FinViz data to MongoDB
-
-Runs in under 60 seconds.
 """
 
 import time
@@ -20,23 +18,16 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
 BASE_URL      = "https://api.stocktwits.com/api/2"
 IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
-TOP_N_KEEP    = 20
-MAX_NEW_MSGS  = 10
+WATCHLIST_SIZE = 30
 
-WATCHLIST = [
-    "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
-    "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
-    "ABG", "ABNB", "ABTC", "ABUS", "ACA", "ACH", "ACLO", "ACMR", "ACR"
-]
-
-FINVIZ_TECHNICAL_URL = "https://elite.finviz.com/export?v=171&f=sh_curvol_o100,sh_relvol_o2,ta_change_u&ft=4&auth={token}"
+FINVIZ_URL = "https://elite.finviz.com/export?v=171&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
 
 ST_HEADERS = {
     "User-Agent": (
@@ -62,10 +53,26 @@ FV_HEADERS = {
 }
 
 
+# ── Watchlist (MongoDB) ───────────────────────────────────────────────────────
+
+def load_watchlist() -> list:
+    """Load permanent watchlist from MongoDB. Returns list of symbols."""
+    coll = get_db()["watchlist"]
+    docs = list(coll.find())
+    return [d["symbol"] for d in docs]
+
+def save_watchlist(symbols: list):
+    """Save permanent watchlist to MongoDB."""
+    coll = get_db()["watchlist"]
+    coll.drop()
+    coll.insert_many([{"symbol": s} for s in symbols])
+    print(f"  ✓ Saved {len(symbols)} symbols to permanent watchlist.")
+
+
 # ── FinViz Elite screener ─────────────────────────────────────────────────────
 
 def fetch_finviz_screener(token: str) -> list:
-    url = FINVIZ_TECHNICAL_URL.format(token=token)
+    url = FINVIZ_URL.format(token=token)
     try:
         resp = std_requests.get(url, headers=FV_HEADERS, timeout=20)
         if resp.status_code != 200:
@@ -80,7 +87,7 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names."""
+    """Map FinViz Elite CSV columns to our internal field names."""
     return {
         "price":      row.get("Price",                        ""),
         "change_pct": row.get("Change",                       ""),
@@ -92,6 +99,9 @@ def parse_finviz_row(row: dict) -> dict:
         "beta":       row.get("Beta",                         ""),
         "52w_high":   row.get("52-Week High",                 ""),
         "52w_low":    row.get("52-Week Low",                  ""),
+        "sector":     row.get("Sector",                       ""),
+        "industry":   row.get("Industry",                     ""),
+        "rel_volume": row.get("Relative Volume",              ""),
     }
 
 
@@ -104,9 +114,9 @@ def fetch_trending() -> list:
     return resp.json().get("symbols", [])
 
 
-def fetch_new_messages(symbol: str, since_id) -> list:
+def fetch_messages(symbol: str, since_id) -> list:
     url    = f"{BASE_URL}/streams/symbol/{symbol}.json"
-    params = {"limit": MAX_NEW_MSGS}
+    params = {"limit": 30}
     if since_id:
         params["since"] = since_id
     resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
@@ -137,51 +147,60 @@ def main():
 
     cursors = load_cursors()
 
-    print("\nFetching FinViz Elite screener results...")
-    fv_screener_rows = fetch_finviz_screener(finviz_token)
+    # ── Load or build watchlist ───────────────────────────────────────────────
+    watchlist = load_watchlist()
 
-    if not fv_screener_rows:
-        print("  No results from FinViz screener — filters may be too strict or market is closed.")
-        return
+    if not watchlist:
+        print("\nNo permanent watchlist found. Running FinViz filter to build one...")
+        fv_screener_rows = fetch_finviz_screener(finviz_token)
+        if not fv_screener_rows:
+            print("  No results from FinViz screener — cannot build watchlist.")
+            return
 
-    print("\nFetching StockTwits trending stocks (for reference only)...")
-    try:
-        trending      = fetch_trending()
-        trending_syms = {s["symbol"] for s in trending}
-    except Exception as e:
-        print(f"  Error fetching trending: {e}")
-        trending_syms = set()
+        # Sort by volume descending, take top 30
+        def parse_volume(row):
+            try:
+                return int(str(row.get("Volume", "0")).replace(",", ""))
+            except:
+                return 0
 
-    fv_lookup = {}
-    for row in fv_screener_rows:
-        sym = row.get("Ticker", "").strip()
-        if sym:
-            fv_lookup[sym] = row
+        fv_screener_rows.sort(key=parse_volume, reverse=True)
+        top_rows = fv_screener_rows[:WATCHLIST_SIZE]
+        watchlist = [r.get("Ticker", "").strip() for r in top_rows if r.get("Ticker", "").strip()]
+        save_watchlist(watchlist)
+        print(f"  Permanent watchlist: {watchlist}")
 
-    candidates = [s for s in WATCHLIST if s in fv_lookup][:TOP_N_KEEP]
-    skipped    = [s for s in WATCHLIST if s not in fv_lookup]
+        # Build fv_lookup from these rows so we don't re-fetch
+        fv_lookup = {r.get("Ticker", "").strip(): r for r in top_rows}
+    else:
+        print(f"\nLoaded permanent watchlist ({len(watchlist)} symbols): {watchlist}")
 
-    print(f"  Watchlist: {WATCHLIST}")
-    print(f"  Trending overlap: {[s for s in WATCHLIST if s in trending_syms]}")
-    print(f"  Selected ({len(candidates)}): {', '.join(candidates)}")
-    if skipped:
-        print(f"  Skipped (not in today's FinViz filter results): {', '.join(skipped)}")
+        # Fetch fresh FinViz data for watchlist symbols
+        print("\nFetching fresh FinViz data...")
+        fv_screener_rows = fetch_finviz_screener(finviz_token)
+        fv_lookup = {r.get("Ticker", "").strip(): r for r in fv_screener_rows}
 
+    # ── Collect data ──────────────────────────────────────────────────────────
     st_rows = []
     fv_rows = []
 
     print("\nCollecting StockTwits messages...")
-    for symbol in candidates:
+    for symbol in watchlist:
         since_id = cursors.get(symbol)
-        fv_raw   = fv_lookup[symbol]
-        fv_data  = parse_finviz_row(fv_raw)
+        fv_raw   = fv_lookup.get(symbol)
 
-        print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
-              f"Vol={fv_data['volume']} RSI={fv_data['rsi']}")
+        if fv_raw:
+            fv_data = parse_finviz_row(fv_raw)
+            print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
+                  f"Vol={fv_data['volume']} RSI={fv_data['rsi']}")
+            fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
+            log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
+        else:
+            print(f"  [{symbol}] No FinViz data today (not in filter results).")
 
         print(f"  [{symbol}] Fetching messages (since_id={since_id})...", end=" ")
         try:
-            messages = fetch_new_messages(symbol, since_id)
+            messages = fetch_messages(symbol, since_id)
         except Exception as e:
             print(f"✗ Error: {e}")
             messages = []
@@ -200,8 +219,6 @@ def main():
         else:
             print("No new messages.")
 
-        fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
-        log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
         time.sleep(REQUEST_DELAY)
 
     if st_rows:
