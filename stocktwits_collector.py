@@ -80,6 +80,8 @@ def fetch_finviz_screener(token: str) -> list:
             return []
         rows = list(csv.DictReader(io.StringIO(resp.text)))
         print(f"  {len(rows)} stocks passed FinViz filters.")
+        if rows:
+            print(f"  FinViz CSV columns: {list(rows[0].keys())}")
         return rows
     except Exception as e:
         print(f"  Error fetching FinViz screener: {e}")
