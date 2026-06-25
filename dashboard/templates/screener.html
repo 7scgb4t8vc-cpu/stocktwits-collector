@@ -172,7 +172,7 @@ async function loadScreener() {
       if (sc.bullish > sc.bearish && sc.bullish > sc.none) dominant = "Bullish";
       else if (sc.bearish > sc.bullish && sc.bearish > sc.none) dominant = "Bearish";
       const scoreRow = scoreMap[r.symbol];
-      const sentiment_score = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
+const sentiment_score = scoreRow ? parseFloat(scoreRow.agg_sentiment) : null;
       return { ...r, sentiment: dominant, sentiment_score, _sc: sc };
     });
 
