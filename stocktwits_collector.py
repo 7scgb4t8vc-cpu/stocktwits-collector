@@ -93,7 +93,6 @@ def parse_finviz_row(row: dict) -> dict:
         "52w_high":   row.get("52-Week High",                 ""),
         "52w_low":    row.get("52-Week Low",                  ""),
     }
-    }
 
 
 # ── StockTwits fetchers ───────────────────────────────────────────────────────
