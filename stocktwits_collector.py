@@ -78,7 +78,7 @@ def fetch_finviz_screener(token: str) -> list:
         if resp.status_code != 200:
             print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
             return []
-       rows = list(csv.DictReader(io.StringIO(resp.text)))
+        rows = list(csv.DictReader(io.StringIO(resp.text)))
         print(f"  {len(rows)} stocks passed FinViz filters.")
         return rows
     except Exception as e:
@@ -187,7 +187,7 @@ def main():
 
         if fv_raw:
             fv_data = parse_finviz_row(fv_raw)
-           print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
+            print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
                   f"Vol={fv_data['volume']} P/E={fv_data['pe']} Cap={fv_data['market_cap']}")
             fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
             log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
