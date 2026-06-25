@@ -1,53 +1,57 @@
 {% extends "base.html" %}
-{% block content %}
 
+{% block content %}
 <div class="page-header">
   <h1>Screener</h1>
   <p class="page-subtitle">FinViz metrics with StockTwits sentiment</p>
 </div>
-
 <div class="filter-bar">
   <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
   <select id="filter-sector" class="filter-select">
     <option value="">All sectors</option>
   </select>
+  <div class="col-toggle-wrap">
+    <button class="btn-col-toggle" id="col-toggle-btn" onclick="toggleColMenu()">⊞ Columns</button>
+    <div class="col-menu" id="col-menu">
+      <label><input type="checkbox" data-col="rel_volume" onchange="toggleColumn(this)"> Rel Vol</label>
+      <label><input type="checkbox" data-col="rsi" onchange="toggleColumn(this)"> RSI</label>
+      <label><input type="checkbox" data-col="52w_high" onchange="toggleColumn(this)"> 52W High</label>
+      <label><input type="checkbox" data-col="52w_low" onchange="toggleColumn(this)"> 52W Low</label>
+    </div>
+  </div>
   <button class="btn-refresh" onclick="loadScreener()">↻ Refresh now</button>
 </div>
-
 <div class="stats-bar">
   <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
   <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> net bullish</div>
   <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> net bearish</div>
   <div class="stat-chip"><span id="stat-updated">—</span></div>
 </div>
-
 <div class="table-wrap">
   <table class="data-table" id="screener-table">
     <thead>
       <tr>
         <th class="sortable" data-col="symbol">Symbol <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="price">Price <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="pe">P/E <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="change_pct">Change % <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="volume">Volume <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="rel_volume">Rel Vol <span class="sort-arrow">↕</span></th>
+        <th class="sortable col-optional" data-col="rel_volume" style="display:none">Rel Vol <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="market_cap">Mkt Cap <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="rsi">RSI <span class="sort-arrow">↕</span></th>
+        <th class="sortable col-optional" data-col="rsi" style="display:none">RSI <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="beta">Beta <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="52w_high">52W High <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="52w_low">52W Low <span class="sort-arrow">↕</span></th>
+        <th class="sortable col-optional" data-col="52w_high" style="display:none">52W High <span class="sort-arrow">↕</span></th>
+        <th class="sortable col-optional" data-col="52w_low" style="display:none">52W Low <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="sentiment">Sentiment <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="sentiment_score">Score <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="sector">Sector <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="industry">Industry <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="timestamp">Updated <span class="sort-arrow">↕</span></th>
       </tr>
     </thead>
     <tbody id="screener-body">
-      <tr><td colspan="15" class="loading">Loading...</td></tr>
+      <tr><td colspan="14" class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
-
 <style>
 .sortable { cursor: pointer; user-select: none; }
 .sortable:hover { color: var(--text); }
@@ -71,15 +75,79 @@ th.sort-desc .sort-arrow { font-size: 13px; }
 .score-pos { color: #7db83a; font-weight: 600; }
 .score-neg { color: #e86a69; font-weight: 600; }
 .score-neu { color: var(--muted); }
+
+/* Column toggle dropdown */
+.col-toggle-wrap { position: relative; display: inline-block; }
+.btn-col-toggle {
+  padding: 6px 12px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+}
+.btn-col-toggle:hover { background: var(--bg3); }
+.col-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  z-index: 100;
+  min-width: 140px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+.col-menu.open { display: block; }
+.col-menu label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+}
+.col-menu label:hover { color: var(--accent, #7db83a); }
+.col-menu input[type="checkbox"] { accent-color: var(--accent, #7db83a); width: 14px; height: 14px; }
 </style>
-
 {% endblock %}
-
 {% block scripts %}
 <script>
 let allRows = [];
 let sortCol = "";
 let sortDir = 1;
+
+const OPTIONAL_COLS = ["rel_volume", "rsi", "52w_high", "52w_low"];
+const visibleCols = new Set();
+
+function toggleColMenu() {
+  document.getElementById("col-menu").classList.toggle("open");
+}
+
+document.addEventListener("click", e => {
+  if (!e.target.closest(".col-toggle-wrap")) {
+    document.getElementById("col-menu").classList.remove("open");
+  }
+});
+
+function toggleColumn(checkbox) {
+  const col = checkbox.dataset.col;
+  if (checkbox.checked) {
+    visibleCols.add(col);
+  } else {
+    visibleCols.delete(col);
+    if (sortCol === col) { sortCol = ""; sortDir = 1; }
+  }
+  document.querySelectorAll(`th[data-col="${col}"]`).forEach(th => {
+    th.style.display = checkbox.checked ? "" : "none";
+  });
+  applyFilters();
+}
 
 async function loadScreener() {
   try {
@@ -90,7 +158,7 @@ async function loadScreener() {
     ]);
     const screenerRows = await screenerRes.json();
     const socialRows   = await socialRes.json();
-    const scoreMap      = await scoreRes.json();
+    const scoreMap     = await scoreRes.json();
 
     const sentMap = {};
     for (const msg of socialRows) {
@@ -128,7 +196,7 @@ async function loadScreener() {
 
   } catch (e) {
     document.getElementById("screener-body").innerHTML =
-      '<tr><td colspan="15" class="error">Failed to load data.</td></tr>';
+      '<tr><td colspan="14" class="error">Failed to load data.</td></tr>';
   }
 }
 
@@ -170,10 +238,17 @@ function formatScore(score) {
   return `<span class="${cls}">${sign}${score.toFixed(2)}</span>`;
 }
 
+function cellVis(col) {
+  if (OPTIONAL_COLS.includes(col)) {
+    return visibleCols.has(col) ? "" : "display:none";
+  }
+  return "";
+}
+
 function renderTable(rows) {
   const body = document.getElementById("screener-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="15" class="empty">No stocks match your filters.</td></tr>';
+    body.innerHTML = '<tr><td colspan="14" class="empty">No stocks match your filters.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(r => {
@@ -188,20 +263,19 @@ function renderTable(rows) {
     return `<tr>
       <td><strong>${r.symbol}</strong></td>
       <td>${r.price || "—"}</td>
+      <td>${r.pe || r["p/e"] || "—"}</td>
       <td class="${chgClass}">${chgStr || "—"}</td>
       <td>${r.volume || "—"}</td>
-      <td>${r.rel_volume || "—"}</td>
+      <td style="${cellVis('rel_volume')}">${r.rel_volume || "—"}</td>
       <td>${r.market_cap || "—"}</td>
-      <td class="${rsiClass}">${r.rsi || "—"}</td>
+      <td style="${cellVis('rsi')}" class="${rsiClass}">${r.rsi || "—"}</td>
       <td>${r.beta || "—"}</td>
-      <td>${r["52w_high"] || "—"}</td>
-      <td>${r["52w_low"] || "—"}</td>
+      <td style="${cellVis('52w_high')}">${r["52w_high"] || "—"}</td>
+      <td style="${cellVis('52w_low')}">${r["52w_low"] || "—"}</td>
       <td title="${scTip}">
         <span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
       </td>
       <td>${formatScore(r.sentiment_score)}</td>
-      <td>${r.sector || "—"}</td>
-      <td>${r.industry || "—"}</td>
       <td>${r.timestamp || "—"}</td>
     </tr>`;
   }).join("");
@@ -210,6 +284,7 @@ function renderTable(rows) {
 document.querySelectorAll("th.sortable").forEach(th => {
   th.addEventListener("click", () => {
     const col = th.dataset.col;
+    if (OPTIONAL_COLS.includes(col) && !visibleCols.has(col)) return;
     if (sortCol === col) {
       sortDir *= -1;
     } else {
