@@ -7,9 +7,6 @@
 </div>
 <div class="filter-bar">
   <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
-  <select id="filter-sector" class="filter-select">
-    <option value="">All sectors</option>
-  </select>
   <div class="col-toggle-wrap">
     <button class="btn-col-toggle" id="col-toggle-btn" onclick="toggleColMenu()">⊞ Columns</button>
     <div class="col-menu" id="col-menu">
@@ -39,7 +36,6 @@
         <th class="sortable col-optional" data-col="rel_volume" style="display:none">Rel Vol <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="market_cap">Mkt Cap <span class="sort-arrow">↕</span></th>
         <th class="sortable col-optional" data-col="rsi" style="display:none">RSI <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="beta">Beta <span class="sort-arrow">↕</span></th>
         <th class="sortable col-optional" data-col="52w_high" style="display:none">52W High <span class="sort-arrow">↕</span></th>
         <th class="sortable col-optional" data-col="52w_low" style="display:none">52W Low <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="sentiment">Sentiment <span class="sort-arrow">↕</span></th>
@@ -48,7 +44,7 @@
       </tr>
     </thead>
     <tbody id="screener-body">
-      <tr><td colspan="14" class="loading">Loading...</td></tr>
+      <tr><td colspan="13" class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -180,7 +176,6 @@ async function loadScreener() {
       return { ...r, sentiment: dominant, sentiment_score, _sc: sc };
     });
 
-    populateSectors(allRows);
     applyFilters();
 
     let bull = 0, bear = 0;
@@ -196,24 +191,14 @@ async function loadScreener() {
 
   } catch (e) {
     document.getElementById("screener-body").innerHTML =
-      '<tr><td colspan="14" class="error">Failed to load data.</td></tr>';
+      '<tr><td colspan="13" class="error">Failed to load data.</td></tr>';
   }
-}
-
-function populateSectors(rows) {
-  const sectors = [...new Set(rows.map(r => r.sector).filter(Boolean))].sort();
-  const sel     = document.getElementById("filter-sector");
-  const current = sel.value;
-  sel.innerHTML = '<option value="">All sectors</option>' +
-    sectors.map(s => `<option value="${s}"${s === current ? " selected" : ""}>${s}</option>`).join("");
 }
 
 function applyFilters() {
   const sym    = document.getElementById("filter-symbol").value.toUpperCase();
-  const sector = document.getElementById("filter-sector").value;
   let filtered = allRows.filter(r =>
-    (!sym    || r.symbol.includes(sym) || (r.sector || "").toUpperCase().includes(sym) || (r.industry || "").toUpperCase().includes(sym)) &&
-    (!sector || r.sector === sector)
+    !sym || r.symbol.includes(sym) || (r.sector || "").toUpperCase().includes(sym) || (r.industry || "").toUpperCase().includes(sym)
   );
   if (sortCol) filtered = sortRows(filtered);
   renderTable(filtered);
@@ -248,7 +233,7 @@ function cellVis(col) {
 function renderTable(rows) {
   const body = document.getElementById("screener-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="14" class="empty">No stocks match your filters.</td></tr>';
+    body.innerHTML = '<tr><td colspan="13" class="empty">No stocks match your filters.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(r => {
@@ -269,7 +254,6 @@ function renderTable(rows) {
       <td style="${cellVis('rel_volume')}">${r.rel_volume || "—"}</td>
       <td>${r.market_cap || "—"}</td>
       <td style="${cellVis('rsi')}" class="${rsiClass}">${r.rsi || "—"}</td>
-      <td>${r.beta || "—"}</td>
       <td style="${cellVis('52w_high')}">${r["52w_high"] || "—"}</td>
       <td style="${cellVis('52w_low')}">${r["52w_low"] || "—"}</td>
       <td title="${scTip}">
@@ -298,7 +282,6 @@ document.querySelectorAll("th.sortable").forEach(th => {
 });
 
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
-document.getElementById("filter-sector").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadScreener);
 </script>
