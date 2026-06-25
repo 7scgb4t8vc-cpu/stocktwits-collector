@@ -80,17 +80,19 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names.
-    No market cap / relative volume — not in this FinViz view, and yfinance was dropped."""
+    """Map FinViz Elite CSV columns (v=171 Technical view) to our internal field names."""
     return {
         "price":      row.get("Price",                        ""),
         "change_pct": row.get("Change",                       ""),
         "volume":     row.get("Volume",                       ""),
         "avg_volume": row.get("Average Volume",               ""),
+        "market_cap": row.get("Market Cap",                   ""),
+        "pe":         row.get("P/E",                          ""),
         "rsi":        row.get("Relative Strength Index (14)", ""),
         "beta":       row.get("Beta",                         ""),
         "52w_high":   row.get("52-Week High",                 ""),
         "52w_low":    row.get("52-Week Low",                  ""),
+    }
     }
 
 
