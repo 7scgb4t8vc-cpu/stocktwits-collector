@@ -27,7 +27,7 @@ IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
 WATCHLIST_SIZE = 30
 
-FINVIZ_URL = "https://elite.finviz.com/export?v=171&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
+FINVIZ_URL = "https://elite.finviz.com/export?v=152&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
 
 ST_HEADERS = {
     "User-Agent": (
