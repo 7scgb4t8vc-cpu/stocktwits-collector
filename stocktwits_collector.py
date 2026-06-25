@@ -78,10 +78,8 @@ def fetch_finviz_screener(token: str) -> list:
         if resp.status_code != 200:
             print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
             return []
-        rows = list(csv.DictReader(io.StringIO(resp.text)))
+       rows = list(csv.DictReader(io.StringIO(resp.text)))
         print(f"  {len(rows)} stocks passed FinViz filters.")
-        if rows:
-            print(f"  FinViz CSV columns: {list(rows[0].keys())}")
         return rows
     except Exception as e:
         print(f"  Error fetching FinViz screener: {e}")
@@ -91,19 +89,15 @@ def fetch_finviz_screener(token: str) -> list:
 def parse_finviz_row(row: dict) -> dict:
     """Map FinViz Elite CSV columns to our internal field names."""
     return {
-        "price":      row.get("Price",                        ""),
-        "change_pct": row.get("Change",                       ""),
-        "volume":     row.get("Volume",                       ""),
-        "avg_volume": row.get("Average Volume",               ""),
-        "market_cap": row.get("Market Cap",                   ""),
-        "pe":         row.get("P/E",                          ""),
-        "rsi":        row.get("Relative Strength Index (14)", ""),
-        "beta":       row.get("Beta",                         ""),
-        "52w_high":   row.get("52-Week High",                 ""),
-        "52w_low":    row.get("52-Week Low",                  ""),
-        "sector":     row.get("Sector",                       ""),
-        "industry":   row.get("Industry",                     ""),
-        "rel_volume": row.get("Relative Volume",              ""),
+        "price":      row.get("Price",          ""),
+        "change_pct": row.get("Change",         ""),
+        "volume":     row.get("Volume",         ""),
+        "avg_volume": row.get("Average Volume", ""),
+        "market_cap": row.get("Market Cap",     ""),
+        "pe":         row.get("P/E",             ""),
+        "sector":     row.get("Sector",         ""),
+        "industry":   row.get("Industry",       ""),
+        "rel_volume": row.get("Relative Volume", ""),
     }
 
 
@@ -193,8 +187,8 @@ def main():
 
         if fv_raw:
             fv_data = parse_finviz_row(fv_raw)
-            print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
-                  f"Vol={fv_data['volume']} RSI={fv_data['rsi']}")
+           print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
+                  f"Vol={fv_data['volume']} P/E={fv_data['pe']} Cap={fv_data['market_cap']}")
             fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
             log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
         else:
