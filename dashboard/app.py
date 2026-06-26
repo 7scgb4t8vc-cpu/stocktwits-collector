@@ -14,48 +14,51 @@ app = Flask(__name__)
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-GITHUB_USER = "7scgb4t8vc-cpu"
-GITHUB_REPO = "stocktwits-collector"
+GITHUB_USER   = "7scgb4t8vc-cpu"
+GITHUB_REPO   = "stocktwits-collector"
 GITHUB_BRANCH = "main"
 
-WATCHLIST = {
-    "HOOD", "QURE", "RXT", "ACON", "AIBZ", "ALBT", "ALOT", "ARDX",
-    "BFLY", "CAT", "DIS", "HQ", "MRNA", "QS", "UUUU", "AAT", "ABCB",
-    "ABG", "ABNB", "ABTC", "ABUS", "ACA", "ACH", "ACLO", "ACMR", "ACR"
-}
+# ── Watchlist (loaded from MongoDB) ──────────────────────────────────────────
+
+def get_watchlist() -> set:
+    docs = list(get_db()["watchlist"].find())
+    return {d["symbol"] for d in docs}
 
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
 def load_social():
+    watchlist = get_watchlist()
     rows = get_messages()
-    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    rows = [r for r in rows if r.get("symbol", "") in watchlist]
     rows.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
 
     result = []
     for row in rows:
         result.append({
-            "timestamp":  row.get("timestamp", ""),
-            "symbol":     row.get("symbol", ""),
-            "message":    row.get("message", ""),
-            "sentiment":  row.get("sentiment", "None"),
-            "nlp_label":  row.get("nlp_label", ""),
-            "nlp_score":  row.get("nlp_score", ""),
+            "timestamp": row.get("timestamp", ""),
+            "symbol":    row.get("symbol", ""),
+            "message":   row.get("message", ""),
+            "sentiment": row.get("sentiment", "None"),
+            "nlp_label": row.get("nlp_label", ""),
+            "nlp_score": row.get("nlp_score", ""),
         })
     return result
 
 
 def load_screener():
+    watchlist = get_watchlist()
     rows = get_finviz()
-    return [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    return [r for r in rows if r.get("symbol", "") in watchlist]
 
 
 def load_frequency():
+    watchlist = get_watchlist()
     rows = get_messages()
     counts = {}
     last_seen = {}
     for row in rows:
         sym = row.get("symbol", "")
-        if sym not in WATCHLIST:
+        if sym not in watchlist:
             continue
         counts[sym] = counts.get(sym, 0) + 1
         ts = row.get("timestamp", "")
@@ -70,8 +73,9 @@ def load_frequency():
 
 
 def load_charts_data():
+    watchlist = get_watchlist()
     rows = get_messages()
-    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    rows = [r for r in rows if r.get("symbol", "") in watchlist]
 
     sentiment_by_symbol = {}
     counts_over_time = {}
@@ -93,7 +97,6 @@ def load_charts_data():
 
 
 def load_symbol_chart_data(symbol: str):
-    """Build message volume and sentiment time series for a single symbol."""
     symbol = symbol.upper()
     rows = get_messages(symbol=symbol)
 
@@ -128,7 +131,6 @@ def load_symbol_chart_data(symbol: str):
 
 
 def compute_sma(closes: list, period: int) -> list:
-    """Returns a list same length as closes, with None where not enough data yet."""
     result = []
     for i in range(len(closes)):
         if i + 1 < period:
@@ -140,7 +142,6 @@ def compute_sma(closes: list, period: int) -> list:
 
 
 def load_ohlc_data(symbol: str):
-    """Candlestick OHLC + volume + 50/200-day SMA for a single symbol."""
     symbol = symbol.upper()
     rows = get_ohlc(symbol)
     if not rows:
@@ -168,8 +169,9 @@ def load_ohlc_data(symbol: str):
 
 
 def load_momentum():
+    watchlist = get_watchlist()
     rows = get_finviz()
-    rows = [r for r in rows if r.get("symbol", "") in WATCHLIST]
+    rows = [r for r in rows if r.get("symbol", "") in watchlist]
 
     def parse_float(v):
         try:
@@ -185,11 +187,12 @@ def load_momentum():
 
 
 def load_sentiment_scores():
+    watchlist = get_watchlist()
     coll = get_db()["sentiment_scores"]
     rows = list(coll.find())
     for r in rows:
         r.pop("_id", None)
-    return {r["symbol"]: r for r in rows if r.get("symbol", "") in WATCHLIST}
+    return {r["symbol"]: r for r in rows if r.get("symbol", "") in watchlist}
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -223,10 +226,11 @@ def momentum():
 
 @app.route("/api/social")
 def api_social():
+    watchlist = get_watchlist()
     symbol = request.args.get("symbol", "").upper()
     label  = request.args.get("label", "")
     rows   = load_social()
-    if symbol and symbol in WATCHLIST:
+    if symbol and symbol in watchlist:
         rows = [r for r in rows if r["symbol"] == symbol]
     if label:
         rows = [r for r in rows if r["sentiment"].lower() == label.lower()
@@ -246,7 +250,7 @@ def api_frequency():
 
 @app.route("/api/symbols")
 def api_symbols():
-    return jsonify(sorted(WATCHLIST))
+    return jsonify(sorted(get_watchlist()))
 
 
 @app.route("/api/charts")
@@ -256,14 +260,14 @@ def api_charts():
 
 @app.route("/api/charts/<symbol>")
 def api_charts_symbol(symbol):
-    if symbol.upper() not in WATCHLIST:
+    if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
     return jsonify(load_symbol_chart_data(symbol))
 
 
 @app.route("/api/ohlc/<symbol>")
 def api_ohlc(symbol):
-    if symbol.upper() not in WATCHLIST:
+    if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
     return jsonify(load_ohlc_data(symbol))
 
