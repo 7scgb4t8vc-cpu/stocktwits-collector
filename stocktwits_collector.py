@@ -77,7 +77,7 @@ def fetch_finviz_screener(token: str) -> list:
         if resp.status_code != 200:
             print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
             return []
-       rows = list(csv.DictReader(io.StringIO(resp.text)))
+        rows = list(csv.DictReader(io.StringIO(resp.text)))
         print(f"  {len(rows)} stocks passed FinViz filters.")
         return rows
     except Exception as e:
