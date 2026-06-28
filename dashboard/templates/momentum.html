@@ -18,8 +18,8 @@
   <div class="mom-filter-group">
     <label class="mom-filter-label">REL VOL</label>
     <select id="filter-relvol" class="filter-select">
-      <option value="0">Any</option>
-      <option value="1" selected>1x+</option>
+      <option value="0" selected>Any</option>
+<option value="1">1x+</option>
       <option value="2">2x+</option>
       <option value="3">3x+</option>
       <option value="5">5x+</option>
@@ -360,15 +360,16 @@ function applyFilters() {
 
 function getSentimentLabel(symbol) {
   const scoreRow = scoreMap[symbol];
-  const score = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
-  if (score === null || isNaN(score)) return "neutral";
+  if (!scoreRow) return "neutral";
+  const score = parseFloat(scoreRow.agg_sentiment);
+  if (isNaN(score)) return "neutral";
   return score > 0.1 ? "bullish" : score < -0.1 ? "bearish" : "neutral";
 }
 
 function getSentimentScore(symbol) {
   const scoreRow = scoreMap[symbol];
   if (!scoreRow) return null;
-  const s = parseFloat(scoreRow.sentiment_score);
+  const s = parseFloat(scoreRow.agg_sentiment);
   return isNaN(s) ? null : s;
 }
 
