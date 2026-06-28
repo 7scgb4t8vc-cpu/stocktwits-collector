@@ -3,7 +3,7 @@
 
 <div class="page-header">
   <h1>Charts</h1>
-  <p class="page-subtitle">Price, message volume, and sentiment over time for a single stock</p>
+  <p class="page-subtitle">Price history, sentiment, and social posts for a single stock</p>
 </div>
 
 <div class="filter-bar">
@@ -14,40 +14,104 @@
 
 <div id="charts-empty" class="empty">Select a symbol above to view its charts.</div>
 
-<div class="charts-grid" id="charts-grid" style="display:none">
-  <div class="chart-card dash-section--wide">
-    <h2>Price chart (candlestick, volume, SMA)</h2>
-    <canvas id="ohlc-chart" height="260"></canvas>
-    <canvas id="ohlc-volume-chart" height="100" style="margin-top:8px"></canvas>
+<div id="charts-grid" style="display:none">
+
+  <!-- TradingView Chart -->
+  <div class="chart-card" style="margin-bottom:1rem;">
+    <div class="chart-card-title">Price Chart</div>
+    <div id="tv-chart-wrap"></div>
   </div>
-  <div class="chart-card">
-    <h2>Price over time</h2>
-    <canvas id="price-chart" height="200"></canvas>
+
+  <!-- Sentiment + Volume -->
+  <div class="charts-two-col">
+    <div class="chart-card">
+      <div class="chart-card-title">Message Volume Over Time</div>
+      <canvas id="volume-chart" height="200"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Sentiment Breakdown Over Time</div>
+      <canvas id="sentiment-chart" height="200"></canvas>
+    </div>
   </div>
-  <div class="chart-card">
-    <h2>Message volume over time</h2>
-    <canvas id="volume-chart" height="200"></canvas>
+
+  <!-- Social Feed -->
+  <div class="chart-card" style="margin-top:1rem;">
+    <div class="chart-card-title">Recent Social Posts</div>
+    <div id="charts-social-feed"></div>
   </div>
-  <div class="chart-card dash-section--wide">
-    <h2>Sentiment breakdown over time</h2>
-    <canvas id="sentiment-chart" height="200"></canvas>
-  </div>
+
 </div>
+
+<style>
+.chart-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.chart-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.75rem;
+}
+.charts-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+@media (max-width: 768px) {
+  .charts-two-col { grid-template-columns: 1fr; }
+}
+
+/* Social feed */
+.charts-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.charts-post {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.875rem;
+  border-left: 2px solid var(--border);
+}
+.charts-post.bullish { border-left-color: var(--green); }
+.charts-post.bearish { border-left-color: var(--red); }
+.charts-post.neutral { border-left-color: var(--muted); }
+.charts-post.mixed   { border-left-color: var(--yellow); }
+.charts-post-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 4px;
+}
+.charts-post-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.charts-post-label.bullish { color: var(--green); }
+.charts-post-label.bearish { color: var(--red); }
+.charts-post-label.neutral { color: var(--muted); }
+.charts-post-label.mixed   { color: var(--yellow); }
+.charts-post-time { font-size: 10px; color: var(--muted); margin-left: auto; }
+.charts-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
+.charts-no-posts { font-size: 13px; color: var(--muted); padding: 1rem 0; }
+</style>
 
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-adapter-moment/1.0.1/chartjs-adapter-moment.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.2.1/dist/chartjs-chart-financial.min.js"></script>
 <script>
 let _charts = {};
 let _currentSymbol = "";
-
-function destroyCharts() {
-  Object.values(_charts).forEach(c => { try { c.destroy(); } catch(e) {} });
-  _charts = {};
-}
 
 const chartDefaults = {
   plugins: { legend: { labels: { color: "#8b949e" } } },
@@ -56,6 +120,11 @@ const chartDefaults = {
     y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
   }
 };
+
+function destroyCharts() {
+  Object.values(_charts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  _charts = {};
+}
 
 async function loadSymbolList() {
   const res = await fetch("/api/symbols");
@@ -67,97 +136,45 @@ async function loadSymbolList() {
   if (current) sel.value = current;
 }
 
-async function loadOhlcChart(symbol) {
+function renderTradingView(symbol) {
+  const wrap = document.getElementById("tv-chart-wrap");
+  wrap.innerHTML = `<iframe
+    src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=0&hide_legend=0&hide_side_toolbar=0&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=400"
+    style="width:100%;height:400px;border:none;border-radius:6px;"
+    allowtransparency="true"
+    scrolling="no"
+  ></iframe>`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function loadSocialFeed(symbol) {
+  const feed = document.getElementById("charts-social-feed");
+  feed.innerHTML = '<div class="loading">Loading posts...</div>';
   try {
-    const res = await fetch(`/api/ohlc/${symbol}`);
-    const data = await res.json();
-    const candles = data.candles || [];
-
-    if (!candles.length) return;
-
-    const ohlcData = candles.map(c => ({
-      x: new Date(c.date).getTime(),
-      o: c.open, h: c.high, l: c.low, c: c.close
-    }));
-    const sma50Data = candles
-      .filter(c => c.sma50 !== null && c.sma50 !== undefined)
-      .map(c => ({ x: new Date(c.date).getTime(), y: Number(c.sma50) }))
-      .sort((a, b) => a.x - b.x);
-    const sma200Data = candles
-      .filter(c => c.sma200 !== null && c.sma200 !== undefined)
-      .map(c => ({ x: new Date(c.date).getTime(), y: Number(c.sma200) }))
-      .sort((a, b) => a.x - b.x);
-    const volLabels = candles.map(c => c.date);
-    const volValues = candles.map(c => c.volume);
-    const volColors = candles.map(c => c.close >= c.open ? "rgba(63,185,80,0.6)" : "rgba(248,81,73,0.6)");
-
-    _charts.ohlc = new Chart(document.getElementById("ohlc-chart"), {
-      type: "candlestick",
-      data: {
-        datasets: [
-          {
-            label: symbol,
-            data: ohlcData,
-            color: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
-            borderColor: { up: "#3fb950", down: "#f85149", unchanged: "#8b949e" },
-            order: 2,
-          },
-          {
-            type: "line",
-            label: "SMA 50",
-            data: sma50Data,
-            borderColor: "#d29922",
-            backgroundColor: "transparent",
-            borderWidth: 1.5,
-            pointRadius: 0,
-            pointHoverRadius: 0,
-            fill: false,
-            spanGaps: true,
-            parsing: false,
-            order: 1,
-          },
-          {
-            type: "line",
-            label: "SMA 200",
-            data: sma200Data,
-            borderColor: "#a371f7",
-            backgroundColor: "transparent",
-            borderWidth: 1.5,
-            pointRadius: 0,
-            pointHoverRadius: 0,
-            fill: false,
-            spanGaps: true,
-            parsing: false,
-            order: 1,
-          },
-        ]
-      },
-      options: {
-        plugins: { legend: { labels: { color: "#8b949e" } } },
-        scales: {
-          x: { type: "time", time: { unit: "month" }, ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
-          y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        }
-      }
-    });
-
-    _charts.ohlcVolume = new Chart(document.getElementById("ohlc-volume-chart"), {
-      type: "bar",
-      data: {
-        labels: volLabels,
-        datasets: [{ label: "Volume", data: volValues, backgroundColor: volColors }]
-      },
-      options: {
-        ...chartDefaults,
-        plugins: { legend: { display: false } },
-        scales: {
-          x: { ticks: { color: "#8b949e", maxTicksLimit: 8, display: false }, grid: { display: false } },
-          y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
-        }
-      }
-    });
-  } catch (e) {
-    console.error("OHLC chart load error:", e);
+    const res  = await fetch(`/api/social?symbol=${symbol}`);
+    const rows = await res.json();
+    if (!rows.length) {
+      feed.innerHTML = '<div class="charts-no-posts">No posts found for this symbol.</div>';
+      return;
+    }
+    feed.innerHTML = `<div class="charts-feed">` + rows.slice(0, 30).map(p => {
+      const lbl = (p.nlp_label || "neutral").toLowerCase();
+      return `<div class="charts-post ${lbl}">
+        <div class="charts-post-header">
+          <span class="charts-post-label ${lbl}">${lbl}</span>
+          <span class="charts-post-time">${p.timestamp || ""}</span>
+        </div>
+        <div class="charts-post-text">${escapeHtml(p.message || "")}</div>
+      </div>`;
+    }).join("") + `</div>`;
+  } catch(e) {
+    feed.innerHTML = '<div class="error">Failed to load posts.</div>';
   }
 }
 
@@ -170,53 +187,29 @@ async function loadSymbolCharts(symbol) {
   }
 
   document.getElementById("charts-empty").style.display = "none";
-  document.getElementById("charts-grid").style.display = "grid";
+  document.getElementById("charts-grid").style.display = "block";
+  destroyCharts();
+
+  renderTradingView(symbol);
+  loadSocialFeed(symbol);
 
   try {
     const res  = await fetch(`/api/charts/${symbol}`);
     const data = await res.json();
-    destroyCharts();
-
-    await loadOhlcChart(symbol);
-
-    // Price over time
-    const priceLabels = data.price_series.map(p => p.timestamp);
-    const priceValues = data.price_series.map(p => parseFloat(p.price) || null);
-    _charts.price = new Chart(document.getElementById("price-chart"), {
-      type: "line",
-      data: {
-        labels: priceLabels,
-        datasets: [{
-          label: `${symbol} price`,
-          data: priceValues,
-          borderColor: "#58a6ff",
-          backgroundColor: "rgba(88,166,255,0.08)",
-          tension: 0.3,
-          fill: true,
-          pointRadius: 3,
-          spanGaps: true,
-        }]
-      },
-      options: { ...chartDefaults, plugins: { legend: { display: false } } }
-    });
 
     // Message volume over time
     const volLabels = data.volume_series.map(v => v.timestamp);
-    const volCounts  = data.volume_series.map(v => v.count);
+    const volCounts = data.volume_series.map(v => v.count);
     _charts.volume = new Chart(document.getElementById("volume-chart"), {
       type: "bar",
       data: {
         labels: volLabels,
-        datasets: [{
-          label: "Messages",
-          data: volCounts,
-          backgroundColor: "#3fb950",
-        }]
+        datasets: [{ label: "Messages", data: volCounts, backgroundColor: "#3fb950" }]
       },
       options: { ...chartDefaults, plugins: { legend: { display: false } } }
     });
 
-    // Sentiment breakdown over time (stacked)
+    // Sentiment breakdown over time
     const sentLabels = data.sentiment_series.map(s => s.timestamp);
     _charts.sentiment = new Chart(document.getElementById("sentiment-chart"), {
       type: "bar",
@@ -238,8 +231,8 @@ async function loadSymbolCharts(symbol) {
       }
     });
 
-  } catch (e) {
-    console.error("Symbol charts load error:", e);
+  } catch(e) {
+    console.error("Charts load error:", e);
   }
 }
 
