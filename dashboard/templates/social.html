@@ -10,21 +10,15 @@
   <input type="text" id="filter-symbol" placeholder="Filter by symbol (e.g. NVDA)" class="filter-input" />
   <select id="filter-sentiment" class="filter-select">
     <option value="">All sentiment</option>
-    <option value="Bullish">Bullish</option>
-    <option value="Bearish">Bearish</option>
-    <option value="None">None</option>
-  </select>
-  <select id="filter-nlp" class="filter-select">
-    <option value="">All NLP labels</option>
-    <option value="bullish">NLP Bullish</option>
-    <option value="bearish">NLP Bearish</option>
-    <option value="neutral">NLP Neutral</option>
-    <option value="mixed">NLP Mixed</option>
+    <option value="bullish">Bullish</option>
+    <option value="bearish">Bearish</option>
+    <option value="neutral">Neutral</option>
+    <option value="mixed">Mixed</option>
   </select>
   <button class="btn-refresh" onclick="loadSocial()">↻ Refresh now</button>
 </div>
 
-<div class="stats-bar" id="stats-bar">
+<div class="stats-bar">
   <div class="stat-chip"><span id="stat-total">—</span> messages</div>
   <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> bullish</div>
   <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
@@ -39,81 +33,88 @@
 
 {% block scripts %}
 <script>
+let allMessages = [];
+
 async function loadSocial() {
-  const symbol    = document.getElementById("filter-symbol").value.trim().toUpperCase();
-  const sentiment = document.getElementById("filter-sentiment").value;
-  const nlp       = document.getElementById("filter-nlp").value;
-
-  let url = "/api/social";
-  const params = [];
-  if (symbol)    params.push("symbol=" + symbol);
-  if (sentiment) params.push("label=" + sentiment);
-  if (nlp)       params.push("label=" + nlp);
-  if (params.length) url += "?" + params.join("&");
-
   const feed = document.getElementById("feed");
   feed.innerHTML = '<div class="loading">Loading...</div>';
 
   try {
-    const res  = await fetch(url);
-    const rows = await res.json();
-
-    let bullish = 0, bearish = 0, neutral = 0;
-    rows.forEach(r => {
-      const l = (r.nlp_label || r.sentiment || "").toLowerCase();
-      if (l === "bullish") bullish++;
-      else if (l === "bearish") bearish++;
-      else neutral++;
-    });
-
-    document.getElementById("stat-total").textContent   = rows.length;
-    document.getElementById("stat-bullish").textContent = bullish;
-    document.getElementById("stat-bearish").textContent = bearish;
-    document.getElementById("stat-neutral").textContent = neutral;
-
-    if (!rows.length) {
-      feed.innerHTML = '<div class="empty">No messages found.</div>';
-      return;
-    }
-
-    feed.innerHTML = rows.map(r => {
-     const label     = r.nlp_label || r.sentiment || "none";
-      const rawScore  = r.nlp_score ? parseFloat(r.nlp_score) : null;
-      let signedScore = rawScore;
-      if (rawScore !== null) {
-        const l = label.toLowerCase();
-        if (l === "bearish") signedScore = -Math.abs(rawScore);
-        else if (l === "bullish") signedScore = Math.abs(rawScore);
-        else if (l === "mixed" || l === "neutral") signedScore = 0;
-      }
-      const scoreHtml = signedScore !== null
-        ? `<span class="score-badge">score ${signedScore > 0 ? "+" : ""}${signedScore.toFixed(2)}</span>`
-        : "";
-      return `
-        <div class="feed-card sentiment-${label.toLowerCase()}">
-          <div class="card-header">
-            <a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a>
-            <span class="sentiment-badge badge-${label.toLowerCase()}">${label}</span>
-            ${scoreHtml}
-            <span class="card-time">${r.timestamp}</span>
-          </div>
-          <p class="card-message">${escapeHtml(r.message)}</p>
-          ${r.clean_text ? `<p class="card-clean">${escapeHtml(r.clean_text)}</p>` : ""}
-        </div>`;
-    }).join("");
-
+    const res  = await fetch("/api/social");
+    allMessages = await res.json();
+    applyFilters();
   } catch (e) {
     feed.innerHTML = '<div class="error">Failed to load data.</div>';
   }
 }
 
-function escapeHtml(text) {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+function applyFilters() {
+  const symbol    = document.getElementById("filter-symbol").value.trim().toUpperCase();
+  const sentiment = document.getElementById("filter-sentiment").value.toLowerCase();
+
+  let rows = allMessages;
+
+  if (symbol) {
+    rows = rows.filter(r => r.symbol === symbol);
+  }
+
+  if (sentiment) {
+    rows = rows.filter(r => (r.nlp_label || "").toLowerCase() === sentiment);
+  }
+
+  let bullish = 0, bearish = 0, neutral = 0;
+  rows.forEach(r => {
+    const l = (r.nlp_label || "").toLowerCase();
+    if (l === "bullish") bullish++;
+    else if (l === "bearish") bearish++;
+    else neutral++;
+  });
+
+  document.getElementById("stat-total").textContent   = rows.length;
+  document.getElementById("stat-bullish").textContent = bullish;
+  document.getElementById("stat-bearish").textContent = bearish;
+  document.getElementById("stat-neutral").textContent = neutral;
+
+  const feed = document.getElementById("feed");
+
+  if (!rows.length) {
+    feed.innerHTML = '<div class="empty">No messages found.</div>';
+    return;
+  }
+
+  feed.innerHTML = rows.map(r => {
+    const label     = (r.nlp_label || "neutral").toLowerCase();
+    const rawScore  = r.nlp_score ? parseFloat(r.nlp_score) : null;
+    let signedScore = rawScore;
+    if (rawScore !== null) {
+      if (label === "bearish")                    signedScore = -Math.abs(rawScore);
+      else if (label === "bullish")               signedScore = Math.abs(rawScore);
+      else if (label === "mixed" || label === "neutral") signedScore = 0;
+    }
+    const scoreHtml = signedScore !== null
+      ? `<span class="score-badge">score ${signedScore > 0 ? "+" : ""}${signedScore.toFixed(2)}</span>`
+      : "";
+    return `
+      <div class="feed-card sentiment-${label}">
+        <div class="card-header">
+          <a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a>
+          <span class="sentiment-badge badge-${label}">${label}</span>
+          ${scoreHtml}
+          <span class="card-time">${r.timestamp}</span>
+        </div>
+        <p class="card-message">${escapeHtml(r.message)}</p>
+      </div>`;
+  }).join("");
 }
 
-document.getElementById("filter-symbol").addEventListener("input", loadSocial);
-document.getElementById("filter-sentiment").addEventListener("change", loadSocial);
-document.getElementById("filter-nlp").addEventListener("change", loadSocial);
+function escapeHtml(text) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = String(text);
+  return txt.value;
+}
+
+document.getElementById("filter-symbol").addEventListener("input", applyFilters);
+document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadSocial);
 </script>
