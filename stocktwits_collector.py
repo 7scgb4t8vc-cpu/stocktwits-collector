@@ -86,17 +86,16 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    print(f"  DEBUG columns: {list(row.keys())}")
     return {
-        "price":      row.get("Price",          ""),
-        "change_pct": row.get("Change",         ""),
-        "volume":     row.get("Volume",         ""),
-        "avg_volume": row.get("Average Volume", ""),
-        "market_cap": row.get("Market Cap",     ""),
-        "pe":         row.get("P/E",            ""),
-        "sector":     row.get("Sector",         ""),
-        "industry":   row.get("Industry",       ""),
-        "rel_volume": row.get("Relative Volume",""),
+        "symbol":     row.get("Ticker",          ""),
+        "company":    row.get("Company",         ""),
+        "price":      row.get("Price",           ""),
+        "change_pct": row.get("Change",          ""),
+        "volume":     row.get("Volume",          ""),
+        "avg_volume": row.get("Average Volume",  ""),
+        "market_cap": row.get("Market Cap",      ""),
+        "rel_volume": row.get("Relative Volume", ""),
+        "pe":         "",
     }
 
 
