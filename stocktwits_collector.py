@@ -88,6 +88,19 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
+    def format_market_cap(raw):
+        try:
+            val = float(str(raw).replace(",", "").strip()) * 1000
+            if val >= 1_000_000_000_000:
+                return f"{val / 1_000_000_000_000:.2f}T"
+            if val >= 1_000_000_000:
+                return f"{val / 1_000_000_000:.2f}B"
+            if val >= 1_000_000:
+                return f"{val / 1_000_000:.2f}M"
+            return str(raw)
+        except:
+            return raw
+
     return {
         "symbol":     row.get("Ticker",          ""),
         "company":    row.get("Company",         ""),
@@ -95,7 +108,7 @@ def parse_finviz_row(row: dict) -> dict:
         "change_pct": row.get("Change",          ""),
         "volume":     row.get("Volume",          ""),
         "avg_volume": row.get("Average Volume",  ""),
-        "market_cap": row.get("Market Cap",      ""),
+        "market_cap": format_market_cap(row.get("Market Cap", "")),
         "rel_volume": row.get("Relative Volume", ""),
         "pe":         "",
     }
