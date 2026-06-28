@@ -201,17 +201,23 @@ def main():
 
         if messages:
             cursors[symbol] = messages[0]["id"]
+            accepted = 0
             for msg in messages:
+                body = msg.get("body", "").replace("\n", " ").strip()
+                cleaned = clean_message(body)
+                if not is_quality_message(cleaned):
+                    continue
                 st_rows.append({
                     "_id":       msg["id"],
                     "timestamp": timestamp,
                     "symbol":    symbol,
-                    "message":   msg.get("body", "").replace("\n", " ")[:280],
+                    "message":   cleaned,
                     "sentiment": get_sentiment(msg),
                     "likes":     msg.get("likes", {}).get("total", 0),
                     "reshares":  msg.get("reshares", {}).get("reshared_count", 0),
                 })
-            print(f"{len(messages)} new messages.")
+                accepted += 1
+            print(f"{len(messages)} fetched, {accepted} passed filters.")
         else:
             print("No new messages.")
 
@@ -232,4 +238,58 @@ def main():
 
 
 if __name__ == "__main__":
+    import re
+import html as html_lib
+
+PROFANITY = {
+    "fuck", "shit", "ass", "bitch", "cunt", "dick", "cock",
+    "pussy", "bastard", "piss", "crap", "damn", "fag", "slut"
+}
+
+def clean_message(text: str) -> str:
+    """Clean raw StockTwits message text."""
+    # Decode HTML entities
+    text = html_lib.unescape(text)
+    # Remove URLs
+    text = re.sub(r"http\S+|www\.\S+", "", text)
+    # Remove @mentions
+    text = re.sub(r"@\w+", "", text)
+    # Remove cashtags (e.g. $NVDA)
+    text = re.sub(r"\$[A-Z]{1,5}", "", text)
+    # Remove emojis and non-ASCII characters
+    text = text.encode("ascii", "ignore").decode("ascii")
+    # Remove special characters except basic punctuation
+    text = re.sub(r"[^a-zA-Z0-9\s\.\,\!\?\'\-]", "", text)
+    # Remove excessive whitespace
+    text = re.sub(r"\s+", " ", text).strip()
+    # Truncate
+    return text[:280]
+
+
+def is_quality_message(text: str) -> bool:
+    """Return True if message meets quality standards."""
+    if not text:
+        return False
+
+    # Too short (less than 4 words)
+    words = text.split()
+    if len(words) < 4:
+        return False
+
+    # Only ticker symbols (e.g. "$NVDA $AAPL $TSLA")
+    non_ticker = re.sub(r"\$[A-Z]{1,5}", "", text).strip()
+    if len(non_ticker) < 10:
+        return False
+
+    # Only numbers, symbols, punctuation with no real words
+    real_words = [w for w in words if re.match(r"^[a-zA-Z]{2,}$", w)]
+    if len(real_words) < 2:
+        return False
+
+    # Contains profanity
+    lower_words = set(w.lower().strip(".,!?") for w in words)
+    if lower_words & PROFANITY:
+        return False
+
+    return True
     main()
