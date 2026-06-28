@@ -245,6 +245,12 @@ async function loadSymbolCharts(symbol) {
 
 async function loadCharts() {
   await loadSymbolList();
+  const params = new URLSearchParams(window.location.search);
+  const sym = params.get("symbol");
+  if (sym) {
+    _currentSymbol = sym.toUpperCase();
+    document.getElementById("symbol-select").value = _currentSymbol;
+  }
   if (_currentSymbol) await loadSymbolCharts(_currentSymbol);
 }
 
