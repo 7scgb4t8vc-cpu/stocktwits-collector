@@ -346,8 +346,8 @@ async function loadScreener() {
       const sentiment_score = scoreRow ? parseFloat(scoreRow.agg_sentiment) : null;
       let dominant = "Neutral";
       if (sentiment_score !== null && !isNaN(sentiment_score)) {
-        if (sentiment_score > 0.02) dominant = "Bullish";
-        else if (sentiment_score < -0.02) dominant = "Bearish";
+        if (sentiment_score > 0.05) dominant = "Bullish";
+        else if (sentiment_score < -0.05) dominant = "Bearish";
       }
       return { ...r, sentiment: dominant, sentiment_score, _sc: sc };
     });
@@ -412,10 +412,10 @@ function applyFilters() {
     if (avgvol && av < parseInt(avgvol)) return false;
     if (relvol && rv < parseFloat(relvol)) return false;
 
- if (sentiment === "bullish"    && (score === null || score <= 0.02))  return false;
-    if (sentiment === "bearish"    && (score === null || score >= -0.02)) return false;
-    if (sentiment === "strongbull" && (score === null || score <= 0.06))  return false;
-    if (sentiment === "strongbear" && (score === null || score >= -0.06)) return false;
+if (sentiment === "bullish"    && (score === null || score <= 0.05))  return false;
+    if (sentiment === "bearish"    && (score === null || score >= -0.05)) return false;
+    if (sentiment === "strongbull" && (score === null || score <= 0.09))  return false;
+    if (sentiment === "strongbear" && (score === null || score >= -0.09)) return false;
 
     const scoreRange = document.getElementById("f-score-range").value;
     const scoreDir   = document.getElementById("f-score-dir").value;
@@ -461,7 +461,7 @@ function formatScore(score) {
   if (score === null || score === undefined || isNaN(score)) return '<span class="score-neu">—</span>';
   const cls   = score > 0.1 ? "score-pos" : score < -0.1 ? "score-neg" : "score-neu";
   const sign  = score > 0 ? "+" : "";
-  const pct   = Math.min(Math.abs(score) / 0.1, 1) * 100;
+  const pct   = Math.min(Math.abs(score) / 0.15, 1) * 100;
   const color = score > 0.1 ? "#3fb950" : score < -0.1 ? "#f85149" : "#8b949e";
   return `<div class="score-bar-wrap">
     <span class="${cls}">${sign}${score.toFixed(2)}</span>
