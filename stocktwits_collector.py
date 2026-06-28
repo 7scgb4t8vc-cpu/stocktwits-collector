@@ -201,14 +201,16 @@ def main():
 
         if messages:
             cursors[symbol] = messages[0]["id"]
-            for msg in messages:
-                st_rows.append({
-                    "_id":       msg["id"],
-                    "timestamp": timestamp,
-                    "symbol":    symbol,
-                    "message":   msg.get("body", "").replace("\n", " ")[:280],
-                    "sentiment": get_sentiment(msg),
-                })
+           for msg in messages:
+    st_rows.append({
+        "_id":       msg["id"],
+        "timestamp": timestamp,
+        "symbol":    symbol,
+        "message":   msg.get("body", "").replace("\n", " ")[:280],
+        "sentiment": get_sentiment(msg),
+        "likes":     msg.get("likes", {}).get("total", 0),
+        "reshares":  msg.get("reshares", {}).get("reshared_count", 0),
+    })
             print(f"{len(messages)} new messages.")
         else:
             print("No new messages.")
