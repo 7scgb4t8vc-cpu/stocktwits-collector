@@ -35,12 +35,14 @@ def load_social():
     result = []
     for row in rows:
         result.append({
-            "timestamp": row.get("timestamp", ""),
-            "symbol":    row.get("symbol", ""),
-            "message":   row.get("message", ""),
-            "sentiment": row.get("sentiment", "None"),
-            "nlp_label": row.get("nlp_label", ""),
-            "nlp_score": row.get("nlp_score", ""),
+            "timestamp":  row.get("timestamp", ""),
+            "symbol":     row.get("symbol", ""),
+            "message":    row.get("message", ""),
+            "sentiment":  row.get("sentiment", "None"),
+            "nlp_label":  row.get("nlp_label", ""),
+            "nlp_score":  row.get("nlp_score", ""),
+            "likes":      row.get("likes", 0),
+            "reshares":   row.get("reshares", 0),
         })
     return result
 
