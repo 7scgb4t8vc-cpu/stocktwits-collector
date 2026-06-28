@@ -19,7 +19,7 @@
     <label class="mom-filter-label">REL VOL</label>
     <select id="filter-relvol" class="filter-select">
       <option value="0" selected>Any</option>
-<option value="1">1x+</option>
+      <option value="1">1x+</option>
       <option value="2">2x+</option>
       <option value="3">3x+</option>
       <option value="5">5x+</option>
@@ -58,7 +58,6 @@
 </div>
 
 <style>
-/* Ticker Strip */
 .ticker-strip-wrap {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -95,7 +94,6 @@
 .ticker-chip-chg.negative { color: var(--red); }
 .ticker-strip-loading { font-size: 12px; color: var(--muted); padding: 4px 0; }
 
-/* Filter Bar */
 .mom-filter-bar {
   display: flex;
   flex-wrap: wrap;
@@ -117,14 +115,12 @@
   white-space: nowrap;
 }
 
-/* Momentum List */
 .mom-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-/* Momentum Row */
 .mom-row {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -175,8 +171,6 @@
 .mom-field-value { font-size: 13px; font-weight: 600; color: var(--text); }
 .mom-field-value.positive { color: var(--green); }
 .mom-field-value.negative { color: var(--red); }
-.mom-field-value.rsi-hot  { color: var(--red); }
-.mom-field-value.rsi-cold { color: var(--green); }
 
 .mom-sent-badge {
   padding: 3px 10px;
@@ -196,13 +190,12 @@
 }
 .mom-row.expanded .mom-expand-btn { transform: rotate(90deg); }
 
-/* Expanded Panel */
 .mom-panel {
   display: none;
   border-top: 1px solid var(--border);
   padding: 1rem;
   gap: 1rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1.4fr 1fr;
   background: var(--bg);
 }
 .mom-row.expanded .mom-panel { display: grid; }
@@ -216,15 +209,13 @@
   letter-spacing: 0.08em;
   margin-bottom: 0.25rem;
 }
-
-.mom-stats-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.75rem;
+.mom-panel-chart { min-width: 0; }
+.mom-panel-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
 }
-.mom-stat { display: flex; flex-direction: column; gap: 2px; }
-.mom-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
-.mom-stat-value { font-size: 13px; font-weight: 600; color: var(--text); }
 
 .mom-chart-btn {
   display: inline-block;
@@ -242,7 +233,6 @@
 }
 .mom-chart-btn:hover { border-color: var(--accent); }
 
-/* Inline Social Posts */
 .mom-posts { display: flex; flex-direction: column; gap: 0.4rem; max-height: 220px; overflow-y: auto; }
 .mom-post {
   background: var(--bg2);
@@ -262,28 +252,7 @@
 .mom-post-time { font-size: 10px; color: var(--muted); }
 .mom-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
 .mom-no-posts { font-size: 12px; color: var(--muted); padding: 0.5rem 0; }
-.mom-panel {
-  grid-template-columns: 1.4fr 1fr;
-}
-.mom-panel-chart {
-  min-width: 0;
-}
-.mom-panel-right {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  overflow: hidden;
-}
-.mom-panel-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
 
-@media (max-width: 768px) {
-  .mom-panel { grid-template-columns: 1fr; }
-  .mom-meta { gap: 0.75rem; }
-}
 @media (max-width: 768px) {
   .mom-panel { grid-template-columns: 1fr; }
   .mom-meta { gap: 0.75rem; }
@@ -354,9 +323,7 @@ function renderTickerStrip(rows) {
 
 function scrollToSymbol(symbol) {
   const el = document.getElementById("mom-row-" + symbol);
-  if (el) {
-    el.scrollIntoView({ behavior: "smooth", block: "center" });
-  }
+  if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
 }
 
 function applyFilters() {
@@ -364,11 +331,10 @@ function applyFilters() {
   const sent   = document.getElementById("filter-sentiment").value.toLowerCase();
   const change = document.getElementById("filter-change").value;
 
-  let filtered = allRows.filter(r => {
+  const filtered = allRows.filter(r => {
     const rv  = parseFloat(r.rel_volume) || 0;
     const chg = parseFloat(r.change_pct) || 0;
     const sentLabel = getSentimentLabel(r.symbol);
-
     if (rv < minRv) return false;
     if (sent && sentLabel !== sent) return false;
     if (change === "gainers" && chg <= 0) return false;
@@ -393,6 +359,7 @@ function getSentimentScore(symbol) {
   const s = parseFloat(scoreRow.agg_sentiment);
   return isNaN(s) ? null : s;
 }
+
 function formatVolume(val) {
   const n = parseInt(String(val).replace(/,/g, "")) || 0;
   if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
@@ -401,7 +368,6 @@ function formatVolume(val) {
   return n.toLocaleString();
 }
 
-function renderList(rows) {
 function renderList(rows) {
   const list = document.getElementById("mom-list");
   if (!rows.length) {
@@ -415,8 +381,6 @@ function renderList(rows) {
     const chgSign   = chg > 0 ? "+" : "";
     const cardClass = chg > 0 ? "is-gainer" : chg < 0 ? "is-loser" : "";
     const relVol    = parseFloat(r.rel_volume) || 0;
-    const rsi       = parseFloat(r.rsi) || 0;
-    const rsiClass  = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "";
     const sentLabel = getSentimentLabel(r.symbol);
     const score     = getSentimentScore(r.symbol);
     const scoreStr  = score !== null ? (score > 0 ? "+" : "") + score.toFixed(2) : "—";
@@ -445,9 +409,9 @@ function renderList(rows) {
           <span class="mom-company">${r.company || "—"}</span>
         </div>
         <div class="mom-meta">
-         <div class="mom-field">
-            <span class="mom-field-label">Volume</span>
-            <span class="mom-field-value">${formatVolume(r.volume)}</span>
+          <div class="mom-field">
+            <span class="mom-field-label">Price</span>
+            <span class="mom-field-value">$${r.price || "—"}</span>
           </div>
           <div class="mom-field">
             <span class="mom-field-label">Change</span>
@@ -455,7 +419,7 @@ function renderList(rows) {
           </div>
           <div class="mom-field">
             <span class="mom-field-label">Volume</span>
-            <span class="mom-field-value">${r.volume || "—"}</span>
+            <span class="mom-field-value">${formatVolume(r.volume)}</span>
           </div>
           <div class="mom-field">
             <span class="mom-field-label">Rel Vol</span>
@@ -477,21 +441,18 @@ function renderList(rows) {
       <div class="mom-panel">
         <div class="mom-panel-section mom-panel-chart">
           <div class="mom-panel-title">Intraday Chart</div>
-          <div class="tv-widget-wrap" id="tv-${r.symbol}">
-            <iframe
-              src="https://s.tradingview.com/widgetembed/?symbol=${r.symbol}&interval=5&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&hide_side_toolbar=1&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=220"
-              style="width:100%;height:220px;border:none;border-radius:6px;"
-              allowtransparency="true"
-              scrolling="no"
-            ></iframe>
-          </div>
+          <iframe
+            src="https://s.tradingview.com/widgetembed/?symbol=${r.symbol}&interval=5&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&hide_side_toolbar=1&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=220"
+            style="width:100%;height:220px;border:none;border-radius:6px;"
+            allowtransparency="true"
+            scrolling="no"
+          ></iframe>
         </div>
 
         <div class="mom-panel-section mom-panel-right">
-   
-
-          <div class="mom-panel-title" style="margin-top:1rem;">Social Sentiment (${postCount} posts)</div>
+          <div class="mom-panel-title">Social Sentiment (${postCount} posts)</div>
           <div class="mom-posts">${postsHtml}</div>
+          <a class="mom-chart-btn" href="/charts?symbol=${r.symbol}">📊 View Full Charts →</a>
         </div>
       </div>
     </div>`;
