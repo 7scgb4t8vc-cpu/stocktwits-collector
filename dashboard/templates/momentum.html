@@ -393,7 +393,15 @@ function getSentimentScore(symbol) {
   const s = parseFloat(scoreRow.agg_sentiment);
   return isNaN(s) ? null : s;
 }
+function formatVolume(val) {
+  const n = parseInt(String(val).replace(/,/g, "")) || 0;
+  if (n >= 1_000_000_000) return (n / 1_000_000_000).toFixed(2) + "B";
+  if (n >= 1_000_000)     return (n / 1_000_000).toFixed(2) + "M";
+  if (n >= 1_000)         return (n / 1_000).toFixed(1) + "K";
+  return n.toLocaleString();
+}
 
+function renderList(rows) {
 function renderList(rows) {
   const list = document.getElementById("mom-list");
   if (!rows.length) {
@@ -437,9 +445,9 @@ function renderList(rows) {
           <span class="mom-company">${r.company || "—"}</span>
         </div>
         <div class="mom-meta">
-          <div class="mom-field">
-            <span class="mom-field-label">Price</span>
-            <span class="mom-field-value">$${r.price || "—"}</span>
+         <div class="mom-field">
+            <span class="mom-field-label">Volume</span>
+            <span class="mom-field-value">${formatVolume(r.volume)}</span>
           </div>
           <div class="mom-field">
             <span class="mom-field-label">Change</span>
