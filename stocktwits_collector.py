@@ -88,7 +88,6 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    print(f"  DEBUG {row.get('Ticker')} raw Market Cap: '{row.get('Market Cap')}'")
     def format_market_cap(raw):
         try:
             val = float(str(raw).replace(",", "").strip()) * 1_000_000
