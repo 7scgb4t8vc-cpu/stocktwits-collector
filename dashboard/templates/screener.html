@@ -2,63 +2,129 @@
 
 {% block content %}
 <div class="page-header">
-  <h1>Screener</h1>
+  <h1>Market Screener</h1>
   <p class="page-subtitle">FinViz metrics with StockTwits sentiment</p>
 </div>
 
-<div class="scr-filter-bar">
-  <div class="scr-filter-group">
-    <label class="scr-filter-label">SYMBOL</label>
-    <input type="text" id="filter-symbol" placeholder="Search…" class="filter-input" style="width:100px;" />
-  </div>
+<!-- Top Bar -->
+<div class="scr-top-bar">
   <div class="scr-filter-group">
     <label class="scr-filter-label">SIGNAL</label>
     <select id="filter-signal" class="filter-select">
-      <option value="">All</option>
+      <option value="">None</option>
       <option value="bullish">Social Bullish</option>
       <option value="bearish">Social Bearish</option>
       <option value="unusual">Unusual Volume</option>
     </select>
   </div>
   <div class="scr-filter-group">
-    <label class="scr-filter-label">CHANGE</label>
-    <select id="filter-change" class="filter-select">
-      <option value="">Any</option>
-      <option value="gainers">Gainers</option>
-      <option value="losers">Losers</option>
-      <option value="5">+5%</option>
-      <option value="10">+10%</option>
+    <label class="scr-filter-label">ORDER</label>
+    <select id="filter-order" class="filter-select">
+      <option value="">Default</option>
+      <option value="symbol">Ticker</option>
+      <option value="price">Price</option>
+      <option value="change_pct">Change %</option>
+      <option value="volume">Volume</option>
+      <option value="rel_volume">Rel Vol</option>
+      <option value="market_cap">Market Cap</option>
+      <option value="sentiment_score">Sentiment Score</option>
     </select>
+    <button id="order-dir-btn" class="btn-refresh" onclick="toggleOrderDir()">↑</button>
   </div>
-  <div class="scr-filter-group">
-    <label class="scr-filter-label">PRICE</label>
-    <select id="filter-price" class="filter-select">
-      <option value="">Any</option>
-      <option value="5">Under $5</option>
-      <option value="10">Under $10</option>
-      <option value="20">Under $20</option>
-      <option value="50">Under $50</option>
-    </select>
-  </div>
-  <div class="scr-filter-group">
-    <label class="scr-filter-label">SENTIMENT</label>
-    <select id="filter-sentiment" class="filter-select">
-      <option value="">Any</option>
-      <option value="bullish">Bullish</option>
-      <option value="bearish">Bearish</option>
-      <option value="strongbull">Strong Bull (&gt;0.5)</option>
-      <option value="strongbear">Strong Bear (&lt;-0.5)</option>
-    </select>
-  </div>
-  <button class="btn-refresh" onclick="loadScreener()">↻ Refresh</button>
+  <input type="text" id="filter-symbol" placeholder="Search symbol…" class="filter-input" style="flex:1;" />
+  <button class="btn-refresh" onclick="loadScreener()">↻</button>
 </div>
 
+<!-- Collapsible Filter Panel -->
+<div class="scr-panel-wrap">
+  <button class="scr-toggle-btn" onclick="toggleFilters()">▸ Filters</button>
+  <div class="scr-panel" id="scr-panel" style="display:none;">
+    <div class="scr-panel-grid">
+      <div class="scr-field">
+        <label class="scr-filter-label">MARKET CAP</label>
+        <select id="f-mktcap" class="filter-select">
+          <option value="">All</option>
+          <option value="small">Small (&lt;$2B)</option>
+          <option value="mid">Mid ($2B–$10B)</option>
+          <option value="large">Large (&gt;$10B)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">PRICE RANGE</label>
+        <select id="f-price" class="filter-select">
+          <option value="">Any</option>
+          <option value="5">Under $5</option>
+          <option value="10">Under $10</option>
+          <option value="20">Under $20</option>
+          <option value="50">Under $50</option>
+          <option value="100">Under $100</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">PRICE CHANGE</label>
+        <select id="f-change" class="filter-select">
+          <option value="">Any</option>
+          <option value="gainers">Gainers</option>
+          <option value="losers">Losers</option>
+          <option value="5">+5% or more</option>
+          <option value="10">+10% or more</option>
+          <option value="-5">-5% or more</option>
+          <option value="-10">-10% or more</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">AVG VOLUME</label>
+        <select id="f-avgvol" class="filter-select">
+          <option value="">Any</option>
+          <option value="100000">100K+</option>
+          <option value="500000">500K+</option>
+          <option value="1000000">1M+</option>
+          <option value="5000000">5M+</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">REL VOLUME</label>
+        <select id="f-relvol" class="filter-select">
+          <option value="">Any</option>
+          <option value="1.5">1.5x+</option>
+          <option value="2">2x+</option>
+          <option value="3">3x+</option>
+          <option value="5">5x+</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">SOCIAL SENTIMENT</label>
+        <select id="f-sentiment" class="filter-select">
+          <option value="">All</option>
+          <option value="bullish">Bullish</option>
+          <option value="bearish">Bearish</option>
+          <option value="strongbull">Strong Bull (&gt;0.5)</option>
+          <option value="strongbear">Strong Bear (&lt;-0.5)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">MIN POSTS</label>
+        <select id="f-posts" class="filter-select">
+          <option value="">Any</option>
+          <option value="5">5+</option>
+          <option value="10">10+</option>
+          <option value="25">25+</option>
+          <option value="50">50+</option>
+        </select>
+      </div>
+    </div>
+    <button class="scr-reset-btn" onclick="resetFilters()">Reset Filters</button>
+  </div>
+</div>
+
+<!-- Stats Bar -->
 <div class="stats-bar">
   <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
   <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> bullish</div>
   <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
 </div>
 
+<!-- Table -->
 <div class="table-wrap">
   <table class="data-table" id="screener-table">
     <thead>
@@ -80,12 +146,12 @@
 </div>
 
 <style>
-.scr-filter-bar {
+.scr-top-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
 }
 .scr-filter-group {
   display: flex;
@@ -100,6 +166,51 @@
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
+.scr-panel-wrap {
+  margin-bottom: 1rem;
+}
+.scr-toggle-btn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  margin-bottom: 0.5rem;
+}
+.scr-toggle-btn:hover { border-color: var(--accent); }
+.scr-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+.scr-panel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+.scr-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.scr-field .filter-select { width: 100%; }
+.scr-reset-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  padding: 4px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.scr-reset-btn:hover { border-color: var(--red); color: var(--red); }
 .sortable { cursor: pointer; user-select: none; }
 .sortable:hover { color: var(--text); }
 .sort-arrow { font-size: 11px; opacity: 0.35; margin-left: 3px; }
@@ -119,30 +230,19 @@ th.sort-desc .sort-arrow::after { content: "↓"; opacity: 1; }
 .score-pos { color: #3fb950; font-weight: 700; }
 .score-neg { color: #f85149; font-weight: 700; }
 .score-neu { color: var(--muted); }
-.score-bar-wrap {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.score-bar {
-  width: 40px;
-  height: 4px;
-  background: var(--bg3);
-  border-radius: 2px;
-  overflow: hidden;
-}
-.score-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-}
+.score-bar-wrap { display: flex; align-items: center; gap: 6px; }
+.score-bar { width: 40px; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.score-bar-fill { height: 100%; border-radius: 2px; }
 </style>
 {% endblock %}
 
 {% block scripts %}
 <script>
 let allRows = [];
+let socialCountMap = {};
 let sortCol = "";
 let sortDir = 1;
+let orderDir = 1;
 
 function formatVolume(val) {
   const n = parseInt(String(val).replace(/,/g, "")) || 0;
@@ -164,6 +264,40 @@ function formatMarketCap(val) {
   return s;
 }
 
+function parseMarketCapNum(val) {
+  if (!val) return 0;
+  const s = String(val).trim();
+  const n = parseFloat(s);
+  if (s.endsWith("B")) return n * 1_000_000_000;
+  if (s.endsWith("M")) return n * 1_000_000;
+  if (s.endsWith("K")) return n * 1_000;
+  return parseFloat(s.replace(/,/g, "")) || 0;
+}
+
+function toggleFilters() {
+  const panel = document.getElementById("scr-panel");
+  const btn   = document.querySelector(".scr-toggle-btn");
+  const open  = panel.style.display === "none";
+  panel.style.display = open ? "block" : "none";
+  btn.textContent = (open ? "▾" : "▸") + " Filters";
+}
+
+function toggleOrderDir() {
+  orderDir *= -1;
+  document.getElementById("order-dir-btn").textContent = orderDir === 1 ? "↑" : "↓";
+  applyFilters();
+}
+
+function resetFilters() {
+  ["f-mktcap","f-price","f-change","f-avgvol","f-relvol","f-sentiment","f-posts"].forEach(id => {
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("filter-signal").value  = "";
+  document.getElementById("filter-symbol").value  = "";
+  document.getElementById("filter-order").value   = "";
+  applyFilters();
+}
+
 async function loadScreener() {
   try {
     const [screenerRes, socialRes, scoreRes] = await Promise.all([
@@ -176,6 +310,7 @@ async function loadScreener() {
     const scoreMap     = await scoreRes.json();
 
     const sentMap = {};
+    socialCountMap = {};
     for (const msg of socialRows) {
       const sym   = msg.symbol;
       const label = (msg.nlp_label || msg.sentiment || "none").toLowerCase();
@@ -183,6 +318,7 @@ async function loadScreener() {
       if (label === "bullish") sentMap[sym].bullish++;
       else if (label === "bearish") sentMap[sym].bearish++;
       else sentMap[sym].none++;
+      socialCountMap[sym] = (socialCountMap[sym] || 0) + 1;
     }
 
     allRows = screenerRows.map(r => {
@@ -215,38 +351,66 @@ async function loadScreener() {
 function applyFilters() {
   const sym      = document.getElementById("filter-symbol").value.toUpperCase();
   const signal   = document.getElementById("filter-signal").value;
-  const change   = document.getElementById("filter-change").value;
-  const price    = document.getElementById("filter-price").value;
-  const sentiment = document.getElementById("filter-sentiment").value;
+  const orderCol = document.getElementById("filter-order").value;
+  const mktcap   = document.getElementById("f-mktcap").value;
+  const price    = document.getElementById("f-price").value;
+  const change   = document.getElementById("f-change").value;
+  const avgvol   = document.getElementById("f-avgvol").value;
+  const relvol   = document.getElementById("f-relvol").value;
+  const sentiment = document.getElementById("f-sentiment").value;
+  const posts    = document.getElementById("f-posts").value;
 
   let filtered = allRows.filter(r => {
-    const chg   = parseFloat(r.change_pct) || 0;
-    const pr    = parseFloat(r.price) || 0;
-    const rv    = parseFloat(r.rel_volume) || 0;
-    const score = r.sentiment_score;
+    const chg    = parseFloat(r.change_pct) || 0;
+    const pr     = parseFloat(r.price) || 0;
+    const rv     = parseFloat(r.rel_volume) || 0;
+    const av     = parseInt(String(r.avg_volume || "0").replace(/,/g, "")) || 0;
+    const mc     = parseMarketCapNum(r.market_cap);
+    const score  = r.sentiment_score;
+    const pcount = socialCountMap[r.symbol] || 0;
 
     if (sym && !r.symbol.includes(sym)) return false;
 
-    if (signal === "bullish"  && r.sentiment !== "Bullish") return false;
-    if (signal === "bearish"  && r.sentiment !== "Bearish") return false;
-    if (signal === "unusual"  && rv < 2) return false;
+    if (signal === "bullish" && r.sentiment !== "Bullish") return false;
+    if (signal === "bearish" && r.sentiment !== "Bearish") return false;
+    if (signal === "unusual" && rv < 2) return false;
 
-    if (change === "gainers" && chg <= 0) return false;
-    if (change === "losers"  && chg >= 0) return false;
-    if (change === "5"       && chg < 5)  return false;
-    if (change === "10"      && chg < 10) return false;
+    if (mktcap === "small"  && mc >= 2_000_000_000)  return false;
+    if (mktcap === "mid"    && (mc < 2_000_000_000 || mc > 10_000_000_000)) return false;
+    if (mktcap === "large"  && mc <= 10_000_000_000) return false;
 
     if (price && pr > parseFloat(price)) return false;
 
-    if (sentiment === "bullish"   && (score === null || score <= 0.1))  return false;
-    if (sentiment === "bearish"   && (score === null || score >= -0.1)) return false;
-    if (sentiment === "strongbull" && (score === null || score <= 0.5)) return false;
+    if (change === "gainers" && chg <= 0)  return false;
+    if (change === "losers"  && chg >= 0)  return false;
+    if (change === "5"       && chg < 5)   return false;
+    if (change === "10"      && chg < 10)  return false;
+    if (change === "-5"      && chg > -5)  return false;
+    if (change === "-10"     && chg > -10) return false;
+
+    if (avgvol && av < parseInt(avgvol)) return false;
+    if (relvol && rv < parseFloat(relvol)) return false;
+
+    if (sentiment === "bullish"    && (score === null || score <= 0.1))  return false;
+    if (sentiment === "bearish"    && (score === null || score >= -0.1)) return false;
+    if (sentiment === "strongbull" && (score === null || score <= 0.5))  return false;
     if (sentiment === "strongbear" && (score === null || score >= -0.5)) return false;
+
+    if (posts && pcount < parseInt(posts)) return false;
 
     return true;
   });
 
-  if (sortCol) filtered = sortRows(filtered);
+  if (orderCol) {
+    filtered = filtered.sort((a, b) => {
+      const av = parseNum(a[orderCol]), bv = parseNum(b[orderCol]);
+      if (!isNaN(av) && !isNaN(bv)) return (av - bv) * orderDir;
+      return String(a[orderCol] || "").localeCompare(String(b[orderCol] || "")) * orderDir;
+    });
+  } else if (sortCol) {
+    filtered = sortRows(filtered);
+  }
+
   renderTable(filtered);
 }
 
@@ -264,10 +428,10 @@ function sortRows(rows) {
 
 function formatScore(score) {
   if (score === null || score === undefined || isNaN(score)) return '<span class="score-neu">—</span>';
-  const cls    = score > 0.1 ? "score-pos" : score < -0.1 ? "score-neg" : "score-neu";
-  const sign   = score > 0 ? "+" : "";
-  const pct    = Math.min(Math.abs(score), 1) * 100;
-  const color  = score > 0.1 ? "#3fb950" : score < -0.1 ? "#f85149" : "#8b949e";
+  const cls   = score > 0.1 ? "score-pos" : score < -0.1 ? "score-neg" : "score-neu";
+  const sign  = score > 0 ? "+" : "";
+  const pct   = Math.min(Math.abs(score), 1) * 100;
+  const color = score > 0.1 ? "#3fb950" : score < -0.1 ? "#f85149" : "#8b949e";
   return `<div class="score-bar-wrap">
     <span class="${cls}">${sign}${score.toFixed(2)}</span>
     <div class="score-bar"><div class="score-bar-fill" style="width:${pct}%;background:${color};"></div></div>
@@ -288,6 +452,7 @@ function renderTable(rows) {
     const rv       = parseFloat(r.rel_volume) || 0;
     const sc       = r._sc || {};
     const scTip    = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
+    const posts    = socialCountMap[r.symbol] || 0;
     return `<tr>
       <td><a class="ticker-link" href="/charts?symbol=${r.symbol}"><strong>${r.symbol}</strong></a></td>
       <td>$${r.price || "—"}</td>
@@ -297,6 +462,7 @@ function renderTable(rows) {
       <td>${formatMarketCap(r.market_cap)}</td>
       <td title="${scTip}">
         <span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px;">${posts} posts</span>
       </td>
       <td>${formatScore(r.sentiment_score)}</td>
     </tr>`;
@@ -320,9 +486,14 @@ document.querySelectorAll("th.sortable").forEach(th => {
 
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
 document.getElementById("filter-signal").addEventListener("change", applyFilters);
-document.getElementById("filter-change").addEventListener("change", applyFilters);
-document.getElementById("filter-price").addEventListener("change", applyFilters);
-document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
+document.getElementById("filter-order").addEventListener("change", applyFilters);
+document.getElementById("f-mktcap").addEventListener("change", applyFilters);
+document.getElementById("f-price").addEventListener("change", applyFilters);
+document.getElementById("f-change").addEventListener("change", applyFilters);
+document.getElementById("f-avgvol").addEventListener("change", applyFilters);
+document.getElementById("f-relvol").addEventListener("change", applyFilters);
+document.getElementById("f-sentiment").addEventListener("change", applyFilters);
+document.getElementById("f-posts").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadScreener);
 </script>
