@@ -434,7 +434,7 @@ function renderList(rows) {
         <span class="mom-rank">${i + 1}</span>
         <div class="mom-sym-block">
           <a class="mom-sym" href="/charts?symbol=${r.symbol}" onclick="event.stopPropagation()">${r.symbol}</a>
-          <span class="mom-company">${r.company || r.sector || "—"}</span>
+          <span class="mom-company">${r.company || "—"}</span>
         </div>
         <div class="mom-meta">
           <div class="mom-field">
