@@ -2,15 +2,49 @@
 {% block content %}
 
 <div class="page-header">
-  <h1>Momentum</h1>
+  <h1>Momentum Scanner</h1>
   <p class="page-subtitle">Top movers ranked by relative volume</p>
 </div>
 
-<div class="filter-bar">
-  <input type="text" id="filter-symbol" placeholder="Filter by symbol or sector" class="filter-input" />
-  <button class="btn-refresh" onclick="loadMomentum()">↻ Refresh now</button>
+<!-- Ticker Strip -->
+<div class="ticker-strip-wrap">
+  <div class="ticker-strip" id="ticker-strip">
+    <span class="ticker-strip-loading">Loading tickers...</span>
+  </div>
 </div>
 
+<!-- Filter Bar -->
+<div class="mom-filter-bar">
+  <div class="mom-filter-group">
+    <label class="mom-filter-label">REL VOL</label>
+    <select id="filter-relvol" class="filter-select">
+      <option value="0">Any</option>
+      <option value="1" selected>1x+</option>
+      <option value="2">2x+</option>
+      <option value="3">3x+</option>
+      <option value="5">5x+</option>
+    </select>
+  </div>
+  <div class="mom-filter-group">
+    <label class="mom-filter-label">SENTIMENT</label>
+    <select id="filter-sentiment" class="filter-select">
+      <option value="">All</option>
+      <option value="bullish">Bullish</option>
+      <option value="bearish">Bearish</option>
+    </select>
+  </div>
+  <div class="mom-filter-group">
+    <label class="mom-filter-label">CHANGE</label>
+    <select id="filter-change" class="filter-select">
+      <option value="">Any</option>
+      <option value="gainers">Gainers only</option>
+      <option value="losers">Losers only</option>
+    </select>
+  </div>
+  <button class="btn-refresh" onclick="loadMomentum()">↻ Refresh</button>
+</div>
+
+<!-- Stats Bar -->
 <div class="stats-bar">
   <div class="stat-chip"><span id="stat-total">—</span> stocks</div>
   <div class="stat-chip positive"><span id="stat-gainers">—</span> gainers</div>
@@ -18,136 +52,454 @@
   <div class="stat-chip"><span id="stat-updated">—</span></div>
 </div>
 
-<div class="momentum-grid" id="momentum-grid">
+<!-- Momentum List -->
+<div class="mom-list" id="mom-list">
   <div class="loading">Loading...</div>
 </div>
 
 <style>
-.score-pos { color: #7db83a; font-weight: 600; }
-.score-neg { color: #e86a69; font-weight: 600; }
-.score-neu { color: var(--muted); }
-.momentum-card.is-gainer { border-top-color: var(--green); }
-.momentum-card.is-loser  { border-top-color: var(--red); }
+/* Ticker Strip */
+.ticker-strip-wrap {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow-x: auto;
+  margin-bottom: 1rem;
+  scrollbar-width: none;
+}
+.ticker-strip-wrap::-webkit-scrollbar { display: none; }
+.ticker-strip {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+}
+.ticker-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  min-width: 70px;
+  text-align: center;
+}
+.ticker-chip:hover { border-color: var(--accent); background: var(--bg2); }
+.ticker-chip.active { border-color: var(--accent); background: var(--bg2); }
+.ticker-chip-sym { font-size: 12px; font-weight: 700; color: var(--accent); }
+.ticker-chip-chg { font-size: 11px; font-weight: 600; }
+.ticker-chip-chg.positive { color: var(--green); }
+.ticker-chip-chg.negative { color: var(--red); }
+.ticker-strip-loading { font-size: 12px; color: var(--muted); padding: 4px 0; }
+
+/* Filter Bar */
+.mom-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.mom-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.mom-filter-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+/* Momentum List */
+.mom-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Momentum Row */
+.mom-row {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+.mom-row:hover { border-color: var(--accent); }
+.mom-row.is-gainer { border-left: 3px solid var(--green); }
+.mom-row.is-loser  { border-left: 3px solid var(--red); }
+
+.mom-row-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.875rem 1rem;
+  cursor: pointer;
+  user-select: none;
+}
+.mom-row-header:hover { background: rgba(255,255,255,0.02); }
+
+.mom-rank {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muted);
+  min-width: 20px;
+  text-align: center;
+}
+
+.mom-sym-block { display: flex; flex-direction: column; min-width: 90px; }
+.mom-sym {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+}
+.mom-sym:hover { text-decoration: underline; }
+.mom-company { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px; }
+
+.mom-meta {
+  display: flex;
+  gap: 1.5rem;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.mom-field { display: flex; flex-direction: column; gap: 1px; }
+.mom-field-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.mom-field-value { font-size: 13px; font-weight: 600; color: var(--text); }
+.mom-field-value.positive { color: var(--green); }
+.mom-field-value.negative { color: var(--red); }
+.mom-field-value.rsi-hot  { color: var(--red); }
+.mom-field-value.rsi-cold { color: var(--green); }
+
+.mom-sent-badge {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.mom-sent-badge.bullish { background: #1a3a1a; color: var(--green); }
+.mom-sent-badge.bearish { background: #3a1a1a; color: var(--red); }
+.mom-sent-badge.neutral { background: var(--bg3); color: var(--muted); }
+
+.mom-expand-btn {
+  font-size: 12px;
+  color: var(--muted);
+  transition: transform 0.2s;
+  margin-left: auto;
+}
+.mom-row.expanded .mom-expand-btn { transform: rotate(90deg); }
+
+/* Expanded Panel */
+.mom-panel {
+  display: none;
+  border-top: 1px solid var(--border);
+  padding: 1rem;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg);
+}
+.mom-row.expanded .mom-panel { display: grid; }
+
+.mom-panel-section { display: flex; flex-direction: column; gap: 0.5rem; }
+.mom-panel-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.25rem;
+}
+
+.mom-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.mom-stat { display: flex; flex-direction: column; gap: 2px; }
+.mom-stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.mom-stat-value { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.mom-chart-btn {
+  display: inline-block;
+  margin-top: 0.5rem;
+  padding: 6px 14px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.15s;
+  width: fit-content;
+}
+.mom-chart-btn:hover { border-color: var(--accent); }
+
+/* Inline Social Posts */
+.mom-posts { display: flex; flex-direction: column; gap: 0.4rem; max-height: 220px; overflow-y: auto; }
+.mom-post {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  border-left: 2px solid var(--border);
+}
+.mom-post.bullish { border-left-color: var(--green); }
+.mom-post.bearish { border-left-color: var(--red); }
+.mom-post.neutral { border-left-color: var(--muted); }
+.mom-post-header { display: flex; justify-content: space-between; margin-bottom: 3px; }
+.mom-post-label { font-size: 10px; font-weight: 600; text-transform: capitalize; }
+.mom-post-label.bullish { color: var(--green); }
+.mom-post-label.bearish { color: var(--red); }
+.mom-post-label.neutral { color: var(--muted); }
+.mom-post-time { font-size: 10px; color: var(--muted); }
+.mom-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
+.mom-no-posts { font-size: 12px; color: var(--muted); padding: 0.5rem 0; }
+
+@media (max-width: 768px) {
+  .mom-panel { grid-template-columns: 1fr; }
+  .mom-meta { gap: 0.75rem; }
+}
 </style>
 
 {% endblock %}
 
 {% block scripts %}
 <script>
-let allMomentumRows = [];
+let allRows = [];
 let scoreMap = {};
+let socialMap = {};
 
 async function loadMomentum() {
   try {
-    const [momRes, scoreRes] = await Promise.all([
+    const [momRes, scoreRes, socialRes] = await Promise.all([
       fetch("/api/momentum"),
       fetch("/api/sentiment-scores"),
+      fetch("/api/social"),
     ]);
-    allMomentumRows = await momRes.json();
-    scoreMap        = await scoreRes.json();
+    allRows  = await momRes.json();
+    scoreMap = await scoreRes.json();
+    const socialRows = await socialRes.json();
+
+    socialMap = {};
+    for (const msg of socialRows) {
+      const sym = msg.symbol;
+      if (!socialMap[sym]) socialMap[sym] = [];
+      socialMap[sym].push(msg);
+    }
 
     let gainers = 0, losers = 0;
-    allMomentumRows.forEach(r => {
+    allRows.forEach(r => {
       const chg = parseFloat(r.change_pct) || 0;
       if (chg > 0) gainers++;
       else if (chg < 0) losers++;
     });
-    document.getElementById("stat-total").textContent   = allMomentumRows.length;
+    document.getElementById("stat-total").textContent   = allRows.length;
     document.getElementById("stat-gainers").textContent = gainers;
     document.getElementById("stat-losers").textContent  = losers;
-    document.getElementById("stat-updated").textContent =
-      "Updated " + new Date().toLocaleTimeString();
+    document.getElementById("stat-updated").textContent = "Updated " + new Date().toLocaleTimeString();
 
-    renderMomentum(allMomentumRows);
+    renderTickerStrip(allRows);
+    applyFilters();
 
   } catch (e) {
-    document.getElementById("momentum-grid").innerHTML =
-      '<div class="error">Failed to load data.</div>';
+    document.getElementById("mom-list").innerHTML = '<div class="error">Failed to load data.</div>';
   }
 }
 
-function formatScore(score) {
-  if (score === null || score === undefined || isNaN(score)) return '<span class="score-neu">—</span>';
-  const cls = score > 0.1 ? "score-pos" : score < -0.1 ? "score-neg" : "score-neu";
-  const sign = score > 0 ? "+" : "";
-  return `<span class="${cls}">${sign}${score.toFixed(2)}</span>`;
-}
-
-function renderMomentum(rows) {
-  const grid = document.getElementById("momentum-grid");
-
+function renderTickerStrip(rows) {
+  const strip = document.getElementById("ticker-strip");
   if (!rows.length) {
-    grid.innerHTML = '<div class="empty">No data available.</div>';
+    strip.innerHTML = '<span class="ticker-strip-loading">No data</span>';
     return;
   }
-
-  grid.innerHTML = rows.map(r => {
-    const chg       = parseFloat(r.change_pct) || 0;
-    const chgClass  = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
-    const cardClass = chg > 0 ? "is-gainer" : chg < 0 ? "is-loser" : "";
-    const chgSign   = chg > 0 ? "+" : "";
-    const relVol    = parseFloat(r.rel_volume) || 0;
-    const rsi       = parseFloat(r.rsi) || 0;
-    const rsiClass  = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "rsi-neutral";
-    const beta      = parseFloat(r.beta) || 0;
-
-    const scoreRow = scoreMap[r.symbol];
-    const score    = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
-
-    return `
-      <div class="momentum-card ${cardClass}">
-        <div class="momentum-header">
-         <a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a>
-          <span class="momentum-price">$${r.price || "—"}</span>
-        </div>
-        <div class="momentum-change ${chgClass}">${chgSign}${chg.toFixed(2)}%</div>
-        <div class="momentum-stats">
-          <div class="mstat">
-            <span class="mstat-label">Rel Vol</span>
-            <span class="mstat-value">${relVol.toFixed(2)}x</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">Volume</span>
-            <span class="mstat-value">${r.volume || "—"}</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">RSI</span>
-            <span class="mstat-value ${rsiClass}">${rsi.toFixed(1)}</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">Beta</span>
-            <span class="mstat-value">${beta.toFixed(2)}</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">52W High</span>
-            <span class="mstat-value">${r["52w_high"] || "—"}</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">Mkt Cap</span>
-            <span class="mstat-value">${r.market_cap || "—"}</span>
-          </div>
-          <div class="mstat">
-            <span class="mstat-label">Sentiment</span>
-            <span class="mstat-value">${formatScore(score)}</span>
-          </div>
-        </div>
-        <div class="momentum-sector">${r.sector || "—"} · ${r.industry || "—"}</div>
-      </div>`;
+  strip.innerHTML = rows.map(r => {
+    const chg      = parseFloat(r.change_pct) || 0;
+    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const chgSign  = chg > 0 ? "+" : "";
+    return `<div class="ticker-chip" onclick="scrollToSymbol('${r.symbol}')">
+      <span class="ticker-chip-sym">${r.symbol}</span>
+      <span class="ticker-chip-chg ${chgClass}">${chgSign}${chg.toFixed(2)}%</span>
+    </div>`;
   }).join("");
 }
 
-function filterMomentum() {
-  const sym = document.getElementById("filter-symbol").value.toUpperCase();
-  const filtered = allMomentumRows.filter(r =>
-    !sym ||
-    r.symbol.includes(sym) ||
-    (r.sector || "").toUpperCase().includes(sym) ||
-    (r.industry || "").toUpperCase().includes(sym)
-  );
-  renderMomentum(filtered);
+function scrollToSymbol(symbol) {
+  const el = document.getElementById("mom-row-" + symbol);
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
 }
 
-document.getElementById("filter-symbol").addEventListener("input", filterMomentum);
+function applyFilters() {
+  const minRv  = parseFloat(document.getElementById("filter-relvol").value) || 0;
+  const sent   = document.getElementById("filter-sentiment").value.toLowerCase();
+  const change = document.getElementById("filter-change").value;
+
+  let filtered = allRows.filter(r => {
+    const rv  = parseFloat(r.rel_volume) || 0;
+    const chg = parseFloat(r.change_pct) || 0;
+    const sentLabel = getSentimentLabel(r.symbol);
+
+    if (rv < minRv) return false;
+    if (sent && sentLabel !== sent) return false;
+    if (change === "gainers" && chg <= 0) return false;
+    if (change === "losers"  && chg >= 0) return false;
+    return true;
+  });
+
+  renderList(filtered);
+}
+
+function getSentimentLabel(symbol) {
+  const scoreRow = scoreMap[symbol];
+  const score = scoreRow ? parseFloat(scoreRow.sentiment_score) : null;
+  if (score === null || isNaN(score)) return "neutral";
+  return score > 0.1 ? "bullish" : score < -0.1 ? "bearish" : "neutral";
+}
+
+function getSentimentScore(symbol) {
+  const scoreRow = scoreMap[symbol];
+  if (!scoreRow) return null;
+  const s = parseFloat(scoreRow.sentiment_score);
+  return isNaN(s) ? null : s;
+}
+
+function renderList(rows) {
+  const list = document.getElementById("mom-list");
+  if (!rows.length) {
+    list.innerHTML = '<div class="empty">No stocks match your filters.</div>';
+    return;
+  }
+
+  list.innerHTML = rows.map((r, i) => {
+    const chg       = parseFloat(r.change_pct) || 0;
+    const chgClass  = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+    const chgSign   = chg > 0 ? "+" : "";
+    const cardClass = chg > 0 ? "is-gainer" : chg < 0 ? "is-loser" : "";
+    const relVol    = parseFloat(r.rel_volume) || 0;
+    const rsi       = parseFloat(r.rsi) || 0;
+    const rsiClass  = rsi >= 70 ? "rsi-hot" : rsi <= 30 ? "rsi-cold" : "";
+    const sentLabel = getSentimentLabel(r.symbol);
+    const score     = getSentimentScore(r.symbol);
+    const scoreStr  = score !== null ? (score > 0 ? "+" : "") + score.toFixed(2) : "—";
+    const postCount = (socialMap[r.symbol] || []).length;
+
+    const posts = (socialMap[r.symbol] || []).slice(0, 5);
+    const postsHtml = posts.length
+      ? posts.map(p => {
+          const lbl = (p.nlp_label || "neutral").toLowerCase();
+          return `<div class="mom-post ${lbl}">
+            <div class="mom-post-header">
+              <span class="mom-post-label ${lbl}">${lbl}</span>
+              <span class="mom-post-time">${p.timestamp || ""}</span>
+            </div>
+            <div class="mom-post-text">${escapeHtml(p.message || "")}</div>
+          </div>`;
+        }).join("")
+      : '<div class="mom-no-posts">No recent posts.</div>';
+
+    return `
+    <div class="mom-row ${cardClass}" id="mom-row-${r.symbol}">
+      <div class="mom-row-header" onclick="toggleRow('${r.symbol}')">
+        <span class="mom-rank">${i + 1}</span>
+        <div class="mom-sym-block">
+          <a class="mom-sym" href="/charts?symbol=${r.symbol}" onclick="event.stopPropagation()">${r.symbol}</a>
+          <span class="mom-company">${r.company || r.sector || "—"}</span>
+        </div>
+        <div class="mom-meta">
+          <div class="mom-field">
+            <span class="mom-field-label">Price</span>
+            <span class="mom-field-value">$${r.price || "—"}</span>
+          </div>
+          <div class="mom-field">
+            <span class="mom-field-label">Change</span>
+            <span class="mom-field-value ${chgClass}">${chgSign}${chg.toFixed(2)}%</span>
+          </div>
+          <div class="mom-field">
+            <span class="mom-field-label">Volume</span>
+            <span class="mom-field-value">${r.volume || "—"}</span>
+          </div>
+          <div class="mom-field">
+            <span class="mom-field-label">Rel Vol</span>
+            <span class="mom-field-value">${relVol.toFixed(2)}x</span>
+          </div>
+          <div class="mom-field">
+            <span class="mom-field-label">Sentiment</span>
+            <span class="mom-field-value">${scoreStr}</span>
+          </div>
+          <div class="mom-field">
+            <span class="mom-field-label">Posts</span>
+            <span class="mom-field-value">${postCount}</span>
+          </div>
+        </div>
+        <span class="mom-sent-badge ${sentLabel}">${sentLabel}</span>
+        <span class="mom-expand-btn">▶</span>
+      </div>
+
+      <div class="mom-panel">
+        <div class="mom-panel-section">
+          <div class="mom-panel-title">Technical Details</div>
+          <div class="mom-stats-grid">
+            <div class="mom-stat">
+              <span class="mom-stat-label">RSI</span>
+              <span class="mom-stat-value ${rsiClass}">${rsi.toFixed(1)}</span>
+            </div>
+            <div class="mom-stat">
+              <span class="mom-stat-label">Beta</span>
+              <span class="mom-stat-value">${parseFloat(r.beta || 0).toFixed(2)}</span>
+            </div>
+            <div class="mom-stat">
+              <span class="mom-stat-label">52W High</span>
+              <span class="mom-stat-value">${r["52w_high"] || "—"}</span>
+            </div>
+            <div class="mom-stat">
+              <span class="mom-stat-label">52W Low</span>
+              <span class="mom-stat-value">${r["52w_low"] || "—"}</span>
+            </div>
+            <div class="mom-stat">
+              <span class="mom-stat-label">Mkt Cap</span>
+              <span class="mom-stat-value">${r.market_cap || "—"}</span>
+            </div>
+            <div class="mom-stat">
+              <span class="mom-stat-label">P/E</span>
+              <span class="mom-stat-value">${r.pe || r["p/e"] || "—"}</span>
+            </div>
+          </div>
+          <a class="mom-chart-btn" href="/charts?symbol=${r.symbol}">📊 View Charts →</a>
+        </div>
+
+        <div class="mom-panel-section">
+          <div class="mom-panel-title">Social Sentiment (${postCount} posts)</div>
+          <div class="mom-posts">${postsHtml}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function toggleRow(symbol) {
+  const row = document.getElementById("mom-row-" + symbol);
+  if (row) row.classList.toggle("expanded");
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+document.getElementById("filter-relvol").addEventListener("change", applyFilters);
+document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
+document.getElementById("filter-change").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadMomentum);
 </script>
