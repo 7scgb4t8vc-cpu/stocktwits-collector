@@ -309,9 +309,11 @@ function toggleOrderDir() {
 
 function resetFilters() {
   ["f-mktcap","f-price","f-change","f-avgvol","f-relvol","f-sentiment","f-posts","f-score-range","f-score-dir"].forEach(id => {
-  document.getElementById("filter-signal").value  = "";
-  document.getElementById("filter-symbol").value  = "";
-  document.getElementById("filter-order").value   = "";
+    document.getElementById(id).value = "";
+  });
+  document.getElementById("filter-signal").value = "";
+  document.getElementById("filter-symbol").value = "";
+  document.getElementById("filter-order").value  = "";
   applyFilters();
 }
 
