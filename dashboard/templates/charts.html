@@ -104,6 +104,15 @@
 .charts-post-time { font-size: 10px; color: var(--muted); margin-left: auto; }
 .charts-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
 .charts-no-posts { font-size: 13px; color: var(--muted); padding: 1rem 0; }
+  .eng-badge {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--yellow);
+  background: rgba(210,153,34,0.1);
+  border: 1px solid rgba(210,153,34,0.2);
+  border-radius: 20px;
+  padding: 2px 8px;
+}
 </style>
 
 {% endblock %}
@@ -163,16 +172,31 @@ async function loadSocialFeed(symbol) {
       feed.innerHTML = '<div class="charts-no-posts">No posts found for this symbol.</div>';
       return;
     }
-    feed.innerHTML = `<div class="charts-feed">` + rows.slice(0, 30).map(p => {
-      const lbl = (p.nlp_label || "neutral").toLowerCase();
+
+    const sorted = [...rows].sort((a, b) => {
+      const aEng = (a.likes || 0) + (a.reshares || 0);
+      const bEng = (b.likes || 0) + (b.reshares || 0);
+      return bEng - aEng;
+    });
+
+    feed.innerHTML = `<div class="charts-feed">` + sorted.slice(0, 30).map(p => {
+      const lbl        = (p.nlp_label || "neutral").toLowerCase();
+      const likes      = p.likes || 0;
+      const reshares   = p.reshares || 0;
+      const engagement = likes + reshares;
+      const engHtml    = engagement > 0
+        ? `<span class="eng-badge">🔥 ${engagement}${likes > 0 ? ` · ${likes} likes` : ""}${reshares > 0 ? ` · ${reshares} reshares` : ""}</span>`
+        : "";
       return `<div class="charts-post ${lbl}">
         <div class="charts-post-header">
           <span class="charts-post-label ${lbl}">${lbl}</span>
+          ${engHtml}
           <span class="charts-post-time">${p.timestamp || ""}</span>
         </div>
         <div class="charts-post-text">${escapeHtml(p.message || "")}</div>
       </div>`;
     }).join("") + `</div>`;
+
   } catch(e) {
     feed.innerHTML = '<div class="error">Failed to load posts.</div>';
   }
