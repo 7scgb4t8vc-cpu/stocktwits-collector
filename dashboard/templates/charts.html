@@ -36,7 +36,7 @@
 
   <!-- Social Feed -->
   <div class="chart-card" style="margin-top:1rem;">
-    <div class="chart-card-title">Recent Social Posts</div>
+    <div class="chart-card-title">Trending Posts <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span></div>
     <div id="charts-social-feed"></div>
   </div>
 
@@ -173,24 +173,26 @@ async function loadSocialFeed(symbol) {
       return;
     }
 
-    const sorted = [...rows].sort((a, b) => {
-      const aEng = (a.likes || 0) + (a.reshares || 0);
-      const bEng = (b.likes || 0) + (b.reshares || 0);
-      return bEng - aEng;
+    const scored = rows.map(p => {
+      const nlp      = Math.abs(parseFloat(p.nlp_score) || 0);
+      const likes    = p.likes || 0;
+      const reshares = p.reshares || 0;
+      const trend    = (nlp * 10) + likes + (reshares * 2);
+      return { ...p, _trend: trend };
     });
 
+    const sorted = scored.sort((a, b) => b._trend - a._trend);
+
     feed.innerHTML = `<div class="charts-feed">` + sorted.slice(0, 30).map(p => {
-      const lbl        = (p.nlp_label || "neutral").toLowerCase();
-      const likes      = p.likes || 0;
-      const reshares   = p.reshares || 0;
-      const engagement = likes + reshares;
-      const engHtml    = engagement > 0
-        ? `<span class="eng-badge">🔥 ${engagement}${likes > 0 ? ` · ${likes} likes` : ""}${reshares > 0 ? ` · ${reshares} reshares` : ""}</span>`
+      const lbl       = (p.nlp_label || "neutral").toLowerCase();
+      const trendScore = p._trend.toFixed(1);
+      const trendHtml  = p._trend > 0
+        ? `<span class="eng-badge">⚡ ${trendScore}</span>`
         : "";
       return `<div class="charts-post ${lbl}">
         <div class="charts-post-header">
           <span class="charts-post-label ${lbl}">${lbl}</span>
-          ${engHtml}
+          ${trendHtml}
           <span class="charts-post-time">${p.timestamp || ""}</span>
         </div>
         <div class="charts-post-text">${escapeHtml(p.message || "")}</div>
