@@ -480,36 +480,7 @@ function renderList(rows) {
         </div>
 
         <div class="mom-panel-section mom-panel-right">
-          <div class="mom-panel-stats">
-            <div class="mom-panel-title">Technical Details</div>
-            <div class="mom-stats-grid">
-              <div class="mom-stat">
-                <span class="mom-stat-label">RSI</span>
-                <span class="mom-stat-value ${rsiClass}">${rsi.toFixed(1)}</span>
-              </div>
-              <div class="mom-stat">
-                <span class="mom-stat-label">Beta</span>
-                <span class="mom-stat-value">${parseFloat(r.beta || 0).toFixed(2)}</span>
-              </div>
-              <div class="mom-stat">
-                <span class="mom-stat-label">52W High</span>
-                <span class="mom-stat-value">${r["52w_high"] || "—"}</span>
-              </div>
-              <div class="mom-stat">
-                <span class="mom-stat-label">52W Low</span>
-                <span class="mom-stat-value">${r["52w_low"] || "—"}</span>
-              </div>
-              <div class="mom-stat">
-                <span class="mom-stat-label">Mkt Cap</span>
-                <span class="mom-stat-value">${r.market_cap || "—"}</span>
-              </div>
-              <div class="mom-stat">
-                <span class="mom-stat-label">P/E</span>
-                <span class="mom-stat-value">${r.pe || r["p/e"] || "—"}</span>
-              </div>
-            </div>
-            <a class="mom-chart-btn" href="/charts?symbol=${r.symbol}">📊 View Full Charts →</a>
-          </div>
+   
 
           <div class="mom-panel-title" style="margin-top:1rem;">Social Sentiment (${postCount} posts)</div>
           <div class="mom-posts">${postsHtml}</div>
