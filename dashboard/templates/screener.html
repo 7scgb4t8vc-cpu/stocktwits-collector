@@ -159,7 +159,7 @@ function renderTable(rows) {
     const sc       = r._sc || {};
     const scTip    = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
     return `<tr>
-      <td><strong>${r.symbol}</strong></td>
+      <td><a class="ticker-link" href="/charts?symbol=${r.symbol}"><strong>${r.symbol}</strong></a></td>
       <td>${r.price || "—"}</td>
       <td>${r.pe || r["p/e"] || "—"}</td>
       <td class="${chgClass}">${chgStr || "—"}</td>
