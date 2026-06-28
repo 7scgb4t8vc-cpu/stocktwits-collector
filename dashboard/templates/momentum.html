@@ -262,7 +262,28 @@
 .mom-post-time { font-size: 10px; color: var(--muted); }
 .mom-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
 .mom-no-posts { font-size: 12px; color: var(--muted); padding: 0.5rem 0; }
+.mom-panel {
+  grid-template-columns: 1.4fr 1fr;
+}
+.mom-panel-chart {
+  min-width: 0;
+}
+.mom-panel-right {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: hidden;
+}
+.mom-panel-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
 
+@media (max-width: 768px) {
+  .mom-panel { grid-template-columns: 1fr; }
+  .mom-meta { gap: 0.75rem; }
+}
 @media (max-width: 768px) {
   .mom-panel { grid-template-columns: 1fr; }
   .mom-meta { gap: 0.75rem; }
@@ -446,39 +467,51 @@ function renderList(rows) {
       </div>
 
       <div class="mom-panel">
-        <div class="mom-panel-section">
-          <div class="mom-panel-title">Technical Details</div>
-          <div class="mom-stats-grid">
-            <div class="mom-stat">
-              <span class="mom-stat-label">RSI</span>
-              <span class="mom-stat-value ${rsiClass}">${rsi.toFixed(1)}</span>
-            </div>
-            <div class="mom-stat">
-              <span class="mom-stat-label">Beta</span>
-              <span class="mom-stat-value">${parseFloat(r.beta || 0).toFixed(2)}</span>
-            </div>
-            <div class="mom-stat">
-              <span class="mom-stat-label">52W High</span>
-              <span class="mom-stat-value">${r["52w_high"] || "—"}</span>
-            </div>
-            <div class="mom-stat">
-              <span class="mom-stat-label">52W Low</span>
-              <span class="mom-stat-value">${r["52w_low"] || "—"}</span>
-            </div>
-            <div class="mom-stat">
-              <span class="mom-stat-label">Mkt Cap</span>
-              <span class="mom-stat-value">${r.market_cap || "—"}</span>
-            </div>
-            <div class="mom-stat">
-              <span class="mom-stat-label">P/E</span>
-              <span class="mom-stat-value">${r.pe || r["p/e"] || "—"}</span>
-            </div>
+        <div class="mom-panel-section mom-panel-chart">
+          <div class="mom-panel-title">Intraday Chart</div>
+          <div class="tv-widget-wrap" id="tv-${r.symbol}">
+            <iframe
+              src="https://s.tradingview.com/widgetembed/?symbol=${r.symbol}&interval=5&theme=dark&style=1&locale=en&hide_top_toolbar=1&hide_legend=1&hide_side_toolbar=1&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=220"
+              style="width:100%;height:220px;border:none;border-radius:6px;"
+              allowtransparency="true"
+              scrolling="no"
+            ></iframe>
           </div>
-          <a class="mom-chart-btn" href="/charts?symbol=${r.symbol}">📊 View Charts →</a>
         </div>
 
-        <div class="mom-panel-section">
-          <div class="mom-panel-title">Social Sentiment (${postCount} posts)</div>
+        <div class="mom-panel-section mom-panel-right">
+          <div class="mom-panel-stats">
+            <div class="mom-panel-title">Technical Details</div>
+            <div class="mom-stats-grid">
+              <div class="mom-stat">
+                <span class="mom-stat-label">RSI</span>
+                <span class="mom-stat-value ${rsiClass}">${rsi.toFixed(1)}</span>
+              </div>
+              <div class="mom-stat">
+                <span class="mom-stat-label">Beta</span>
+                <span class="mom-stat-value">${parseFloat(r.beta || 0).toFixed(2)}</span>
+              </div>
+              <div class="mom-stat">
+                <span class="mom-stat-label">52W High</span>
+                <span class="mom-stat-value">${r["52w_high"] || "—"}</span>
+              </div>
+              <div class="mom-stat">
+                <span class="mom-stat-label">52W Low</span>
+                <span class="mom-stat-value">${r["52w_low"] || "—"}</span>
+              </div>
+              <div class="mom-stat">
+                <span class="mom-stat-label">Mkt Cap</span>
+                <span class="mom-stat-value">${r.market_cap || "—"}</span>
+              </div>
+              <div class="mom-stat">
+                <span class="mom-stat-label">P/E</span>
+                <span class="mom-stat-value">${r.pe || r["p/e"] || "—"}</span>
+              </div>
+            </div>
+            <a class="mom-chart-btn" href="/charts?symbol=${r.symbol}">📊 View Full Charts →</a>
+          </div>
+
+          <div class="mom-panel-title" style="margin-top:1rem;">Social Sentiment (${postCount} posts)</div>
           <div class="mom-posts">${postsHtml}</div>
         </div>
       </div>
