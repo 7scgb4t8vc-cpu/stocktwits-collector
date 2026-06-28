@@ -92,7 +92,7 @@ async function loadSocial() {
       return `
         <div class="feed-card sentiment-${label.toLowerCase()}">
           <div class="card-header">
-            <span class="ticker-badge">${r.symbol}</span>
+            <a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a>
             <span class="sentiment-badge badge-${label.toLowerCase()}">${label}</span>
             ${scoreHtml}
             <span class="card-time">${r.timestamp}</span>
