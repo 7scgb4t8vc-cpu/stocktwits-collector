@@ -27,7 +27,7 @@ IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
 WATCHLIST_SIZE = 30
 
-FINVIZ_URL = "https://elite.finviz.com/export?v=171&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
+FINVIZ_URL = "https://elite.finviz.com/export?v=152&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
 ST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -86,17 +86,17 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    """Map FinViz Elite CSV columns to our internal field names."""
+    print(f"  DEBUG columns: {list(row.keys())}")
     return {
         "price":      row.get("Price",          ""),
         "change_pct": row.get("Change",         ""),
         "volume":     row.get("Volume",         ""),
         "avg_volume": row.get("Average Volume", ""),
         "market_cap": row.get("Market Cap",     ""),
-        "pe":         row.get("P/E",             ""),
+        "pe":         row.get("P/E",            ""),
         "sector":     row.get("Sector",         ""),
         "industry":   row.get("Industry",       ""),
-        "rel_volume": row.get("Relative Volume", ""),
+        "rel_volume": row.get("Relative Volume",""),
     }
 
 
