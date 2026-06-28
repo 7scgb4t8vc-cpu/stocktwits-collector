@@ -90,7 +90,7 @@ def fetch_finviz_screener(token: str) -> list:
 def parse_finviz_row(row: dict) -> dict:
     def format_market_cap(raw):
         try:
-            val = float(str(raw).replace(",", "").strip()) * 1000
+            val = float(str(raw).replace(",", "").strip()) * 1_000_000
             if val >= 1_000_000_000_000:
                 return f"{val / 1_000_000_000_000:.2f}T"
             if val >= 1_000_000_000:
