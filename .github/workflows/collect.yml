@@ -1,7 +1,7 @@
 name: StockTwits Data Collector
 on:
   schedule:
-    - cron: "30 9-16 * * *"  # every hour 9:30am-4:30pm ET, every day  # 3x on weekends (10am, 2pm, 6pm ET)  # every hour 9:30am-4:30pm ET, Mon-Fri
+    - cron: "*/5 13-21 * * *"  # every 5 min, 9am-5pm ET (UTC 13-21), every day  # every hour 9:30am-4:30pm ET, every day  # 3x on weekends (10am, 2pm, 6pm ET)  # every hour 9:30am-4:30pm ET, Mon-Fri
   workflow_dispatch:             # manual trigger anytime
 jobs:
   collect:
