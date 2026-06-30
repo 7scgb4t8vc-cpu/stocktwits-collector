@@ -143,11 +143,13 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
 
     rows = get_messages(symbol=symbol)
 
-    # Filter messages to timeframe using created_at, fall back to timestamp
     filtered = []
     for row in rows:
         raw_dt = row.get("created_at") or row.get("timestamp", "")
-        dt = parse_timestamp(raw_dt) if not raw_dt.endswith("Z") else datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
+        if raw_dt.endswith("Z"):
+            dt = datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
+        else:
+            dt = parse_timestamp(raw_dt)
         if dt and dt >= cutoff:
             filtered.append({**row, "_bucket": raw_dt[:16]})
 
@@ -167,7 +169,6 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
 
     timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
 
-    # Filter price history to timeframe
     price_rows = get_price_history(symbol)
     price_series = []
     for r in price_rows:
@@ -187,6 +188,24 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
 
     correlation_series = [
         {
+            "timestamp": ts,
+            "price":     price_by_ts.get(ts),
+            "msg_count": volume_by_ts.get(ts, 0),
+        }
+        for ts in all_ts
+    ]
+
+    return {
+        "symbol":             symbol,
+        "timeframe":          timeframe,
+        "price_series":       price_series,
+        "volume_series":      [{"timestamp": ts, "count": volume_by_ts.get(ts, 0)} for ts in timestamps],
+        "sentiment_series":   [
+            {"timestamp": ts, **sentiment_by_ts.get(ts, {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0})}
+            for ts in timestamps
+        ],
+        "correlation_series": correlation_series,
+    }
             "timestamp": ts,
             "price":     price_by_ts.get(ts),
             "msg_count": volume_by_ts.get(ts, 0),
