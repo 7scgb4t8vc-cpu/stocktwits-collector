@@ -6,6 +6,7 @@ Reads from MongoDB and serves the live dashboard.
 
 import os
 import requests
+from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
 from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc
@@ -18,7 +19,44 @@ GITHUB_USER   = "7scgb4t8vc-cpu"
 GITHUB_REPO   = "stocktwits-collector"
 GITHUB_BRANCH = "main"
 
-# ── Watchlist (loaded from MongoDB) ──────────────────────────────────────────
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def parse_timestamp(ts_str: str):
+    """Parse timestamp strings like '2026-06-29 14:32 ET' into a UTC-naive datetime."""
+    if not ts_str:
+        return None
+    ts_str = ts_str.strip()
+    for fmt in ("%Y-%m-%d %H:%M ET", "%Y-%m-%d %H:%M"):
+        try:
+            return datetime.strptime(ts_str[:16], fmt[:len(fmt)])
+        except ValueError:
+            continue
+    try:
+        return datetime.strptime(ts_str[:16], "%Y-%m-%d %H:%M")
+    except Exception:
+        return None
+
+
+def cutoff_from_hours(hours: float):
+    """Return a naive datetime representing now - hours."""
+    return datetime.utcnow() - timedelta(hours=hours)
+
+
+TIMEFRAME_HOURS = {
+    "5m":   5 / 60,
+    "15m":  15 / 60,
+    "30m":  30 / 60,
+    "1h":   1,
+    "2h":   2,
+    "4h":   4,
+    "6h":   6,
+    "12h":  12,
+    "1d":   24,
+    "7d":   24 * 7,
+    "30d":  24 * 30,
+}
+
+# ── Watchlist ─────────────────────────────────────────────────────────────────
 
 def get_watchlist() -> set:
     docs = list(get_db()["watchlist"].find())
@@ -98,13 +136,23 @@ def load_charts_data():
     }
 
 
-def load_symbol_chart_data(symbol: str):
+def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
     symbol = symbol.upper()
+    hours  = TIMEFRAME_HOURS.get(timeframe, 24)
+    cutoff = cutoff_from_hours(hours)
+
     rows = get_messages(symbol=symbol)
+
+    # Filter messages to timeframe
+    filtered = []
+    for row in rows:
+        dt = parse_timestamp(row.get("timestamp", ""))
+        if dt and dt >= cutoff:
+            filtered.append(row)
 
     volume_by_ts = {}
     sentiment_by_ts = {}
-    for row in rows:
+    for row in filtered:
         ts = row.get("timestamp", "")
         volume_by_ts[ts] = volume_by_ts.get(ts, 0) + 1
 
@@ -118,17 +166,45 @@ def load_symbol_chart_data(symbol: str):
 
     timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
 
+    # Filter price history to timeframe
     price_rows = get_price_history(symbol)
-    price_series = [{"timestamp": r.get("timestamp", ""), "price": r.get("price", "")} for r in price_rows]
+    price_series = []
+    for r in price_rows:
+        dt = parse_timestamp(r.get("timestamp", ""))
+        if dt and dt >= cutoff:
+            try:
+                price_val = float(str(r.get("price", "0")).replace(",", "").strip())
+            except Exception:
+                price_val = None
+            price_series.append({
+                "timestamp": r.get("timestamp", ""),
+                "price": price_val,
+            })
+
+    # Build correlation series — align price and message volume by timestamp
+    # Use all timestamps that appear in either price or volume data
+    all_ts = sorted(set([p["timestamp"] for p in price_series]) | set(volume_by_ts.keys()))
+    price_by_ts = {p["timestamp"]: p["price"] for p in price_series}
+
+    correlation_series = [
+        {
+            "timestamp": ts,
+            "price":     price_by_ts.get(ts),
+            "msg_count": volume_by_ts.get(ts, 0),
+        }
+        for ts in all_ts
+    ]
 
     return {
-        "symbol": symbol,
-        "price_series": price_series,
-        "volume_series": [{"timestamp": ts, "count": volume_by_ts.get(ts, 0)} for ts in timestamps],
-        "sentiment_series": [
+        "symbol":             symbol,
+        "timeframe":          timeframe,
+        "price_series":       price_series,
+        "volume_series":      [{"timestamp": ts, "count": volume_by_ts.get(ts, 0)} for ts in timestamps],
+        "sentiment_series":   [
             {"timestamp": ts, **sentiment_by_ts.get(ts, {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0})}
             for ts in timestamps
         ],
+        "correlation_series": correlation_series,
     }
 
 
@@ -264,7 +340,8 @@ def api_charts():
 def api_charts_symbol(symbol):
     if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
-    return jsonify(load_symbol_chart_data(symbol))
+    timeframe = request.args.get("tf", "1d")
+    return jsonify(load_symbol_chart_data(symbol, timeframe))
 
 
 @app.route("/api/ohlc/<symbol>")
