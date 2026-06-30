@@ -424,6 +424,15 @@ async function loadSymbolCharts(symbol, tf) {
   }
 }
 
+let _refreshInterval = null;
+
+function startAutoRefresh() {
+  if (_refreshInterval) clearInterval(_refreshInterval);
+  _refreshInterval = setInterval(() => {
+    if (_currentSymbol) loadSymbolCharts(_currentSymbol, _currentTf);
+  }, 30000); // refresh every 30 seconds
+}
+
 // Timeframe button clicks
 document.getElementById("tf-strip").addEventListener("click", (e) => {
   const btn = e.target.closest(".tf-btn");
@@ -443,11 +452,13 @@ async function loadCharts() {
     document.getElementById("symbol-select").value = _currentSymbol;
   }
   if (_currentSymbol) await loadSymbolCharts(_currentSymbol, _currentTf);
+  startAutoRefresh();
 }
 
 document.getElementById("symbol-select").addEventListener("change", (e) => {
   _currentSymbol = e.target.value;
   loadSymbolCharts(_currentSymbol, _currentTf);
+  startAutoRefresh();
 });
 
 window.registerPageLoader(loadCharts);
