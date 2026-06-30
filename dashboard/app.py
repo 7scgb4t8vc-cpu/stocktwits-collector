@@ -153,6 +153,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
     symbol = symbol.upper()
     hours  = TIMEFRAME_HOURS.get(timeframe, 24)
     cutoff = cutoff_from_hours(hours)
+    bucket_minutes = BUCKET_MINUTES.get(timeframe, 30)
 
     rows = get_messages(symbol=symbol)
 
@@ -164,7 +165,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
         else:
             dt = parse_timestamp(raw_dt)
         if dt and dt >= cutoff:
-            filtered.append({**row, "_bucket": raw_dt[:16]})
+            filtered.append({**row, "_bucket": round_to_bucket(dt, bucket_minutes)})
 
     volume_by_ts = {}
     sentiment_by_ts = {}
