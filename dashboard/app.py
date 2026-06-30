@@ -55,6 +55,19 @@ TIMEFRAME_HOURS = {
     "7d":   24 * 7,
     "30d":  24 * 30,
 }
+BUCKET_MINUTES = {
+    "5m": 1, "15m": 1, "30m": 1,
+    "1h": 5, "2h": 5,
+    "4h": 15, "6h": 15,
+    "12h": 30, "1d": 30,
+    "7d": 60, "30d": 240,
+}
+
+def round_to_bucket(dt: datetime, bucket_minutes: int) -> str:
+    """Round a datetime down to the nearest bucket and return a label string."""
+    discard = dt.minute % bucket_minutes
+    dt = dt - timedelta(minutes=discard, seconds=dt.second, microseconds=dt.microsecond)
+    return dt.strftime("%Y-%m-%d %H:%M")
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
 
