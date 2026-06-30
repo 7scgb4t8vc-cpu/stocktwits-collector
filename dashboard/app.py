@@ -380,7 +380,13 @@ def trigger_refresh():
         return jsonify({"status": "triggered"})
     return jsonify({"error": resp.text}), resp.status_code
 
-
+@app.route("/api/debug-message")
+def debug_message():
+    from db import get_db
+    doc = get_db()["messages"].find_one()
+    if doc:
+        doc.pop("_id", None)
+    return jsonify(doc)
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
