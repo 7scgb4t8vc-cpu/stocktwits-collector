@@ -16,10 +16,39 @@
 
 <div id="charts-grid" style="display:none">
 
+  <!-- Timeframe selector -->
+  <div class="tf-strip" id="tf-strip">
+    <button class="tf-btn" data-tf="5m">5m</button>
+    <button class="tf-btn" data-tf="15m">15m</button>
+    <button class="tf-btn" data-tf="30m">30m</button>
+    <button class="tf-btn" data-tf="1h">1H</button>
+    <button class="tf-btn" data-tf="2h">2H</button>
+    <button class="tf-btn" data-tf="4h">4H</button>
+    <button class="tf-btn" data-tf="6h">6H</button>
+    <button class="tf-btn" data-tf="12h">12H</button>
+    <button class="tf-btn active" data-tf="1d">1D</button>
+    <button class="tf-btn" data-tf="7d">7D</button>
+    <button class="tf-btn" data-tf="30d">30D</button>
+  </div>
+
+  <!-- Sparse data warning -->
+  <div id="sparse-warning" style="display:none" class="sparse-warning">
+    ⚠ Collector runs every 5 min during market hours — sub-hourly windows may have limited data points.
+  </div>
+
   <!-- TradingView Chart -->
   <div class="chart-card" style="margin-bottom:1rem;">
     <div class="chart-card-title">Price Chart</div>
     <div id="tv-chart-wrap"></div>
+  </div>
+
+  <!-- Price vs Message Volume Correlation -->
+  <div class="chart-card" style="margin-bottom:1rem;">
+    <div class="chart-card-title">
+      Price vs Message Volume
+      <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;margin-left:6px;">correlation — do price moves follow message spikes?</span>
+    </div>
+    <canvas id="correlation-chart" height="160"></canvas>
   </div>
 
   <!-- Sentiment + Volume -->
@@ -36,13 +65,57 @@
 
   <!-- Social Feed -->
   <div class="chart-card" style="margin-top:1rem;">
-    <div class="chart-card-title">Trending Posts <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span></div>
+    <div class="chart-card-title">
+      Trending Posts
+      <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span>
+    </div>
     <div id="charts-social-feed"></div>
   </div>
 
 </div>
 
 <style>
+/* Timeframe strip */
+.tf-strip {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+.tf-btn {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: var(--radius-sm);
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.04em;
+}
+.tf-btn:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.tf-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Sparse data warning */
+.sparse-warning {
+  font-size: 11px;
+  color: var(--yellow);
+  background: rgba(210,153,34,0.08);
+  border: 1px solid rgba(210,153,34,0.2);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  margin-bottom: 1rem;
+}
+
+/* Chart cards */
 .chart-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -104,7 +177,7 @@
 .charts-post-time { font-size: 10px; color: var(--muted); margin-left: auto; }
 .charts-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
 .charts-no-posts { font-size: 13px; color: var(--muted); padding: 1rem 0; }
-  .eng-badge {
+.eng-badge {
   font-size: 10px;
   font-weight: 600;
   color: var(--yellow);
@@ -121,6 +194,9 @@
 <script>
 let _charts = {};
 let _currentSymbol = "";
+let _currentTf = "1d";
+
+const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
 
 const chartDefaults = {
   plugins: { legend: { labels: { color: "#8b949e" } } },
@@ -184,7 +260,7 @@ async function loadSocialFeed(symbol) {
     const sorted = scored.sort((a, b) => b._trend - a._trend);
 
     feed.innerHTML = `<div class="charts-feed">` + sorted.slice(0, 30).map(p => {
-      const lbl       = (p.nlp_label || "neutral").toLowerCase();
+      const lbl        = (p.nlp_label || "neutral").toLowerCase();
       const trendScore = p._trend.toFixed(1);
       const trendHtml  = p._trend > 0
         ? `<span class="eng-badge">⚡ ${trendScore}</span>`
@@ -204,7 +280,84 @@ async function loadSocialFeed(symbol) {
   }
 }
 
-async function loadSymbolCharts(symbol) {
+function renderCorrelationChart(series) {
+  const labels    = series.map(d => d.timestamp);
+  const prices    = series.map(d => d.price);
+  const msgCounts = series.map(d => d.msg_count);
+
+  const hasPrice = prices.some(p => p !== null && p !== undefined);
+
+  _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [
+        {
+          label: "Message Volume",
+          data: msgCounts,
+          backgroundColor: "rgba(63,185,80,0.5)",
+          borderColor: "#3fb950",
+          borderWidth: 1,
+          yAxisID: "yMsg",
+          order: 2,
+        },
+        ...(hasPrice ? [{
+          label: "Price ($)",
+          data: prices,
+          type: "line",
+          borderColor: "#58a6ff",
+          backgroundColor: "rgba(88,166,255,0.1)",
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: "#58a6ff",
+          tension: 0.3,
+          yAxisID: "yPrice",
+          order: 1,
+          spanGaps: true,
+        }] : []),
+      ]
+    },
+    options: {
+      interaction: { mode: "index", intersect: false },
+      plugins: {
+        legend: { labels: { color: "#8b949e" } },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              if (ctx.dataset.label === "Price ($)") {
+                return ` Price: $${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) : "—"}`;
+              }
+              return ` Messages: ${ctx.parsed.y}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: "#8b949e", maxTicksLimit: 8 },
+          grid:  { color: "rgba(255,255,255,0.05)" },
+        },
+        yMsg: {
+          type: "linear",
+          position: "left",
+          ticks: { color: "#3fb950" },
+          grid:  { color: "rgba(255,255,255,0.05)" },
+          title: { display: true, text: "Messages", color: "#3fb950", font: { size: 10 } },
+        },
+        yPrice: {
+          type: "linear",
+          position: "right",
+          ticks: { color: "#58a6ff", callback: v => `$${v.toFixed(2)}` },
+          grid:  { drawOnChartArea: false },
+          title: { display: true, text: "Price", color: "#58a6ff", font: { size: 10 } },
+          display: hasPrice,
+        },
+      }
+    }
+  });
+}
+
+async function loadSymbolCharts(symbol, tf) {
   if (!symbol) {
     document.getElementById("charts-empty").style.display = "block";
     document.getElementById("charts-grid").style.display = "none";
@@ -214,14 +367,23 @@ async function loadSymbolCharts(symbol) {
 
   document.getElementById("charts-empty").style.display = "none";
   document.getElementById("charts-grid").style.display = "block";
-  destroyCharts();
 
+  // Show/hide sparse warning
+  document.getElementById("sparse-warning").style.display =
+    SPARSE_TIMEFRAMES.has(tf) ? "block" : "none";
+
+  destroyCharts();
   renderTradingView(symbol);
   loadSocialFeed(symbol);
 
   try {
-    const res  = await fetch(`/api/charts/${symbol}`);
+    const res  = await fetch(`/api/charts/${symbol}?tf=${tf}`);
     const data = await res.json();
+
+    // Correlation chart (price vs message volume)
+    if (data.correlation_series && data.correlation_series.length > 0) {
+      renderCorrelationChart(data.correlation_series);
+    }
 
     // Message volume over time
     const volLabels = data.volume_series.map(v => v.timestamp);
@@ -262,6 +424,16 @@ async function loadSymbolCharts(symbol) {
   }
 }
 
+// Timeframe button clicks
+document.getElementById("tf-strip").addEventListener("click", (e) => {
+  const btn = e.target.closest(".tf-btn");
+  if (!btn || !_currentSymbol) return;
+  document.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  _currentTf = btn.dataset.tf;
+  loadSymbolCharts(_currentSymbol, _currentTf);
+});
+
 async function loadCharts() {
   await loadSymbolList();
   const params = new URLSearchParams(window.location.search);
@@ -270,12 +442,12 @@ async function loadCharts() {
     _currentSymbol = sym.toUpperCase();
     document.getElementById("symbol-select").value = _currentSymbol;
   }
-  if (_currentSymbol) await loadSymbolCharts(_currentSymbol);
+  if (_currentSymbol) await loadSymbolCharts(_currentSymbol, _currentTf);
 }
 
 document.getElementById("symbol-select").addEventListener("change", (e) => {
   _currentSymbol = e.target.value;
-  loadSymbolCharts(_currentSymbol);
+  loadSymbolCharts(_currentSymbol, _currentTf);
 });
 
 window.registerPageLoader(loadCharts);
