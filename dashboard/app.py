@@ -4,6 +4,7 @@ StockTwits Dashboard — Flask App
 Reads from MongoDB and serves the live dashboard.
 """
 
+
 import os
 import requests
 from datetime import datetime, timezone, timedelta
