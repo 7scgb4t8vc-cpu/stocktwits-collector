@@ -125,7 +125,7 @@ def fetch_trending() -> list:
 
 def fetch_messages(symbol: str, since_id) -> list:
     url    = f"{BASE_URL}/streams/symbol/{symbol}.json"
-    params = {"limit": 10}
+    params = {"limit": 30}
     if since_id:
         params["since"] = since_id
     resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
