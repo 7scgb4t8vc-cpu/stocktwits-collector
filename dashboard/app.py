@@ -359,8 +359,9 @@ def api_charts_symbol(symbol):
     debug = request.args.get("debug")
     if debug:
         rows = get_messages(symbol=symbol.upper())
+        rows.sort(key=lambda r: r.get("created_at", ""))
         sample = [{"created_at": r.get("created_at"), "timestamp": r.get("timestamp")} for r in rows[-5:]]
-        return jsonify({"sample": sample, "now_utc": datetime.utcnow().isoformat()})
+        return jsonify({"sample": sample, "now_utc": datetime.utcnow().isoformat(), "total": len(rows)})
     return jsonify(load_symbol_chart_data(symbol, timeframe))
 
 
