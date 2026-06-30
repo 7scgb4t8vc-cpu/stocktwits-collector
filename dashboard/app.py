@@ -143,17 +143,18 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
 
     rows = get_messages(symbol=symbol)
 
-    # Filter messages to timeframe
+    # Filter messages to timeframe using created_at, fall back to timestamp
     filtered = []
     for row in rows:
-        dt = parse_timestamp(row.get("timestamp", ""))
+        raw_dt = row.get("created_at") or row.get("timestamp", "")
+        dt = parse_timestamp(raw_dt) if not raw_dt.endswith("Z") else datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
         if dt and dt >= cutoff:
-            filtered.append(row)
+            filtered.append({**row, "_bucket": raw_dt[:16]})
 
     volume_by_ts = {}
     sentiment_by_ts = {}
     for row in filtered:
-        ts = row.get("timestamp", "")
+        ts = row["_bucket"]
         volume_by_ts[ts] = volume_by_ts.get(ts, 0) + 1
 
         label = (row.get("nlp_label") or "neutral").lower()
@@ -177,17 +178,33 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
             except Exception:
                 price_val = None
             price_series.append({
-                "timestamp": r.get("timestamp", ""),
+                "timestamp": r.get("timestamp", "")[:16],
                 "price": price_val,
             })
 
-    # Build correlation series — align price and message volume by timestamp
-    # Use all timestamps that appear in either price or volume data
     all_ts = sorted(set([p["timestamp"] for p in price_series]) | set(volume_by_ts.keys()))
     price_by_ts = {p["timestamp"]: p["price"] for p in price_series}
 
     correlation_series = [
         {
+            "timestamp": ts,
+            "price":     price_by_ts.get(ts),
+            "msg_count": volume_by_ts.get(ts, 0),
+        }
+        for ts in all_ts
+    ]
+
+    return {
+        "symbol":             symbol,
+        "timeframe":          timeframe,
+        "price_series":       price_series,
+        "volume_series":      [{"timestamp": ts, "count": volume_by_ts.get(ts, 0)} for ts in timestamps],
+        "sentiment_series":   [
+            {"timestamp": ts, **sentiment_by_ts.get(ts, {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0})}
+            for ts in timestamps
+        ],
+        "correlation_series": correlation_series,
+    }
             "timestamp": ts,
             "price":     price_by_ts.get(ts),
             "msg_count": volume_by_ts.get(ts, 0),
