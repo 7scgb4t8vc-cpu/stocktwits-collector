@@ -222,7 +222,7 @@ def main():
                 cleaned = clean_message(body)
                 if not is_quality_message(cleaned):
                     continue
-               st_rows.append({
+                st_rows.append({
                     "_id":        msg["id"],
                     "timestamp":  timestamp,
                     "created_at": msg.get("created_at", timestamp),
