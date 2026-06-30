@@ -222,14 +222,15 @@ def main():
                 cleaned = clean_message(body)
                 if not is_quality_message(cleaned):
                     continue
-                st_rows.append({
-                    "_id":       msg["id"],
-                    "timestamp": timestamp,
-                    "symbol":    symbol,
-                    "message":   cleaned,
-                    "sentiment": get_sentiment(msg),
-                    "likes":     msg.get("likes", {}).get("total", 0),
-                    "reshares":  msg.get("reshares", {}).get("reshared_count", 0),
+               st_rows.append({
+                    "_id":        msg["id"],
+                    "timestamp":  timestamp,
+                    "created_at": msg.get("created_at", timestamp),
+                    "symbol":     symbol,
+                    "message":    cleaned,
+                    "sentiment":  get_sentiment(msg),
+                    "likes":      msg.get("likes", {}).get("total", 0),
+                    "reshares":   msg.get("reshares", {}).get("reshared_count", 0),
                 })
                 accepted += 1
             print(f"{len(messages)} fetched, {accepted} passed filters.")
