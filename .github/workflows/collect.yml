@@ -42,4 +42,4 @@ jobs:
       - name: Run NLP processor (FinBERT, free, local)
         env:
           MONGO_URI: ${{ secrets.MONGO_URI }}
-        run: python -u stocktwits_collector.py 2>&1
+        run: python -u nlp_processor.py 2>&1
