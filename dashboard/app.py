@@ -4,7 +4,6 @@ StockTwits Dashboard — Flask App
 Reads from MongoDB and serves the live dashboard.
 """
 
-
 import os
 import requests
 from datetime import datetime, timezone, timedelta
@@ -343,6 +342,11 @@ def api_charts_symbol(symbol):
     if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
     timeframe = request.args.get("tf", "1d")
+    debug = request.args.get("debug")
+    if debug:
+        rows = get_messages(symbol=symbol.upper())
+        sample = [{"created_at": r.get("created_at"), "timestamp": r.get("timestamp")} for r in rows[-5:]]
+        return jsonify({"sample": sample, "now_utc": datetime.utcnow().isoformat()})
     return jsonify(load_symbol_chart_data(symbol, timeframe))
 
 
