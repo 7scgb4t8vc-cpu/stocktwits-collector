@@ -182,7 +182,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
         sentiment_by_ts[ts][label] += 1
 
     # Generate all buckets across the full window so x-axis spans the full timeframe
-   discard = int(cutoff.minute % bucket_minutes)
+    discard = int(cutoff.minute % bucket_minutes)
     bucket_start = cutoff - timedelta(minutes=discard, seconds=cutoff.second, microseconds=cutoff.microsecond)
     now = datetime.utcnow()
     all_buckets = []
