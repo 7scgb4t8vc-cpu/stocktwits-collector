@@ -198,10 +198,38 @@ let _currentTf = "1d";
 
 const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
 
+function formatTickLabel(raw, tf) {
+  const d = new Date(raw.replace(" ", "T") + "Z");
+  if (tf === "5m" || tf === "15m" || tf === "30m" || tf === "1h" || tf === "2h" || tf === "4h" || tf === "6h" || tf === "12h") {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
+  } else if (tf === "1d" || tf === "2d") {
+    return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true, timeZone: "America/New_York" });
+  } else if (tf === "7d") {
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
+  } else {
+    return d.toLocaleDateString("en-US", { month: "short", timeZone: "America/New_York" });
+  }
+}
+
 const chartDefaults = {
   plugins: { legend: { labels: { color: "#8b949e" } } },
   scales: {
-    x: { ticks: { color: "#8b949e", maxTicksLimit: 8 }, grid: { color: "rgba(255,255,255,0.05)" } },
+    x: {
+          ticks: {
+            color: "#8b949e",
+            maxTicksLimit: 8,
+            callback: function(val) {
+              const raw = this.getLabelForValue(val);
+              return formatTickLabel(raw, _currentTf);
+            }
+          },
+        callback: function(val) {
+          const raw = this.getLabelForValue(val);
+          return formatTickLabel(raw, _currentTf);
+        }
+      },
+      grid: { color: "rgba(255,255,255,0.05)" }
+    },
     y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
   }
 };
