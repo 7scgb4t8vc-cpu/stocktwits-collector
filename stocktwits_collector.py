@@ -123,28 +123,13 @@ def fetch_trending() -> list:
     return resp.json().get("symbols", [])
 
 
-def fetch_messages(symbol: str, since_id, max_pages: int = 10) -> list:
-    """Paginate forward from since_id until caught up to live data or max_pages hit."""
-    url = f"{BASE_URL}/streams/symbol/{symbol}.json"
-    all_messages = []
-    cursor = since_id
-
-    for _ in range(max_pages):
-        params = {"limit": 30}
-        if cursor:
-            params["since"] = cursor
-        resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
-        resp.raise_for_status()
-        batch = resp.json().get("messages", [])
-        if not batch:
-            break
-        all_messages = batch + all_messages
-        cursor = batch[0]["id"]
-        if len(batch) < 30:
-            break
-        time.sleep(0.3)
-
-    return all_messages
+def fetch_messages(symbol: str, since_id=None) -> list:
+    """Always fetch the newest messages, regardless of backlog. Older skipped messages are accepted as lost."""
+    url    = f"{BASE_URL}/streams/symbol/{symbol}.json"
+    params = {"limit": 30}
+    resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
+    resp.raise_for_status()
+    return resp.json().get("messages", [])
 
 
 def get_sentiment(msg: dict) -> str:
