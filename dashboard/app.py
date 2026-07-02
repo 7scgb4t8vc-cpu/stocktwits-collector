@@ -203,17 +203,15 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
                 "price": price_val,
             })
 
-    all_ts = sorted(set([p["timestamp"] for p in price_series]) | set(volume_by_ts.keys()))
     price_by_ts = {p["timestamp"]: p["price"] for p in price_series}
 
     correlation_series = [
         {
-            
             "timestamp": ts,
             "price":     price_by_ts.get(ts),
             "msg_count": volume_by_ts.get(ts, 0),
         }
-        for ts in all_ts
+        for ts in timestamps
     ]
 
     return {
