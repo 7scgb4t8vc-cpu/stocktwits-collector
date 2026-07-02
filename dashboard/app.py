@@ -202,7 +202,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
             except Exception:
                 price_val = None
             price_series.append({
-                "timestamp": r.get("timestamp", "")[:16],
+                "timestamp": round_to_bucket(dt, bucket_minutes),
                 "price": price_val,
             })
 
