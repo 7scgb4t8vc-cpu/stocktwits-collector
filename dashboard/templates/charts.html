@@ -75,7 +75,6 @@
 </div>
 
 <style>
-/* Timeframe strip */
 .tf-strip {
   display: flex;
   gap: 6px;
@@ -103,8 +102,6 @@
   border-color: var(--accent);
   color: #fff;
 }
-
-/* Sparse data warning */
 .sparse-warning {
   font-size: 11px;
   color: var(--yellow);
@@ -114,8 +111,6 @@
   padding: 6px 12px;
   margin-bottom: 1rem;
 }
-
-/* Chart cards */
 .chart-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -139,8 +134,6 @@
 @media (max-width: 768px) {
   .charts-two-col { grid-template-columns: 1fr; }
 }
-
-/* Social feed */
 .charts-feed {
   display: flex;
   flex-direction: column;
@@ -200,9 +193,9 @@ const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
 
 function formatTickLabel(raw, tf) {
   const d = new Date(raw.replace(" ", "T") + "Z");
-  if (tf === "5m" || tf === "15m" || tf === "30m" || tf === "1h" || tf === "2h" || tf === "4h" || tf === "6h" || tf === "12h") {
+  if (["5m","15m","30m","1h","2h","4h","6h","12h"].includes(tf)) {
     return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
-  } else if (tf === "1d" || tf === "2d") {
+  } else if (tf === "1d") {
     return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true, timeZone: "America/New_York" });
   } else if (tf === "7d") {
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
@@ -215,17 +208,11 @@ const chartDefaults = {
   plugins: { legend: { labels: { color: "#8b949e" } } },
   scales: {
     x: {
-          ticks: {
-            color: "#8b949e",
-            maxTicksLimit: 8,
-            callback: function(val) {
-              const raw = this.getLabelForValue(val);
-              return formatTickLabel(raw, _currentTf);
-            }
-          },
+      ticks: {
+        color: "#8b949e",
+        maxTicksLimit: 8,
         callback: function(val) {
-          const raw = this.getLabelForValue(val);
-          return formatTickLabel(raw, _currentTf);
+          return formatTickLabel(this.getLabelForValue(val), _currentTf);
         }
       },
       grid: { color: "rgba(255,255,255,0.05)" }
@@ -276,7 +263,6 @@ async function loadSocialFeed(symbol) {
       feed.innerHTML = '<div class="charts-no-posts">No posts found for this symbol.</div>';
       return;
     }
-
     const scored = rows.map(p => {
       const nlp      = Math.abs(parseFloat(p.nlp_score) || 0);
       const likes    = p.likes || 0;
@@ -284,9 +270,7 @@ async function loadSocialFeed(symbol) {
       const trend    = (nlp * 10) + likes + (reshares * 2);
       return { ...p, _trend: trend };
     });
-
     const sorted = scored.sort((a, b) => b._trend - a._trend);
-
     feed.innerHTML = `<div class="charts-feed">` + sorted.slice(0, 30).map(p => {
       const lbl        = (p.nlp_label || "neutral").toLowerCase();
       const trendScore = p._trend.toFixed(1);
@@ -302,7 +286,6 @@ async function loadSocialFeed(symbol) {
         <div class="charts-post-text">${escapeHtml(p.message || "")}</div>
       </div>`;
     }).join("") + `</div>`;
-
   } catch(e) {
     feed.innerHTML = '<div class="error">Failed to load posts.</div>';
   }
@@ -312,8 +295,7 @@ function renderCorrelationChart(series) {
   const labels    = series.map(d => d.timestamp);
   const prices    = series.map(d => d.price);
   const msgCounts = series.map(d => d.msg_count);
-
-  const hasPrice = prices.some(p => p !== null && p !== undefined);
+  const hasPrice  = prices.some(p => p !== null && p !== undefined);
 
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
     type: "bar",
@@ -362,8 +344,14 @@ function renderCorrelationChart(series) {
       },
       scales: {
         x: {
-          ticks: { color: "#8b949e", maxTicksLimit: 8 },
-          grid:  { color: "rgba(255,255,255,0.05)" },
+          ticks: {
+            color: "#8b949e",
+            maxTicksLimit: 8,
+            callback: function(val) {
+              return formatTickLabel(this.getLabelForValue(val), _currentTf);
+            }
+          },
+          grid: { color: "rgba(255,255,255,0.05)" },
         },
         yMsg: {
           type: "linear",
@@ -396,7 +384,6 @@ async function loadSymbolCharts(symbol, tf) {
   document.getElementById("charts-empty").style.display = "none";
   document.getElementById("charts-grid").style.display = "block";
 
-  // Show/hide sparse warning
   document.getElementById("sparse-warning").style.display =
     SPARSE_TIMEFRAMES.has(tf) ? "block" : "none";
 
@@ -408,12 +395,10 @@ async function loadSymbolCharts(symbol, tf) {
     const res  = await fetch(`/api/charts/${symbol}?tf=${tf}`);
     const data = await res.json();
 
-    // Correlation chart (price vs message volume)
     if (data.correlation_series && data.correlation_series.length > 0) {
       renderCorrelationChart(data.correlation_series);
     }
 
-    // Message volume over time
     const volLabels = data.volume_series.map(v => v.timestamp);
     const volCounts = data.volume_series.map(v => v.count);
     _charts.volume = new Chart(document.getElementById("volume-chart"), {
@@ -425,7 +410,6 @@ async function loadSymbolCharts(symbol, tf) {
       options: { ...chartDefaults, plugins: { legend: { display: false } } }
     });
 
-    // Sentiment breakdown over time
     const sentLabels = data.sentiment_series.map(s => s.timestamp);
     _charts.sentiment = new Chart(document.getElementById("sentiment-chart"), {
       type: "bar",
@@ -458,10 +442,9 @@ function startAutoRefresh() {
   if (_refreshInterval) clearInterval(_refreshInterval);
   _refreshInterval = setInterval(() => {
     if (_currentSymbol) loadSymbolCharts(_currentSymbol, _currentTf);
-  }, 30000); // refresh every 30 seconds
+  }, 30000);
 }
 
-// Timeframe button clicks
 document.getElementById("tf-strip").addEventListener("click", (e) => {
   const btn = e.target.closest(".tf-btn");
   if (!btn || !_currentSymbol) return;
