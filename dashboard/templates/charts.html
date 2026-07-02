@@ -298,31 +298,29 @@ function renderCorrelationChart(series) {
   const hasPrice  = prices.some(p => p !== null && p !== undefined);
 
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
-    type: "bar",
+    type: "line",
     data: {
       labels,
       datasets: [
         {
           label: "Message Volume",
           data: msgCounts,
-          backgroundColor: "rgba(63,185,80,0.5)",
           borderColor: "#3fb950",
-          borderWidth: 1,
+          backgroundColor: "rgba(63,185,80,0.1)",
+          borderWidth: 2,
+          pointRadius: 2,
+          tension: 0.3,
           yAxisID: "yMsg",
-          order: 2,
         },
         ...(hasPrice ? [{
           label: "Price ($)",
           data: prices,
-          type: "line",
           borderColor: "#58a6ff",
           backgroundColor: "rgba(88,166,255,0.1)",
           borderWidth: 2,
-          pointRadius: 3,
-          pointBackgroundColor: "#58a6ff",
+          pointRadius: 2,
           tension: 0.3,
           yAxisID: "yPrice",
-          order: 1,
           spanGaps: true,
         }] : []),
       ]
