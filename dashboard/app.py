@@ -181,7 +181,13 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
             sentiment_by_ts[ts] = {"bullish": 0, "bearish": 0, "neutral": 0, "mixed": 0}
         sentiment_by_ts[ts][label] += 1
 
-    timestamps = sorted(set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
+    # Generate all buckets across the full window so x-axis spans the full timeframe
+    all_buckets = []
+    bucket_dt = cutoff
+    while bucket_dt <= datetime.utcnow():
+        all_buckets.append(round_to_bucket(bucket_dt, bucket_minutes))
+        bucket_dt += timedelta(minutes=bucket_minutes)
+    timestamps = sorted(set(all_buckets) | set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
 
     price_rows = get_price_history(symbol)
     price_series = []
