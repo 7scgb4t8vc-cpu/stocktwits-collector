@@ -18,6 +18,9 @@
 
   <!-- Timeframe selector -->
   <div class="tf-strip" id="tf-strip">
+    <button class="tf-btn nav-btn" id="btn-back">◀</button>
+    <button class="tf-btn nav-btn" id="btn-now">Now</button>
+    <button class="tf-btn nav-btn" id="btn-fwd">▶</button>
     <button class="tf-btn" data-tf="5m">5m</button>
     <button class="tf-btn" data-tf="15m">15m</button>
     <button class="tf-btn" data-tf="30m">30m</button>
@@ -179,6 +182,14 @@
   border-radius: 20px;
   padding: 2px 8px;
 }
+.nav-btn {
+  background: var(--bg2);
+  border-color: var(--border);
+}
+.nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 </style>
 
 {% endblock %}
@@ -188,6 +199,7 @@
 let _charts = {};
 let _currentSymbol = "";
 let _currentTf = "1d";
+let _windowEnd = null; // null means "now"
 
 const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
 
@@ -371,6 +383,27 @@ function renderCorrelationChart(series) {
   });
 }
 
+function getWindowEndParam() {
+  if (!_windowEnd) return "";
+  const d = _windowEnd;
+  return `&end=${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}T${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`;
+}
+
+function shiftWindow(direction) {
+  const hours = {
+    "5m": 5/60, "15m": 15/60, "30m": 30/60,
+    "1h": 1, "2h": 2, "4h": 4, "6h": 6, "12h": 12,
+    "1d": 24, "7d": 168, "30d": 720
+  };
+  const ms = (hours[_currentTf] || 24) * 3600 * 1000;
+  const base = _windowEnd || new Date();
+  _windowEnd = new Date(base.getTime() + direction * ms);
+  // Don't allow going past now
+  if (_windowEnd > new Date()) _windowEnd = null;
+  document.getElementById("btn-fwd").disabled = !_windowEnd;
+  document.getElementById("btn-now").disabled = !_windowEnd;
+}
+
 async function loadSymbolCharts(symbol, tf) {
   if (!symbol) {
     document.getElementById("charts-empty").style.display = "block";
@@ -390,7 +423,7 @@ async function loadSymbolCharts(symbol, tf) {
   loadSocialFeed(symbol);
 
   try {
-    const res  = await fetch(`/api/charts/${symbol}?tf=${tf}`);
+    const res  = await fetch(`/api/charts/${symbol}?tf=${tf}${getWindowEndParam()}`);
     const data = await res.json();
 
     if (data.correlation_series && data.correlation_series.length > 0) {
@@ -446,6 +479,9 @@ function startAutoRefresh() {
 document.getElementById("tf-strip").addEventListener("click", (e) => {
   const btn = e.target.closest(".tf-btn");
   if (!btn || !_currentSymbol) return;
+  if (btn.id === "btn-back") { shiftWindow(-1); loadSymbolCharts(_currentSymbol, _currentTf); return; }
+  if (btn.id === "btn-fwd")  { shiftWindow(1);  loadSymbolCharts(_currentSymbol, _currentTf); return; }
+  if (btn.id === "btn-now")  { _windowEnd = null; document.getElementById("btn-fwd").disabled = true; document.getElementById("btn-now").disabled = true; loadSymbolCharts(_currentSymbol, _currentTf); return; }
   document.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   _currentTf = btn.dataset.tf;
