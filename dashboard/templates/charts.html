@@ -1,22 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-
 <div class="page-header">
   <h1>Charts</h1>
   <p class="page-subtitle">Price history, sentiment, and social posts for a single stock</p>
 </div>
-
 <div class="filter-bar">
   <select id="symbol-select" class="filter-select">
     <option value="">Select a symbol…</option>
   </select>
 </div>
-
 <div id="charts-empty" class="empty">Select a symbol above to view its charts.</div>
-
 <div id="charts-grid" style="display:none">
-
-  <!-- Timeframe selector -->
   <div class="tf-strip" id="tf-strip">
     <button class="tf-btn nav-btn" id="btn-now">Now</button>
     <button class="tf-btn" data-tf="5m">5m</button>
@@ -31,15 +25,10 @@
     <button class="tf-btn" data-tf="7d">7D</button>
     <button class="tf-btn" data-tf="30d">30D</button>
   </div>
-
-  <!-- Sparse data warning -->
   <div id="sparse-warning" style="display:none" class="sparse-warning">
     ⚠ Collector runs every 5 min during market hours — sub-hourly windows may have limited data points.
   </div>
-
-  <!-- All three charts in one card -->
   <div class="chart-card" style="margin-bottom:1rem;">
-    <!-- Shared tooltip bar -->
     <div id="shared-tooltip" style="height:28px;margin-bottom:0.5rem;display:flex;align-items:center;gap:16px;font-size:11px;"></div>
     <div id="chart-drag-area" style="display:flex;flex-direction:column;gap:1.5rem;cursor:grab;">
       <div>
@@ -58,138 +47,51 @@
         <canvas id="sentiment-chart" height="35"></canvas>
       </div>
     </div>
-    <div style="font-size:10px;color:var(--muted);margin-top:0.75rem;text-align:center;">
-      ← drag to pan history →
-    </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:0.75rem;text-align:center;">← drag to pan history →</div>
   </div>
-
-  <!-- Social Feed -->
   <div class="chart-card" style="margin-bottom:1rem;">
-    <div class="chart-card-title">
-      Trending Posts
-      <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span>
-    </div>
+    <div class="chart-card-title">Trending Posts <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span></div>
     <div id="charts-social-feed"></div>
   </div>
-
-  <!-- TradingView Chart (bottom) -->
   <div class="chart-card" style="margin-bottom:1rem;">
     <div class="chart-card-title">Price Chart</div>
     <div id="tv-chart-wrap"></div>
   </div>
-
 </div>
-
 <style>
-.tf-strip {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 1rem;
-}
-.tf-btn {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  border-radius: var(--radius-sm);
-  padding: 4px 12px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s;
-  letter-spacing: 0.04em;
-}
-.tf-btn:hover {
-  border-color: var(--accent);
-  color: var(--text);
-}
-.tf-btn.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.sparse-warning {
-  font-size: 11px;
-  color: var(--yellow);
-  background: rgba(210,153,34,0.08);
-  border: 1px solid rgba(210,153,34,0.2);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  margin-bottom: 1rem;
-}
-.chart-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 1rem;
-}
-.chart-card-title {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 0.75rem;
-}
-.charts-feed {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  max-height: 400px;
-  overflow-y: auto;
-}
-.charts-post {
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 0.6rem 0.875rem;
-  border-left: 2px solid var(--border);
-}
-.charts-post.bullish { border-left-color: var(--green); }
-.charts-post.bearish { border-left-color: var(--red); }
-.charts-post.neutral { border-left-color: var(--muted); }
-.charts-post.mixed   { border-left-color: var(--yellow); }
-.charts-post-header {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 4px;
-}
-.charts-post-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-.charts-post-label.bullish { color: var(--green); }
-.charts-post-label.bearish { color: var(--red); }
-.charts-post-label.neutral { color: var(--muted); }
-.charts-post-label.mixed   { color: var(--yellow); }
-.charts-post-time { font-size: 10px; color: var(--muted); margin-left: auto; }
-.charts-post-text { font-size: 12px; color: var(--text); line-height: 1.5; }
-.charts-no-posts { font-size: 13px; color: var(--muted); padding: 1rem 0; }
-.eng-badge {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--yellow);
-  background: rgba(210,153,34,0.1);
-  border: 1px solid rgba(210,153,34,0.2);
-  border-radius: 20px;
-  padding: 2px 8px;
-}
-.nav-btn {
-  background: var(--bg2);
-  border-color: var(--border);
-}
-.nav-btn:disabled { opacity: 0.3; cursor: default; }
-#chart-drag-area.dragging { cursor: grabbing; }
-#shared-tooltip { color: #e6edf3; }
-#shared-tooltip .tt-time { color: #8b949e; font-weight: 600; margin-right: 4px; }
-#shared-tooltip .tt-item { display: flex; align-items: center; gap: 5px; }
-#shared-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-#shared-tooltip .tt-label { color: #8b949e; }
-#shared-tooltip .tt-val { font-weight: 700; }
+.tf-strip { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; }
+.tf-btn { background:var(--bg2); border:1px solid var(--border); color:var(--muted); border-radius:var(--radius-sm); padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; transition:all 0.15s; letter-spacing:0.04em; }
+.tf-btn:hover { border-color:var(--accent); color:var(--text); }
+.tf-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.sparse-warning { font-size:11px; color:var(--yellow); background:rgba(210,153,34,0.08); border:1px solid rgba(210,153,34,0.2); border-radius:var(--radius-sm); padding:6px 12px; margin-bottom:1rem; }
+.chart-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
+.chart-card-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.75rem; }
+.charts-feed { display:flex; flex-direction:column; gap:0.5rem; max-height:400px; overflow-y:auto; }
+.charts-post { background:var(--bg3); border:1px solid var(--border); border-radius:var(--radius-sm); padding:0.6rem 0.875rem; border-left:2px solid var(--border); }
+.charts-post.bullish { border-left-color:var(--green); }
+.charts-post.bearish { border-left-color:var(--red); }
+.charts-post.neutral { border-left-color:var(--muted); }
+.charts-post.mixed   { border-left-color:var(--yellow); }
+.charts-post-header { display:flex; align-items:center; gap:0.5rem; margin-bottom:4px; }
+.charts-post-label { font-size:10px; font-weight:600; text-transform:capitalize; }
+.charts-post-label.bullish { color:var(--green); }
+.charts-post-label.bearish { color:var(--red); }
+.charts-post-label.neutral { color:var(--muted); }
+.charts-post-label.mixed   { color:var(--yellow); }
+.charts-post-time { font-size:10px; color:var(--muted); margin-left:auto; }
+.charts-post-text { font-size:12px; color:var(--text); line-height:1.5; }
+.charts-no-posts { font-size:13px; color:var(--muted); padding:1rem 0; }
+.eng-badge { font-size:10px; font-weight:600; color:var(--yellow); background:rgba(210,153,34,0.1); border:1px solid rgba(210,153,34,0.2); border-radius:20px; padding:2px 8px; }
+.nav-btn { background:var(--bg2); border-color:var(--border); }
+.nav-btn:disabled { opacity:0.3; cursor:default; }
+#chart-drag-area.dragging { cursor:grabbing; }
+#shared-tooltip { color:#e6edf3; }
+#shared-tooltip .tt-time { color:#8b949e; font-weight:600; margin-right:4px; }
+#shared-tooltip .tt-item { display:flex; align-items:center; gap:5px; }
+#shared-tooltip .tt-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+#shared-tooltip .tt-label { color:#8b949e; }
+#shared-tooltip .tt-val { font-weight:700; }
 </style>
-
 {% endblock %}
 
 {% block scripts %}
@@ -197,251 +99,188 @@
 let _charts = {};
 let _currentSymbol = "";
 let _currentTf = "1d";
-let _windowEnd = null;
+let _fullData = null;      // full 30d dataset loaded once
+let _viewEndMs = null;     // ms timestamp of window right edge (null = now)
 
-const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
-
+const SPARSE_TIMEFRAMES = new Set(["5m","15m","30m","1h","2h"]);
 const TF_HOURS = {
-  "5m": 5/60, "15m": 15/60, "30m": 30/60,
-  "1h": 1, "2h": 2, "4h": 4, "6h": 6, "12h": 12,
-  "1d": 24, "7d": 168, "30d": 720
+  "5m":5/60,"15m":15/60,"30m":30/60,
+  "1h":1,"2h":2,"4h":4,"6h":6,"12h":12,
+  "1d":24,"7d":168,"30d":720
+};
+const BUCKET_MINUTES = {
+  "5m":1,"15m":1,"30m":1,"1h":5,"2h":5,
+  "4h":15,"6h":15,"12h":30,"1d":30,"7d":60,"30d":240
 };
 
 function formatTickLabel(raw, tf) {
-  const d = new Date(raw.replace(" ", "T") + "Z");
-  if (["5m","15m","30m","1h","2h","4h","6h","12h"].includes(tf)) {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: "America/New_York" });
-  } else if (tf === "1d") {
-    return d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true, timeZone: "America/New_York" });
-  } else if (tf === "7d") {
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
-  } else {
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "America/New_York" });
-  }
+  const d = new Date(raw.replace(" ","T")+"Z");
+  if (["5m","15m","30m","1h","2h","4h","6h","12h"].includes(tf))
+    return d.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit",hour12:true,timeZone:"America/New_York"});
+  if (tf === "1d")
+    return d.toLocaleTimeString("en-US",{hour:"numeric",hour12:true,timeZone:"America/New_York"});
+  if (tf === "7d")
+    return d.toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/New_York"});
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric",timeZone:"America/New_York"});
 }
 
 function formatFullDate(raw) {
-  const d = new Date(raw.replace(" ", "T") + "Z");
-  return d.toLocaleDateString("en-US", {
-    month: "short", day: "numeric",
-    hour: "numeric", minute: "2-digit", hour12: true,
-    timeZone: "America/New_York"
-  });
+  const d = new Date(raw.replace(" ","T")+"Z");
+  return d.toLocaleDateString("en-US",{month:"short",day:"numeric",hour:"numeric",minute:"2-digit",hour12:true,timeZone:"America/New_York"});
 }
 
 function updateSharedTooltip(raw, items) {
   const el = document.getElementById("shared-tooltip");
   if (!raw) { el.innerHTML = ""; return; }
-  const timeHtml = `<span class="tt-time">${formatFullDate(raw)}</span>`;
-  const itemsHtml = items.map(item =>
-    `<span class="tt-item">
-      <span class="tt-dot" style="background:${item.color}"></span>
-      <span class="tt-label">${item.label}:</span>
-      <span class="tt-val">${item.val}</span>
-    </span>`
-  ).join("");
-  el.innerHTML = timeHtml + itemsHtml;
+  el.innerHTML = `<span class="tt-time">${formatFullDate(raw)}</span>` +
+    items.map(i=>`<span class="tt-item"><span class="tt-dot" style="background:${i.color}"></span><span class="tt-label">${i.label}:</span><span class="tt-val">${i.val}</span></span>`).join("");
 }
 
 function makeSharedTooltip(getItems) {
   return (context) => {
     const { tooltip } = context;
-    if (tooltip.opacity === 0) { updateSharedTooltip(null, []); return; }
-    const raw = tooltip.title && tooltip.title[0] ? tooltip.title[0] : null;
-    updateSharedTooltip(raw, getItems(tooltip));
+    if (tooltip.opacity === 0) { updateSharedTooltip(null,[]); return; }
+    updateSharedTooltip(tooltip.title?.[0] || null, getItems(tooltip));
   };
 }
 
+// ── Client-side slicing ───────────────────────────────────────────────────────
+
+function roundToBucket(tsStr, bucketMin) {
+  const d = new Date(tsStr.replace(" ","T")+"Z");
+  const discard = d.getUTCMinutes() % bucketMin;
+  d.setUTCMinutes(d.getUTCMinutes() - discard, 0, 0);
+  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
+}
+
+function sliceData(fullData, tf, viewEndMs) {
+  const bucketMin = BUCKET_MINUTES[tf] || 30;
+  const tfMs = (TF_HOURS[tf] || 24) * 3600000;
+  const endMs = viewEndMs || Date.now();
+  const startMs = endMs - tfMs;
+
+  // Generate bucket slots
+  const slots = [];
+  let t = startMs - (startMs % (bucketMin * 60000));
+  while (t <= endMs) {
+    const d = new Date(t);
+    slots.push(d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0"));
+    t += bucketMin * 60000;
+  }
+
+  // Aggregate volume
+  const volMap = {}, sentMap = {}, priceMap = {};
+  for (const row of fullData.volume_series) {
+    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
+    if (rMs < startMs || rMs > endMs) continue;
+    const bucket = roundToBucket(row.timestamp, bucketMin);
+    volMap[bucket] = (volMap[bucket]||0) + row.count;
+  }
+  for (const row of fullData.sentiment_series) {
+    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
+    if (rMs < startMs || rMs > endMs) continue;
+    const bucket = roundToBucket(row.timestamp, bucketMin);
+    if (!sentMap[bucket]) sentMap[bucket] = {bullish:0,bearish:0,neutral:0,mixed:0};
+    sentMap[bucket].bullish += row.bullish||0;
+    sentMap[bucket].bearish += row.bearish||0;
+    sentMap[bucket].neutral += row.neutral||0;
+    sentMap[bucket].mixed   += row.mixed||0;
+  }
+  for (const row of fullData.correlation_series) {
+    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
+    if (rMs < startMs || rMs > endMs) continue;
+    const bucket = roundToBucket(row.timestamp, bucketMin);
+    if (row.price !== null && row.price !== undefined) priceMap[bucket] = row.price;
+  }
+
+  const volume_series    = slots.map(ts => ({ timestamp: ts, count: volMap[ts]||0 }));
+  const sentiment_series = slots.map(ts => ({ timestamp: ts, ...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0}) }));
+  const correlation_series = slots.map(ts => ({ timestamp: ts, msg_count: volMap[ts]||0, price: priceMap[ts]??null }));
+
+  return { volume_series, sentiment_series, correlation_series };
+}
+
+// ── Chart rendering ───────────────────────────────────────────────────────────
+
 const chartDefaults = {
-  plugins: { legend: { labels: { color: "#8b949e" } } },
+  plugins: { legend: { labels: { color:"#8b949e" } } },
   scales: {
-    x: {
-      ticks: {
-        color: "#8b949e",
-        maxTicksLimit: 8,
-        callback: function(val) {
-          return formatTickLabel(this.getLabelForValue(val), _currentTf);
-        }
-      },
-      grid: { color: "rgba(255,255,255,0.05)" }
-    },
-    y: { ticks: { color: "#8b949e" }, grid: { color: "rgba(255,255,255,0.05)" } },
+    x: { ticks: { color:"#8b949e", maxTicksLimit:8, callback: function(val){ return formatTickLabel(this.getLabelForValue(val),_currentTf); } }, grid: { color:"rgba(255,255,255,0.05)" } },
+    y: { ticks: { color:"#8b949e" }, grid: { color:"rgba(255,255,255,0.05)" } },
   }
 };
 
 function destroyCharts() {
-  Object.values(_charts).forEach(c => { try { c.destroy(); } catch(e) {} });
+  Object.values(_charts).forEach(c=>{ try{c.destroy();}catch(e){} });
   _charts = {};
-  updateSharedTooltip(null, []);
+  updateSharedTooltip(null,[]);
 }
 
-async function loadSymbolList() {
-  const res = await fetch("/api/symbols");
-  const symbols = await res.json();
-  const sel = document.getElementById("symbol-select");
-  const current = sel.value;
-  sel.innerHTML = '<option value="">Select a symbol…</option>' +
-    symbols.map(s => `<option value="${s}">${s}</option>`).join("");
-  if (current) sel.value = current;
-}
+function renderCharts(sliced) {
+  destroyCharts();
 
-function renderTradingView(symbol) {
-  const wrap = document.getElementById("tv-chart-wrap");
-  if (!wrap) return;
-  wrap.innerHTML = `<iframe
-    src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=0&hide_legend=0&hide_side_toolbar=0&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=400"
-    style="width:100%;height:400px;border:none;border-radius:6px;"
-    allowtransparency="true"
-    scrolling="no"
-  ></iframe>`;
-}
-
-function escapeHtml(text) {
-  return String(text)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
-async function loadSocialFeed(symbol) {
-  const feed = document.getElementById("charts-social-feed");
-  feed.innerHTML = '<div class="loading">Loading posts...</div>';
-  try {
-    const res  = await fetch(`/api/social?symbol=${symbol}`);
-    const rows = await res.json();
-    if (!rows.length) {
-      feed.innerHTML = '<div class="charts-no-posts">No posts found for this symbol.</div>';
-      return;
-    }
-    const scored = rows.map(p => {
-      const nlp      = Math.abs(parseFloat(p.nlp_score) || 0);
-      const likes    = p.likes || 0;
-      const reshares = p.reshares || 0;
-      const trend    = (nlp * 10) + likes + (reshares * 2);
-      return { ...p, _trend: trend };
-    });
-    const sorted = scored.sort((a, b) => b._trend - a._trend);
-    feed.innerHTML = `<div class="charts-feed">` + sorted.slice(0, 30).map(p => {
-      const lbl        = (p.nlp_label || "neutral").toLowerCase();
-      const trendScore = p._trend.toFixed(1);
-      const trendHtml  = p._trend > 0
-        ? `<span class="eng-badge">⚡ ${trendScore}</span>`
-        : "";
-      return `<div class="charts-post ${lbl}">
-        <div class="charts-post-header">
-          <span class="charts-post-label ${lbl}">${lbl}</span>
-          ${trendHtml}
-          <span class="charts-post-time">${p.timestamp || ""}</span>
-        </div>
-        <div class="charts-post-text">${escapeHtml(p.message || "")}</div>
-      </div>`;
-    }).join("") + `</div>`;
-  } catch(e) {
-    feed.innerHTML = '<div class="error">Failed to load posts.</div>';
-  }
-}
-
-function renderCorrelationChart(series) {
-  const labels    = series.map(d => d.timestamp);
-  const prices    = series.map(d => d.price);
-  const msgCounts = series.map(d => d.msg_count);
-  const hasPrice  = prices.some(p => p !== null && p !== undefined);
-
+  // Correlation
+  const hasPrice = sliced.correlation_series.some(d=>d.price!==null&&d.price!==undefined);
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [
-        {
-          label: "Message Volume",
-          data: msgCounts,
-          borderColor: "#3fb950",
-          backgroundColor: "rgba(63,185,80,0.1)",
-          borderWidth: 2,
-          pointRadius: 2,
-          tension: 0.3,
-          yAxisID: "yMsg",
-        },
-        ...(hasPrice ? [{
-          label: "Price ($)",
-          data: prices,
-          borderColor: "#58a6ff",
-          backgroundColor: "rgba(88,166,255,0.1)",
-          borderWidth: 2,
-          pointRadius: 2,
-          tension: 0.3,
-          yAxisID: "yPrice",
-          spanGaps: true,
-        }] : []),
+    type:"line",
+    data:{
+      labels: sliced.correlation_series.map(d=>d.timestamp),
+      datasets:[
+        { label:"Message Volume", data:sliced.correlation_series.map(d=>d.msg_count), borderColor:"#3fb950", backgroundColor:"rgba(63,185,80,0.1)", borderWidth:2, pointRadius:2, tension:0.3, yAxisID:"yMsg" },
+        ...(hasPrice?[{ label:"Price ($)", data:sliced.correlation_series.map(d=>d.price), borderColor:"#58a6ff", backgroundColor:"rgba(88,166,255,0.1)", borderWidth:2, pointRadius:2, tension:0.3, yAxisID:"yPrice", spanGaps:true }]:[]),
       ]
     },
-    options: {
-      interaction: { mode: "index", intersect: false },
-      plugins: {
-        legend: { labels: { color: "#8b949e" } },
-        tooltip: {
-          enabled: false,
-          external: makeSharedTooltip(tooltip => tooltip.dataPoints.map(dp => ({
-            color: dp.dataset.borderColor,
-            label: dp.dataset.label,
-            val: dp.dataset.label === "Price ($)"
-              ? `$${dp.parsed.y !== null ? dp.parsed.y.toFixed(2) : "—"}`
-              : dp.parsed.y
-          })))
-        }
+    options:{
+      interaction:{mode:"index",intersect:false},
+      plugins:{
+        legend:{labels:{color:"#8b949e"}},
+        tooltip:{enabled:false,external:makeSharedTooltip(tt=>tt.dataPoints.map(dp=>({
+          color:dp.dataset.borderColor,
+          label:dp.dataset.label,
+          val:dp.dataset.label==="Price ($)"?`$${dp.parsed.y!==null?dp.parsed.y.toFixed(2):"—"}`:dp.parsed.y
+        })))}
       },
-      scales: {
-        x: {
-          ticks: {
-            color: "#8b949e",
-            maxTicksLimit: 8,
-            callback: function(val) {
-              return formatTickLabel(this.getLabelForValue(val), _currentTf);
-            }
-          },
-          grid: { color: "rgba(255,255,255,0.05)" },
-        },
-        yMsg: {
-          type: "linear",
-          position: "left",
-          ticks: { color: "#3fb950" },
-          grid:  { color: "rgba(255,255,255,0.05)" },
-          title: { display: true, text: "Messages", color: "#3fb950", font: { size: 10 } },
-        },
-        yPrice: {
-          type: "linear",
-          position: "right",
-          ticks: { color: "#58a6ff", callback: v => `$${v.toFixed(2)}` },
-          grid:  { drawOnChartArea: false },
-          title: { display: true, text: "Price", color: "#58a6ff", font: { size: 10 } },
-          display: hasPrice,
-        },
+      scales:{
+        x:{ticks:{color:"#8b949e",maxTicksLimit:8,callback:function(val){return formatTickLabel(this.getLabelForValue(val),_currentTf);}},grid:{color:"rgba(255,255,255,0.05)"}},
+        yMsg:{type:"linear",position:"left",ticks:{color:"#3fb950"},grid:{color:"rgba(255,255,255,0.05)"},title:{display:true,text:"Messages",color:"#3fb950",font:{size:10}}},
+        yPrice:{type:"linear",position:"right",ticks:{color:"#58a6ff",callback:v=>`$${v.toFixed(2)}`},grid:{drawOnChartArea:false},title:{display:true,text:"Price",color:"#58a6ff",font:{size:10}},display:hasPrice},
       }
     }
   });
+
+  // Volume
+  _charts.volume = new Chart(document.getElementById("volume-chart"),{
+    type:"bar",
+    data:{labels:sliced.volume_series.map(v=>v.timestamp),datasets:[{label:"Messages",data:sliced.volume_series.map(v=>v.count),backgroundColor:"#3fb950"}]},
+    options:{...chartDefaults,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{enabled:false,external:makeSharedTooltip(tt=>tt.dataPoints.map(dp=>({color:"#3fb950",label:"Volume",val:dp.parsed.y})))}},scales:{x:{...chartDefaults.scales.x,ticks:{display:false}},y:{...chartDefaults.scales.y}}}
+  });
+
+  // Sentiment
+  _charts.sentiment = new Chart(document.getElementById("sentiment-chart"),{
+    type:"bar",
+    data:{
+      labels:sliced.sentiment_series.map(s=>s.timestamp),
+      datasets:[
+        {label:"Bullish",data:sliced.sentiment_series.map(s=>s.bullish),backgroundColor:"#3fb950"},
+        {label:"Bearish",data:sliced.sentiment_series.map(s=>s.bearish),backgroundColor:"#f85149"},
+        {label:"Neutral",data:sliced.sentiment_series.map(s=>s.neutral),backgroundColor:"#8b949e"},
+        {label:"Mixed",  data:sliced.sentiment_series.map(s=>s.mixed),  backgroundColor:"#d29922"},
+      ]
+    },
+    options:{...chartDefaults,interaction:{mode:"index",intersect:false},plugins:{...chartDefaults.plugins,tooltip:{enabled:false,external:makeSharedTooltip(tt=>tt.dataPoints.filter(dp=>dp.parsed.y>0).map(dp=>({color:dp.dataset.backgroundColor,label:dp.dataset.label,val:dp.parsed.y})))}},scales:{x:{...chartDefaults.scales.x,stacked:true,ticks:{display:false}},y:{...chartDefaults.scales.y,stacked:true}}}
+  });
 }
 
-function getWindowEndParam() {
-  if (!_windowEnd) return "";
-  const d = _windowEnd;
-  return `&end=${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}T${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`;
-}
-
-function updateNavButtons() {
-  const nowBtn = document.getElementById("btn-now");
-  if (nowBtn) nowBtn.disabled = !_windowEnd;
-}
-
-function shiftWindowBy(ms) {
-  const base = _windowEnd || new Date();
-  _windowEnd = new Date(base.getTime() + ms);
-  if (_windowEnd > new Date()) _windowEnd = null;
-  updateNavButtons();
+function updateCharts() {
+  if (!_fullData) return;
+  const sliced = sliceData(_fullData, _currentTf, _viewEndMs);
+  renderCharts(sliced);
 }
 
 // ── Drag to pan ───────────────────────────────────────────────────────────────
+
 let _dragStartX = null;
-let _dragStartWindowEnd = null;
+let _dragStartViewEnd = null;
 let _dragging = false;
 let _dragPending = false;
 
@@ -451,7 +290,7 @@ function setupDragPan() {
 
   area.addEventListener("mousedown", (e) => {
     _dragStartX = e.clientX;
-    _dragStartWindowEnd = _windowEnd ? new Date(_windowEnd) : new Date();
+    _dragStartViewEnd = _viewEndMs || Date.now();
     _dragging = false;
     _dragPending = true;
     area.classList.add("dragging");
@@ -460,120 +299,92 @@ function setupDragPan() {
   window.addEventListener("mousemove", (e) => {
     if (!_dragPending) return;
     const dx = e.clientX - _dragStartX;
-    if (Math.abs(dx) < 5) return;
+    if (Math.abs(dx) < 3) return;
     _dragging = true;
-
     const chartWidth = area.offsetWidth;
-    const tfMs = (TF_HOURS[_currentTf] || 24) * 3600 * 1000;
-    // pixels per ms: full chart width = full timeframe
+    const tfMs = (TF_HOURS[_currentTf]||24) * 3600000;
     const msPerPx = tfMs / chartWidth;
-    const shiftMs = -dx * msPerPx;
-
-    _windowEnd = new Date(_dragStartWindowEnd.getTime() + shiftMs);
-    if (_windowEnd > new Date()) _windowEnd = null;
-    updateNavButtons();
+    const newEnd = _dragStartViewEnd - dx * msPerPx;
+    _viewEndMs = newEnd > Date.now() ? null : newEnd;
+    document.getElementById("btn-now").disabled = !_viewEndMs;
+    // live redraw while dragging
+    if (_fullData) {
+      const sliced = sliceData(_fullData, _currentTf, _viewEndMs);
+      renderCharts(sliced);
+    }
   });
 
   window.addEventListener("mouseup", () => {
     if (!_dragPending) return;
     area.classList.remove("dragging");
     _dragPending = false;
-    if (_dragging) {
-      _dragging = false;
-      loadSymbolCharts(_currentSymbol, _currentTf);
-    }
+    _dragging = false;
   });
 }
 
-async function loadSymbolCharts(symbol, tf) {
+// ── Symbol loading ────────────────────────────────────────────────────────────
+
+async function loadSymbolList() {
+  const res = await fetch("/api/symbols");
+  const symbols = await res.json();
+  const sel = document.getElementById("symbol-select");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Select a symbol…</option>' +
+    symbols.map(s=>`<option value="${s}">${s}</option>`).join("");
+  if (current) sel.value = current;
+}
+
+function renderTradingView(symbol) {
+  const wrap = document.getElementById("tv-chart-wrap");
+  if (!wrap) return;
+  wrap.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=${symbol}&interval=D&theme=dark&style=1&locale=en&hide_top_toolbar=0&hide_legend=0&hide_side_toolbar=0&allow_symbol_change=0&save_image=0&calendar=0&show_popup_button=0&width=100%25&height=400" style="width:100%;height:400px;border:none;border-radius:6px;" allowtransparency="true" scrolling="no"></iframe>`;
+}
+
+function escapeHtml(text) {
+  return String(text).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+async function loadSocialFeed(symbol) {
+  const feed = document.getElementById("charts-social-feed");
+  feed.innerHTML = '<div class="loading">Loading posts...</div>';
+  try {
+    const res = await fetch(`/api/social?symbol=${symbol}`);
+    const rows = await res.json();
+    if (!rows.length) { feed.innerHTML='<div class="charts-no-posts">No posts found.</div>'; return; }
+    const sorted = rows.map(p=>{
+      const trend = (Math.abs(parseFloat(p.nlp_score)||0)*10)+(p.likes||0)+((p.reshares||0)*2);
+      return {...p,_trend:trend};
+    }).sort((a,b)=>b._trend-a._trend);
+    feed.innerHTML = `<div class="charts-feed">`+sorted.slice(0,30).map(p=>{
+      const lbl=(p.nlp_label||"neutral").toLowerCase();
+      const trendHtml=p._trend>0?`<span class="eng-badge">⚡ ${p._trend.toFixed(1)}</span>`:"";
+      return `<div class="charts-post ${lbl}"><div class="charts-post-header"><span class="charts-post-label ${lbl}">${lbl}</span>${trendHtml}<span class="charts-post-time">${p.timestamp||""}</span></div><div class="charts-post-text">${escapeHtml(p.message||"")}</div></div>`;
+    }).join("")+`</div>`;
+  } catch(e) { feed.innerHTML='<div class="error">Failed to load posts.</div>'; }
+}
+
+async function loadSymbolCharts(symbol) {
   if (!symbol) {
     document.getElementById("charts-empty").style.display = "block";
     document.getElementById("charts-grid").style.display = "none";
     destroyCharts();
+    _fullData = null;
     return;
   }
   document.getElementById("charts-empty").style.display = "none";
   document.getElementById("charts-grid").style.display = "block";
-
   document.getElementById("sparse-warning").style.display =
-    SPARSE_TIMEFRAMES.has(tf) ? "block" : "none";
+    SPARSE_TIMEFRAMES.has(_currentTf) ? "block" : "none";
 
-  destroyCharts();
   setTimeout(() => renderTradingView(symbol), 0);
   loadSocialFeed(symbol);
 
   try {
-    const res  = await fetch(`/api/charts/${symbol}?tf=${tf}${getWindowEndParam()}`);
-    const data = await res.json();
-
-    if (data.correlation_series && data.correlation_series.length > 0) {
-      renderCorrelationChart(data.correlation_series);
-    }
-
-    const volLabels = data.volume_series.map(v => v.timestamp);
-    const volCounts = data.volume_series.map(v => v.count);
-    _charts.volume = new Chart(document.getElementById("volume-chart"), {
-      type: "bar",
-      data: {
-        labels: volLabels,
-        datasets: [{ label: "Messages", data: volCounts, backgroundColor: "#3fb950" }]
-      },
-      options: {
-        ...chartDefaults,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            enabled: false,
-            external: makeSharedTooltip(tooltip => tooltip.dataPoints.map(dp => ({
-              color: "#3fb950",
-              label: "Volume",
-              val: dp.parsed.y
-            })))
-          }
-        },
-        scales: {
-          x: { ...chartDefaults.scales.x, ticks: { display: false } },
-          y: { ...chartDefaults.scales.y }
-        }
-      }
-    });
-
-    const sentLabels = data.sentiment_series.map(s => s.timestamp);
-    _charts.sentiment = new Chart(document.getElementById("sentiment-chart"), {
-      type: "bar",
-      data: {
-        labels: sentLabels,
-        datasets: [
-          { label: "Bullish", data: data.sentiment_series.map(s => s.bullish), backgroundColor: "#3fb950" },
-          { label: "Bearish", data: data.sentiment_series.map(s => s.bearish), backgroundColor: "#f85149" },
-          { label: "Neutral", data: data.sentiment_series.map(s => s.neutral), backgroundColor: "#8b949e" },
-          { label: "Mixed",   data: data.sentiment_series.map(s => s.mixed),   backgroundColor: "#d29922" },
-        ]
-      },
-      options: {
-        ...chartDefaults,
-        interaction: { mode: "index", intersect: false },
-        plugins: {
-          ...chartDefaults.plugins,
-          tooltip: {
-            enabled: false,
-            external: makeSharedTooltip(tooltip => tooltip.dataPoints
-              .filter(dp => dp.parsed.y > 0)
-              .map(dp => ({
-                color: dp.dataset.backgroundColor,
-                label: dp.dataset.label,
-                val: dp.parsed.y
-              })))
-          }
-        },
-        scales: {
-          x: { ...chartDefaults.scales.x, stacked: true, ticks: { display: false } },
-          y: { ...chartDefaults.scales.y, stacked: true },
-        }
-      }
-    });
-
+    const res = await fetch(`/api/charts/${symbol}/full`);
+    _fullData = await res.json();
+    _viewEndMs = null;
+    document.getElementById("btn-now").disabled = true;
+    updateCharts();
   } catch(e) {
     console.error("Charts load error:", e);
   }
@@ -583,8 +394,13 @@ let _refreshInterval = null;
 
 function startAutoRefresh() {
   if (_refreshInterval) clearInterval(_refreshInterval);
-  _refreshInterval = setInterval(() => {
-    if (_currentSymbol && !_windowEnd) loadSymbolCharts(_currentSymbol, _currentTf);
+  _refreshInterval = setInterval(async () => {
+    if (!_currentSymbol || _viewEndMs) return;
+    try {
+      const res = await fetch(`/api/charts/${_currentSymbol}/full`);
+      _fullData = await res.json();
+      updateCharts();
+    } catch(e) {}
   }, 30000);
 }
 
@@ -592,15 +408,24 @@ document.getElementById("tf-strip").addEventListener("click", (e) => {
   const btn = e.target.closest(".tf-btn");
   if (!btn || !_currentSymbol) return;
   if (btn.id === "btn-now") {
-    _windowEnd = null;
-    updateNavButtons();
-    loadSymbolCharts(_currentSymbol, _currentTf);
+    _viewEndMs = null;
+    document.getElementById("btn-now").disabled = true;
+    updateCharts();
     return;
   }
-  document.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tf-btn").forEach(b=>b.classList.remove("active"));
   btn.classList.add("active");
   _currentTf = btn.dataset.tf;
-  loadSymbolCharts(_currentSymbol, _currentTf);
+  document.getElementById("sparse-warning").style.display =
+    SPARSE_TIMEFRAMES.has(_currentTf) ? "block" : "none";
+  updateCharts();
+});
+
+document.getElementById("symbol-select").addEventListener("change", (e) => {
+  _currentSymbol = e.target.value;
+  _viewEndMs = null;
+  loadSymbolCharts(_currentSymbol);
+  startAutoRefresh();
 });
 
 async function loadCharts() {
@@ -611,16 +436,10 @@ async function loadCharts() {
     _currentSymbol = sym.toUpperCase();
     document.getElementById("symbol-select").value = _currentSymbol;
   }
-  if (_currentSymbol) await loadSymbolCharts(_currentSymbol, _currentTf);
   setupDragPan();
+  if (_currentSymbol) await loadSymbolCharts(_currentSymbol);
   startAutoRefresh();
 }
-
-document.getElementById("symbol-select").addEventListener("change", (e) => {
-  _currentSymbol = e.target.value;
-  loadSymbolCharts(_currentSymbol, _currentTf);
-  startAutoRefresh();
-});
 
 window.registerPageLoader(loadCharts);
 </script>
