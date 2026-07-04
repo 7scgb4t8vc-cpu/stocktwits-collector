@@ -442,7 +442,7 @@ async function loadSymbolCharts(symbol, tf) {
       options: {
         ...chartDefaults,
         scales: {
-          x: { ...chartDefaults.scales.x, stacked: true },
+          x: { ...chartDefaults.scales.x, stacked: true, ticks: { display: false } },
           y: { ...chartDefaults.scales.y, stacked: true },
         }
       }
