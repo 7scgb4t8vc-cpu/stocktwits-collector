@@ -149,10 +149,11 @@ def load_charts_data():
     }
 
 
-def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
+def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = None):
     symbol = symbol.upper()
     hours  = TIMEFRAME_HOURS.get(timeframe, 24)
-    cutoff = cutoff_from_hours(hours)
+    window_end = end if end else datetime.utcnow()
+    cutoff = window_end - timedelta(hours=hours)
     bucket_minutes = BUCKET_MINUTES.get(timeframe, 30)
 
     rows = get_messages(symbol=symbol)
@@ -184,10 +185,9 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d"):
     # Generate all buckets across the full window so x-axis spans the full timeframe
     discard = int(cutoff.minute % bucket_minutes)
     bucket_start = cutoff - timedelta(minutes=discard, seconds=cutoff.second, microseconds=cutoff.microsecond)
-    now = datetime.utcnow()
     all_buckets = []
     bucket_dt = bucket_start
-    while bucket_dt <= now:
+    while bucket_dt <= window_end:
         all_buckets.append(bucket_dt.strftime("%Y-%m-%d %H:%M"))
         bucket_dt += timedelta(minutes=bucket_minutes)
     timestamps = sorted(set(all_buckets) | set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
@@ -363,13 +363,20 @@ def api_charts_symbol(symbol):
     if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
     timeframe = request.args.get("tf", "1d")
+    end_param = request.args.get("end")
+    end_dt = None
+    if end_param:
+        try:
+            end_dt = datetime.strptime(end_param, "%Y-%m-%dT%H:%M")
+        except Exception:
+            end_dt = None
     debug = request.args.get("debug")
     if debug:
         rows = get_messages(symbol=symbol.upper())
         rows.sort(key=lambda r: r.get("created_at", ""))
         sample = [{"created_at": r.get("created_at"), "timestamp": r.get("timestamp")} for r in rows[-5:]]
         return jsonify({"sample": sample, "now_utc": datetime.utcnow().isoformat(), "total": len(rows)})
-    return jsonify(load_symbol_chart_data(symbol, timeframe))
+    return jsonify(load_symbol_chart_data(symbol, timeframe, end_dt))
 
 
 @app.route("/api/ohlc/<symbol>")
