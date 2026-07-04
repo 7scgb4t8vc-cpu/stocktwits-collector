@@ -392,12 +392,6 @@ function shiftWindow(direction) {
 
 async function loadSymbolCharts(symbol, tf) {
   if (!symbol) {
-    document.getElementById("charts-empty").style.display = "block";
-    document.getElementById("charts-grid").style.display = "none";
-    destroyCharts();
-    return;
-  }
-
   document.getElementById("charts-empty").style.display = "none";
   document.getElementById("charts-grid").style.display = "block";
 
@@ -405,7 +399,7 @@ async function loadSymbolCharts(symbol, tf) {
     SPARSE_TIMEFRAMES.has(tf) ? "block" : "none";
 
   destroyCharts();
-  renderTradingView(symbol);
+  setTimeout(() => renderTradingView(symbol), 0);
   loadSocialFeed(symbol);
 
   try {
