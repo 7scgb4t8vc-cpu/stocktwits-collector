@@ -29,7 +29,13 @@ IMPERSONATE   = "chrome120"
 REQUEST_DELAY = 1.0
 WATCHLIST_SIZE = 30
 
-FINVIZ_URL = "https://elite.finviz.com/export?v=152&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover&ft=4&auth={token}"
+FINVIZ_COLUMNS = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88"
+
+FINVIZ_URL = (
+    "https://elite.finviz.com/export?v=152"
+    "&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover"
+    "&ft=4&c={columns}&auth={token}"
+)
 ST_HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -73,7 +79,7 @@ def save_watchlist(symbols: list):
 # ── FinViz Elite screener ─────────────────────────────────────────────────────
 
 def fetch_finviz_screener(token: str) -> list:
-    url = FINVIZ_URL.format(token=token)
+    url = FINVIZ_URL.format(columns=FINVIZ_COLUMNS, token=token)
     try:
         resp = std_requests.get(url, headers=FV_HEADERS, timeout=20)
         if resp.status_code != 200:
@@ -88,30 +94,29 @@ def fetch_finviz_screener(token: str) -> list:
 
 
 def parse_finviz_row(row: dict) -> dict:
-    def format_market_cap(raw):
-        try:
-            val = float(str(raw).replace(",", "").strip()) * 1_000_000
-            if val >= 1_000_000_000_000:
-                return f"{val / 1_000_000_000_000:.2f}T"
-            if val >= 1_000_000_000:
-                return f"{val / 1_000_000_000:.2f}B"
-            if val >= 1_000_000:
-                return f"{val / 1_000_000:.2f}M"
-            return str(raw)
-        except:
-            return raw
+    """Dynamically convert every FinViz column into a clean field name.
+    e.g. 'P/E' -> 'p_e', 'Market Cap' -> 'market_cap', 'RSI (14)' -> 'rsi_14'
+    """
+    parsed = {}
+    for key, val in row.items():
+        if not key:
+            continue
+        field = re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
+        parsed[field] = val
 
-    return {
-        "symbol":     row.get("Ticker",          ""),
-        "company":    row.get("Company",         ""),
-        "price":      row.get("Price",           ""),
-        "change_pct": row.get("Change",          ""),
-        "volume":     row.get("Volume",          ""),
-        "avg_volume": row.get("Average Volume",  ""),
-        "market_cap": format_market_cap(row.get("Market Cap", "")),
-        "rel_volume": row.get("Relative Volume", ""),
-        "pe":         "",
-    }
+    if "market_cap" in parsed:
+        try:
+            val = float(str(parsed["market_cap"]).replace(",", "").strip()) * 1_000_000
+            if val >= 1_000_000_000_000:
+                parsed["market_cap"] = f"{val / 1_000_000_000_000:.2f}T"
+            elif val >= 1_000_000_000:
+                parsed["market_cap"] = f"{val / 1_000_000_000:.2f}B"
+            elif val >= 1_000_000:
+                parsed["market_cap"] = f"{val / 1_000_000:.2f}M"
+        except:
+            pass
+
+    return parsed
 
 
 # ── StockTwits fetchers ───────────────────────────────────────────────────────
@@ -199,10 +204,10 @@ def main():
 
         if fv_raw:
             fv_data = parse_finviz_row(fv_raw)
-            print(f"  [{symbol}] Price={fv_data['price']} Chg={fv_data['change_pct']} "
-                  f"Vol={fv_data['volume']} P/E={fv_data['pe']} Cap={fv_data['market_cap']}")
+            print(f"  [{symbol}] Price={fv_data.get('price')} Chg={fv_data.get('change')} "
+                  f"Vol={fv_data.get('volume')} P/E={fv_data.get('p_e')} Cap={fv_data.get('market_cap')}")
             fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
-            log_price(symbol, timestamp, fv_data["price"], fv_data["change_pct"], fv_data["volume"])
+            log_price(symbol, timestamp, fv_data.get("price"), fv_data.get("change"), fv_data.get("volume"))
         else:
             print(f"  [{symbol}] No FinViz data today (not in filter results).")
 
