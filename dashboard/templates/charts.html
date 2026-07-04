@@ -299,6 +299,45 @@ function renderCorrelationChart(series) {
   const msgCounts = series.map(d => d.msg_count);
   const hasPrice  = prices.some(p => p !== null && p !== undefined);
 
+  // Create external tooltip div
+  let tooltipEl = document.getElementById("corr-tooltip");
+  if (!tooltipEl) {
+    tooltipEl = document.createElement("div");
+    tooltipEl.id = "corr-tooltip";
+    tooltipEl.style.cssText = `
+      position:absolute; pointer-events:none; display:none;
+      background:rgba(22,27,34,0.95); border:1px solid #30363d;
+      border-radius:6px; padding:8px 12px; font-size:11px;
+      color:#e6edf3; z-index:100; min-width:140px;
+    `;
+    document.getElementById("correlation-chart").parentElement.style.position = "relative";
+    document.getElementById("correlation-chart").parentElement.appendChild(tooltipEl);
+  }
+
+  const externalTooltip = (context) => {
+    const { chart, tooltip } = context;
+    if (tooltip.opacity === 0) { tooltipEl.style.display = "none"; return; }
+    const lines = [];
+    if (tooltip.title && tooltip.title[0]) {
+      lines.push(`<div style="color:#8b949e;margin-bottom:4px;">${formatTickLabel(tooltip.title[0], _currentTf)}</div>`);
+    }
+    tooltip.dataPoints.forEach(dp => {
+      const color = dp.dataset.borderColor;
+      const val = dp.dataset.label === "Price ($)"
+        ? `$${dp.parsed.y !== null ? dp.parsed.y.toFixed(2) : "—"}`
+        : dp.parsed.y;
+      lines.push(`<div style="display:flex;gap:6px;align-items:center;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
+        <span style="color:#8b949e;">${dp.dataset.label}:</span>
+        <span style="font-weight:600;">${val}</span>
+      </div>`);
+    });
+    tooltipEl.innerHTML = lines.join("");
+    tooltipEl.style.display = "block";
+    tooltipEl.style.left = "8px";
+    tooltipEl.style.top = "8px";
+  };
+
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
     type: "line",
     data: {
@@ -331,19 +370,7 @@ function renderCorrelationChart(series) {
       interaction: { mode: "index", intersect: false },
       plugins: {
         legend: { labels: { color: "#8b949e" } },
-        tooltip: {
-          position: "nearest",
-          xAlign: "left",
-          yAlign: "top",
-          callbacks: {
-            label: ctx => {
-              if (ctx.dataset.label === "Price ($)") {
-                return ` Price: $${ctx.parsed.y !== null ? ctx.parsed.y.toFixed(2) : "—"}`;
-              }
-              return ` Messages: ${ctx.parsed.y}`;
-            }
-          }
-        }
+        tooltip: { enabled: false, external: externalTooltip }
       },
       scales: {
         x: {
