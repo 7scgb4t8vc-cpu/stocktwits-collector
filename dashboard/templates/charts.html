@@ -42,30 +42,31 @@
   <!-- TradingView Chart -->
  <!-- Price vs Message Volume Correlation -->
   <!-- TradingView Chart -->
+  <!-- TradingView Chart -->
   <div class="chart-card" style="margin-bottom:1rem;">
     <div class="chart-card-title">Price Chart</div>
     <div id="tv-chart-wrap"></div>
   </div>
 
-  <!-- Price vs Message Volume Correlation -->
+  <!-- Price vs Message Volume Correlation (large) -->
   <div class="chart-card" style="margin-bottom:1rem;">
     <div class="chart-card-title">
       Price vs Message Volume
       <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;margin-left:6px;">correlation — do price moves follow message spikes?</span>
     </div>
-    <canvas id="correlation-chart" height="120"></canvas>
+    <canvas id="correlation-chart" height="100"></canvas>
   </div>
 
-  <!-- Message Volume -->
-  <div class="chart-card" style="margin-bottom:1rem;">
-    <div class="chart-card-title">Message Volume Over Time</div>
-    <canvas id="volume-chart" height="100"></canvas>
-  </div>
-
-  <!-- Sentiment Breakdown -->
-  <div class="chart-card" style="margin-bottom:1rem;">
-    <div class="chart-card-title">Sentiment Breakdown Over Time</div>
-    <canvas id="sentiment-chart" height="100"></canvas>
+  <!-- Volume + Sentiment side by side (smaller) -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+    <div class="chart-card">
+      <div class="chart-card-title">Message Volume Over Time</div>
+      <canvas id="volume-chart" height="120"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-card-title">Sentiment Breakdown Over Time</div>
+      <canvas id="sentiment-chart" height="120"></canvas>
+    </div>
   </div>
 
   <!-- Social Feed -->
