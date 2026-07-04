@@ -378,7 +378,11 @@ def api_charts_symbol(symbol):
         return jsonify({"sample": sample, "now_utc": datetime.utcnow().isoformat(), "total": len(rows)})
     return jsonify(load_symbol_chart_data(symbol, timeframe, end_dt))
 
-
+@app.route("/api/charts/<symbol>/full")
+def api_charts_symbol_full(symbol):
+    if symbol.upper() not in get_watchlist():
+        return jsonify({"error": "Symbol not tracked"}), 404
+    return jsonify(load_symbol_chart_data(symbol, "30d"))
 @app.route("/api/ohlc/<symbol>")
 def api_ohlc(symbol):
     if symbol.upper() not in get_watchlist():
