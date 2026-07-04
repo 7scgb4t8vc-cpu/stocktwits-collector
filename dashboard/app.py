@@ -165,7 +165,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = N
             dt = datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
         else:
             dt = parse_timestamp(raw_dt)
-        if dt and dt >= cutoff:
+        if dt and cutoff <= dt <= window_end:
             filtered.append({**row, "_bucket": round_to_bucket(dt, bucket_minutes)})
 
     volume_by_ts = {}
@@ -190,7 +190,7 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = N
     while bucket_dt <= window_end:
         all_buckets.append(bucket_dt.strftime("%Y-%m-%d %H:%M"))
         bucket_dt += timedelta(minutes=bucket_minutes)
-    timestamps = sorted(set(all_buckets) | set(volume_by_ts.keys()) | set(sentiment_by_ts.keys()))
+    timestamps = sorted(all_buckets)
 
     price_rows = get_price_history(symbol)
     price_series = []
