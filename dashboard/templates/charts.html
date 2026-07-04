@@ -21,9 +21,10 @@
     <button class="tf-btn" data-tf="4h">4H</button>
     <button class="tf-btn" data-tf="6h">6H</button>
     <button class="tf-btn" data-tf="12h">12H</button>
-    <button class="tf-btn active" data-tf="1d">1D</button>
-    <button class="tf-btn" data-tf="7d">7D</button>
-    <button class="tf-btn" data-tf="30d">30D</button>
+    <button class="tf-btn active" data-tf="1d">D</button>
+    <button class="tf-btn" data-tf="7d">W</button>
+    <button class="tf-btn" data-tf="30d">M</button>
+    <input type="datetime-local" id="date-picker" class="date-picker" title="Jump to date/time">
   </div>
   <div id="sparse-warning" style="display:none" class="sparse-warning">
     ⚠ Collector runs every 5 min during market hours — sub-hourly windows may have limited data points.
@@ -59,10 +60,17 @@
   </div>
 </div>
 <style>
-.tf-strip { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; }
+.tf-strip { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:1rem; align-items:center; }
 .tf-btn { background:var(--bg2); border:1px solid var(--border); color:var(--muted); border-radius:var(--radius-sm); padding:4px 12px; font-size:11px; font-weight:600; cursor:pointer; transition:all 0.15s; letter-spacing:0.04em; }
 .tf-btn:hover { border-color:var(--accent); color:var(--text); }
 .tf-btn.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+.date-picker {
+  background:var(--bg2); border:1px solid var(--border); color:var(--muted);
+  border-radius:var(--radius-sm); padding:4px 8px; font-size:11px; cursor:pointer;
+  outline:none; margin-left:4px;
+  color-scheme: dark;
+}
+.date-picker:focus { border-color:var(--accent); color:var(--text); }
 .sparse-warning { font-size:11px; color:var(--yellow); background:rgba(210,153,34,0.08); border:1px solid rgba(210,153,34,0.2); border-radius:var(--radius-sm); padding:6px 12px; margin-bottom:1rem; }
 .chart-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:1rem; }
 .chart-card-title { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:0.75rem; }
@@ -99,8 +107,8 @@
 let _charts = {};
 let _currentSymbol = "";
 let _currentTf = "1d";
-let _fullData = null;      // full 30d dataset loaded once
-let _viewEndMs = null;     // ms timestamp of window right edge (null = now)
+let _fullData = null;
+let _viewEndMs = null;
 
 const SPARSE_TIMEFRAMES = new Set(["5m","15m","30m","1h","2h"]);
 const TF_HOURS = {
@@ -144,8 +152,6 @@ function makeSharedTooltip(getItems) {
   };
 }
 
-// ── Client-side slicing ───────────────────────────────────────────────────────
-
 function roundToBucket(tsStr, bucketMin) {
   const d = new Date(tsStr.replace(" ","T")+"Z");
   const discard = d.getUTCMinutes() % bucketMin;
@@ -159,7 +165,6 @@ function sliceData(fullData, tf, viewEndMs) {
   const endMs = viewEndMs || Date.now();
   const startMs = endMs - tfMs;
 
-  // Generate bucket slots
   const slots = [];
   let t = startMs - (startMs % (bucketMin * 60000));
   while (t <= endMs) {
@@ -168,7 +173,6 @@ function sliceData(fullData, tf, viewEndMs) {
     t += bucketMin * 60000;
   }
 
-  // Aggregate volume
   const volMap = {}, sentMap = {}, priceMap = {};
   for (const row of fullData.volume_series) {
     const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
@@ -193,14 +197,12 @@ function sliceData(fullData, tf, viewEndMs) {
     if (row.price !== null && row.price !== undefined) priceMap[bucket] = row.price;
   }
 
-  const volume_series    = slots.map(ts => ({ timestamp: ts, count: volMap[ts]||0 }));
-  const sentiment_series = slots.map(ts => ({ timestamp: ts, ...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0}) }));
-  const correlation_series = slots.map(ts => ({ timestamp: ts, msg_count: volMap[ts]||0, price: priceMap[ts]??null }));
-
-  return { volume_series, sentiment_series, correlation_series };
+  return {
+    volume_series:    slots.map(ts=>({timestamp:ts,count:volMap[ts]||0})),
+    sentiment_series: slots.map(ts=>({timestamp:ts,...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0})})),
+    correlation_series: slots.map(ts=>({timestamp:ts,msg_count:volMap[ts]||0,price:priceMap[ts]??null})),
+  };
 }
-
-// ── Chart rendering ───────────────────────────────────────────────────────────
 
 const chartDefaults = {
   plugins: { legend: { labels: { color:"#8b949e" } } },
@@ -219,7 +221,6 @@ function destroyCharts() {
 function renderCharts(sliced) {
   destroyCharts();
 
-  // Correlation
   const hasPrice = sliced.correlation_series.some(d=>d.price!==null&&d.price!==undefined);
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
     type:"line",
@@ -248,14 +249,12 @@ function renderCharts(sliced) {
     }
   });
 
-  // Volume
   _charts.volume = new Chart(document.getElementById("volume-chart"),{
     type:"bar",
     data:{labels:sliced.volume_series.map(v=>v.timestamp),datasets:[{label:"Messages",data:sliced.volume_series.map(v=>v.count),backgroundColor:"#3fb950"}]},
     options:{...chartDefaults,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{enabled:false,external:makeSharedTooltip(tt=>tt.dataPoints.map(dp=>({color:"#3fb950",label:"Volume",val:dp.parsed.y})))}},scales:{x:{...chartDefaults.scales.x,ticks:{display:false}},y:{...chartDefaults.scales.y}}}
   });
 
-  // Sentiment
   _charts.sentiment = new Chart(document.getElementById("sentiment-chart"),{
     type:"bar",
     data:{
@@ -275,6 +274,19 @@ function updateCharts() {
   if (!_fullData) return;
   const sliced = sliceData(_fullData, _currentTf, _viewEndMs);
   renderCharts(sliced);
+}
+
+function syncDatePicker() {
+  const picker = document.getElementById("date-picker");
+  if (!picker) return;
+  if (_viewEndMs) {
+    const d = new Date(_viewEndMs);
+    // format as local datetime-local value
+    const pad = n => String(n).padStart(2,"0");
+    picker.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    picker.value = "";
+  }
 }
 
 // ── Drag to pan ───────────────────────────────────────────────────────────────
@@ -307,7 +319,7 @@ function setupDragPan() {
     const newEnd = _dragStartViewEnd - dx * msPerPx;
     _viewEndMs = newEnd > Date.now() ? null : newEnd;
     document.getElementById("btn-now").disabled = !_viewEndMs;
-    // live redraw while dragging
+    syncDatePicker();
     if (_fullData) {
       const sliced = sliceData(_fullData, _currentTf, _viewEndMs);
       renderCharts(sliced);
@@ -384,6 +396,7 @@ async function loadSymbolCharts(symbol) {
     _fullData = await res.json();
     _viewEndMs = null;
     document.getElementById("btn-now").disabled = true;
+    syncDatePicker();
     updateCharts();
   } catch(e) {
     console.error("Charts load error:", e);
@@ -410,6 +423,7 @@ document.getElementById("tf-strip").addEventListener("click", (e) => {
   if (btn.id === "btn-now") {
     _viewEndMs = null;
     document.getElementById("btn-now").disabled = true;
+    syncDatePicker();
     updateCharts();
     return;
   }
@@ -418,6 +432,19 @@ document.getElementById("tf-strip").addEventListener("click", (e) => {
   _currentTf = btn.dataset.tf;
   document.getElementById("sparse-warning").style.display =
     SPARSE_TIMEFRAMES.has(_currentTf) ? "block" : "none";
+  updateCharts();
+});
+
+document.getElementById("date-picker").addEventListener("change", (e) => {
+  const val = e.target.value;
+  if (!val) {
+    _viewEndMs = null;
+    document.getElementById("btn-now").disabled = true;
+  } else {
+    _viewEndMs = new Date(val).getTime();
+    if (_viewEndMs > Date.now()) _viewEndMs = null;
+    document.getElementById("btn-now").disabled = !_viewEndMs;
+  }
   updateCharts();
 });
 
