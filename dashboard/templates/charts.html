@@ -46,21 +46,25 @@
   </div>
 
   <!-- All three charts in one card -->
-  <div class="chart-card" style="margin-bottom:1rem;display:flex;flex-direction:column;gap:1.5rem;">
-    <div>
-      <div class="chart-card-title">
-        Price vs Message Volume
-        <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;margin-left:6px;">correlation — do price moves follow message spikes?</span>
+  <div class="chart-card" style="margin-bottom:1rem;">
+    <!-- Shared tooltip bar -->
+    <div id="shared-tooltip" style="height:28px;margin-bottom:0.5rem;display:flex;align-items:center;gap:16px;font-size:11px;"></div>
+    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+      <div>
+        <div class="chart-card-title">
+          Price vs Message Volume
+          <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;margin-left:6px;">correlation — do price moves follow message spikes?</span>
+        </div>
+        <canvas id="correlation-chart" height="80"></canvas>
       </div>
-      <canvas id="correlation-chart" height="80"></canvas>
-    </div>
-    <div>
-      <div class="chart-card-title">Message Volume Over Time</div>
-      <canvas id="volume-chart" height="35"></canvas>
-    </div>
-    <div>
-      <div class="chart-card-title">Sentiment Breakdown Over Time</div>
-      <canvas id="sentiment-chart" height="35"></canvas>
+      <div>
+        <div class="chart-card-title">Message Volume Over Time</div>
+        <canvas id="volume-chart" height="35"></canvas>
+      </div>
+      <div>
+        <div class="chart-card-title">Sentiment Breakdown Over Time</div>
+        <canvas id="sentiment-chart" height="35"></canvas>
+      </div>
     </div>
   </div>
 
@@ -179,6 +183,12 @@
   opacity: 0.3;
   cursor: default;
 }
+#shared-tooltip { color: #e6edf3; }
+#shared-tooltip .tt-time { color: #8b949e; font-weight: 600; }
+#shared-tooltip .tt-item { display: flex; align-items: center; gap: 5px; }
+#shared-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+#shared-tooltip .tt-label { color: #8b949e; }
+#shared-tooltip .tt-val { font-weight: 700; }
 </style>
 
 {% endblock %}
@@ -205,6 +215,29 @@ function formatTickLabel(raw, tf) {
   }
 }
 
+function formatFullDate(raw) {
+  const d = new Date(raw.replace(" ", "T") + "Z");
+  return d.toLocaleDateString("en-US", {
+    month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit", hour12: true,
+    timeZone: "America/New_York"
+  });
+}
+
+function updateSharedTooltip(raw, items) {
+  const el = document.getElementById("shared-tooltip");
+  if (!raw) { el.innerHTML = ""; return; }
+  const timeHtml = `<span class="tt-time">${formatFullDate(raw)}</span>`;
+  const itemsHtml = items.map(item =>
+    `<span class="tt-item">
+      <span class="tt-dot" style="background:${item.color}"></span>
+      <span class="tt-label">${item.label}:</span>
+      <span class="tt-val">${item.val}</span>
+    </span>`
+  ).join("");
+  el.innerHTML = timeHtml + itemsHtml;
+}
+
 const chartDefaults = {
   plugins: { legend: { labels: { color: "#8b949e" } } },
   scales: {
@@ -225,6 +258,7 @@ const chartDefaults = {
 function destroyCharts() {
   Object.values(_charts).forEach(c => { try { c.destroy(); } catch(e) {} });
   _charts = {};
+  updateSharedTooltip(null, []);
 }
 
 async function loadSymbolList() {
@@ -293,50 +327,20 @@ async function loadSocialFeed(symbol) {
   }
 }
 
+function makeSharedTooltip(getItems) {
+  return (context) => {
+    const { tooltip } = context;
+    if (tooltip.opacity === 0) { updateSharedTooltip(null, []); return; }
+    const raw = tooltip.title && tooltip.title[0] ? tooltip.title[0] : null;
+    updateSharedTooltip(raw, getItems(tooltip));
+  };
+}
+
 function renderCorrelationChart(series) {
   const labels    = series.map(d => d.timestamp);
   const prices    = series.map(d => d.price);
   const msgCounts = series.map(d => d.msg_count);
   const hasPrice  = prices.some(p => p !== null && p !== undefined);
-
-  // Create external tooltip div
-  let tooltipEl = document.getElementById("corr-tooltip");
-  if (!tooltipEl) {
-    tooltipEl = document.createElement("div");
-    tooltipEl.id = "corr-tooltip";
-    tooltipEl.style.cssText = `
-      position:absolute; pointer-events:none; display:none;
-      background:rgba(22,27,34,0.95); border:1px solid #30363d;
-      border-radius:6px; padding:8px 12px; font-size:11px;
-      color:#e6edf3; z-index:100; min-width:140px;
-    `;
-    document.getElementById("correlation-chart").parentElement.style.position = "relative";
-    document.getElementById("correlation-chart").parentElement.appendChild(tooltipEl);
-  }
-
-  const externalTooltip = (context) => {
-    const { chart, tooltip } = context;
-    if (tooltip.opacity === 0) { tooltipEl.style.display = "none"; return; }
-    const lines = [];
-    if (tooltip.title && tooltip.title[0]) {
-      lines.push(`<div style="color:#8b949e;margin-bottom:4px;">${formatTickLabel(tooltip.title[0], _currentTf)}</div>`);
-    }
-    tooltip.dataPoints.forEach(dp => {
-      const color = dp.dataset.borderColor;
-      const val = dp.dataset.label === "Price ($)"
-        ? `$${dp.parsed.y !== null ? dp.parsed.y.toFixed(2) : "—"}`
-        : dp.parsed.y;
-      lines.push(`<div style="display:flex;gap:6px;align-items:center;">
-        <span style="width:8px;height:8px;border-radius:50%;background:${color};display:inline-block;"></span>
-        <span style="color:#8b949e;">${dp.dataset.label}:</span>
-        <span style="font-weight:600;">${val}</span>
-      </div>`);
-    });
-    tooltipEl.innerHTML = lines.join("");
-    tooltipEl.style.display = "block";
-    tooltipEl.style.left = "8px";
-    tooltipEl.style.top = "8px";
-  };
 
   _charts.correlation = new Chart(document.getElementById("correlation-chart"), {
     type: "line",
@@ -370,7 +374,16 @@ function renderCorrelationChart(series) {
       interaction: { mode: "index", intersect: false },
       plugins: {
         legend: { labels: { color: "#8b949e" } },
-        tooltip: { enabled: false, external: externalTooltip }
+        tooltip: {
+          enabled: false,
+          external: makeSharedTooltip(tooltip => tooltip.dataPoints.map(dp => ({
+            color: dp.dataset.borderColor,
+            label: dp.dataset.label,
+            val: dp.dataset.label === "Price ($)"
+              ? `$${dp.parsed.y !== null ? dp.parsed.y.toFixed(2) : "—"}`
+              : dp.parsed.y
+          })))
+        }
       },
       scales: {
         x: {
@@ -458,9 +471,17 @@ async function loadSymbolCharts(symbol, tf) {
       },
       options: {
         ...chartDefaults,
+        interaction: { mode: "index", intersect: false },
         plugins: {
           legend: { display: false },
-          tooltip: { position: "nearest", xAlign: "left", yAlign: "top" }
+          tooltip: {
+            enabled: false,
+            external: makeSharedTooltip(tooltip => tooltip.dataPoints.map(dp => ({
+              color: "#3fb950",
+              label: "Volume",
+              val: dp.parsed.y
+            })))
+          }
         },
         scales: {
           x: { ...chartDefaults.scales.x, ticks: { display: false } },
@@ -483,9 +504,19 @@ async function loadSymbolCharts(symbol, tf) {
       },
       options: {
         ...chartDefaults,
+        interaction: { mode: "index", intersect: false },
         plugins: {
           ...chartDefaults.plugins,
-          tooltip: { position: "nearest", xAlign: "left", yAlign: "top" }
+          tooltip: {
+            enabled: false,
+            external: makeSharedTooltip(tooltip => tooltip.dataPoints
+              .filter(dp => dp.parsed.y > 0)
+              .map(dp => ({
+                color: dp.dataset.backgroundColor,
+                label: dp.dataset.label,
+                val: dp.parsed.y
+              })))
+          }
         },
         scales: {
           x: { ...chartDefaults.scales.x, stacked: true, ticks: { display: false } },
