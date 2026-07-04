@@ -18,9 +18,7 @@
 
   <!-- Timeframe selector -->
   <div class="tf-strip" id="tf-strip">
-    <button class="tf-btn nav-btn" id="btn-back">◀</button>
     <button class="tf-btn nav-btn" id="btn-now">Now</button>
-    <button class="tf-btn nav-btn" id="btn-fwd">▶</button>
     <button class="tf-btn" data-tf="5m">5m</button>
     <button class="tf-btn" data-tf="15m">15m</button>
     <button class="tf-btn" data-tf="30m">30m</button>
@@ -39,17 +37,11 @@
     ⚠ Collector runs every 5 min during market hours — sub-hourly windows may have limited data points.
   </div>
 
-  <!-- TradingView Chart -->
-  <div class="chart-card" style="margin-bottom:1rem;">
-    <div class="chart-card-title">Price Chart</div>
-    <div id="tv-chart-wrap"></div>
-  </div>
-
   <!-- All three charts in one card -->
   <div class="chart-card" style="margin-bottom:1rem;">
     <!-- Shared tooltip bar -->
     <div id="shared-tooltip" style="height:28px;margin-bottom:0.5rem;display:flex;align-items:center;gap:16px;font-size:11px;"></div>
-    <div style="display:flex;flex-direction:column;gap:1.5rem;">
+    <div id="chart-drag-area" style="display:flex;flex-direction:column;gap:1.5rem;cursor:grab;">
       <div>
         <div class="chart-card-title">
           Price vs Message Volume
@@ -66,15 +58,24 @@
         <canvas id="sentiment-chart" height="35"></canvas>
       </div>
     </div>
+    <div style="font-size:10px;color:var(--muted);margin-top:0.75rem;text-align:center;">
+      ← drag to pan history →
+    </div>
   </div>
 
   <!-- Social Feed -->
-  <div class="chart-card" style="margin-top:1rem;">
+  <div class="chart-card" style="margin-bottom:1rem;">
     <div class="chart-card-title">
       Trending Posts
       <span style="font-size:10px;color:var(--muted);font-weight:400;text-transform:none;">scored by sentiment strength + engagement</span>
     </div>
     <div id="charts-social-feed"></div>
+  </div>
+
+  <!-- TradingView Chart (bottom) -->
+  <div class="chart-card" style="margin-bottom:1rem;">
+    <div class="chart-card-title">Price Chart</div>
+    <div id="tv-chart-wrap"></div>
   </div>
 
 </div>
@@ -179,12 +180,10 @@
   background: var(--bg2);
   border-color: var(--border);
 }
-.nav-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
+.nav-btn:disabled { opacity: 0.3; cursor: default; }
+#chart-drag-area.dragging { cursor: grabbing; }
 #shared-tooltip { color: #e6edf3; }
-#shared-tooltip .tt-time { color: #8b949e; font-weight: 600; }
+#shared-tooltip .tt-time { color: #8b949e; font-weight: 600; margin-right: 4px; }
 #shared-tooltip .tt-item { display: flex; align-items: center; gap: 5px; }
 #shared-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 #shared-tooltip .tt-label { color: #8b949e; }
@@ -201,6 +200,12 @@ let _currentTf = "1d";
 let _windowEnd = null;
 
 const SPARSE_TIMEFRAMES = new Set(["5m", "15m", "30m", "1h", "2h"]);
+
+const TF_HOURS = {
+  "5m": 5/60, "15m": 15/60, "30m": 30/60,
+  "1h": 1, "2h": 2, "4h": 4, "6h": 6, "12h": 12,
+  "1d": 24, "7d": 168, "30d": 720
+};
 
 function formatTickLabel(raw, tf) {
   const d = new Date(raw.replace(" ", "T") + "Z");
@@ -236,6 +241,15 @@ function updateSharedTooltip(raw, items) {
     </span>`
   ).join("");
   el.innerHTML = timeHtml + itemsHtml;
+}
+
+function makeSharedTooltip(getItems) {
+  return (context) => {
+    const { tooltip } = context;
+    if (tooltip.opacity === 0) { updateSharedTooltip(null, []); return; }
+    const raw = tooltip.title && tooltip.title[0] ? tooltip.title[0] : null;
+    updateSharedTooltip(raw, getItems(tooltip));
+  };
 }
 
 const chartDefaults = {
@@ -327,15 +341,6 @@ async function loadSocialFeed(symbol) {
   }
 }
 
-function makeSharedTooltip(getItems) {
-  return (context) => {
-    const { tooltip } = context;
-    if (tooltip.opacity === 0) { updateSharedTooltip(null, []); return; }
-    const raw = tooltip.title && tooltip.title[0] ? tooltip.title[0] : null;
-    updateSharedTooltip(raw, getItems(tooltip));
-  };
-}
-
 function renderCorrelationChart(series) {
   const labels    = series.map(d => d.timestamp);
   const prices    = series.map(d => d.price);
@@ -422,18 +427,62 @@ function getWindowEndParam() {
   return `&end=${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,"0")}-${String(d.getUTCDate()).padStart(2,"0")}T${String(d.getUTCHours()).padStart(2,"0")}:${String(d.getUTCMinutes()).padStart(2,"0")}`;
 }
 
-function shiftWindow(direction) {
-  const hours = {
-    "5m": 5/60, "15m": 15/60, "30m": 30/60,
-    "1h": 1, "2h": 2, "4h": 4, "6h": 6, "12h": 12,
-    "1d": 24, "7d": 168, "30d": 720
-  };
-  const ms = (hours[_currentTf] || 24) * 3600 * 1000;
+function updateNavButtons() {
+  const nowBtn = document.getElementById("btn-now");
+  if (nowBtn) nowBtn.disabled = !_windowEnd;
+}
+
+function shiftWindowBy(ms) {
   const base = _windowEnd || new Date();
-  _windowEnd = new Date(base.getTime() + direction * ms);
+  _windowEnd = new Date(base.getTime() + ms);
   if (_windowEnd > new Date()) _windowEnd = null;
-  document.getElementById("btn-fwd").disabled = !_windowEnd;
-  document.getElementById("btn-now").disabled = !_windowEnd;
+  updateNavButtons();
+}
+
+// ── Drag to pan ───────────────────────────────────────────────────────────────
+let _dragStartX = null;
+let _dragStartWindowEnd = null;
+let _dragging = false;
+let _dragPending = false;
+
+function setupDragPan() {
+  const area = document.getElementById("chart-drag-area");
+  if (!area) return;
+
+  area.addEventListener("mousedown", (e) => {
+    _dragStartX = e.clientX;
+    _dragStartWindowEnd = _windowEnd ? new Date(_windowEnd) : new Date();
+    _dragging = false;
+    _dragPending = true;
+    area.classList.add("dragging");
+  });
+
+  window.addEventListener("mousemove", (e) => {
+    if (!_dragPending) return;
+    const dx = e.clientX - _dragStartX;
+    if (Math.abs(dx) < 5) return;
+    _dragging = true;
+
+    const chartWidth = area.offsetWidth;
+    const tfMs = (TF_HOURS[_currentTf] || 24) * 3600 * 1000;
+    // pixels per ms: full chart width = full timeframe
+    const msPerPx = tfMs / chartWidth;
+    const shiftMs = -dx * msPerPx;
+
+    _windowEnd = new Date(_dragStartWindowEnd.getTime() + shiftMs);
+    if (_windowEnd > new Date()) _windowEnd = null;
+    updateNavButtons();
+  });
+
+  window.addEventListener("mouseup", () => {
+    if (!_dragPending) return;
+    area.classList.remove("dragging");
+    _dragPending = false;
+    if (_dragging) {
+      _dragging = false;
+      loadSymbolCharts(_currentSymbol, _currentTf);
+    }
+  });
 }
 
 async function loadSymbolCharts(symbol, tf) {
@@ -535,16 +584,19 @@ let _refreshInterval = null;
 function startAutoRefresh() {
   if (_refreshInterval) clearInterval(_refreshInterval);
   _refreshInterval = setInterval(() => {
-    if (_currentSymbol) loadSymbolCharts(_currentSymbol, _currentTf);
+    if (_currentSymbol && !_windowEnd) loadSymbolCharts(_currentSymbol, _currentTf);
   }, 30000);
 }
 
 document.getElementById("tf-strip").addEventListener("click", (e) => {
   const btn = e.target.closest(".tf-btn");
   if (!btn || !_currentSymbol) return;
-  if (btn.id === "btn-back") { shiftWindow(-1); loadSymbolCharts(_currentSymbol, _currentTf); return; }
-  if (btn.id === "btn-fwd")  { shiftWindow(1);  loadSymbolCharts(_currentSymbol, _currentTf); return; }
-  if (btn.id === "btn-now")  { _windowEnd = null; document.getElementById("btn-fwd").disabled = true; document.getElementById("btn-now").disabled = true; loadSymbolCharts(_currentSymbol, _currentTf); return; }
+  if (btn.id === "btn-now") {
+    _windowEnd = null;
+    updateNavButtons();
+    loadSymbolCharts(_currentSymbol, _currentTf);
+    return;
+  }
   document.querySelectorAll(".tf-btn").forEach(b => b.classList.remove("active"));
   btn.classList.add("active");
   _currentTf = btn.dataset.tf;
@@ -560,6 +612,7 @@ async function loadCharts() {
     document.getElementById("symbol-select").value = _currentSymbol;
   }
   if (_currentSymbol) await loadSymbolCharts(_currentSymbol, _currentTf);
+  setupDragPan();
   startAutoRefresh();
 }
 
