@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import os
 from pymongo import MongoClient
 
@@ -26,7 +27,7 @@ def insert_messages(messages):
             upsert=True
         )
 
-def get_messages(symbol=None, scored_only=False, unscored_only=False):
+def get_messages(symbol=None, scored_only=False, unscored_only=False, days=30):
     coll = messages_collection()
     query = {}
     if symbol:
@@ -35,7 +36,9 @@ def get_messages(symbol=None, scored_only=False, unscored_only=False):
         query["nlp_label"] = {"$exists": True}
     if unscored_only:
         query["nlp_label"] = {"$exists": False}
-    return list(coll.find(query))
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    query["created_at"] = {"$gte": cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")}
+    return list(coll.find(query).sort("created_at", -1).limit(5000))
 
 def update_sentiment(message_id, sentiment, score):
     messages_collection().update_one(
