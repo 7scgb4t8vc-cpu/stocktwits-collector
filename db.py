@@ -46,10 +46,14 @@ def update_sentiment(message_id, sentiment, score):
 def finviz_collection():
     return get_db()["finviz"]
 
-def upsert_finviz(rows: list):
-    coll = get_db()["finviz"]
+def upsert_finviz(rows):
+    coll = finviz_collection()
     for row in rows:
-        coll.replace_one({"symbol": row["symbol"]}, row, upsert=True)
+        coll.replace_one(
+            {"symbol": row["symbol"]},
+            row,
+            upsert=True
+        )
 
 def get_finviz(symbol=None):
     coll = finviz_collection()
