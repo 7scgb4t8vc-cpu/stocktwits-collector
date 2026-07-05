@@ -280,8 +280,8 @@ def load_momentum():
             return 0.0
 
     for row in rows:
-        row["_rel_vol"] = parse_float(row.get("rel_volume", "0"))
-        row["_change"]  = parse_float(str(row.get("change_pct", "0")).replace("%", ""))
+        row["_rel_vol"] = parse_float(row.get("relative_volume", "0"))
+        row["_change"]  = parse_float(str(row.get("change", "0")).replace("%", ""))
 
     return sorted(rows, key=lambda r: r["_rel_vol"], reverse=True)
 
