@@ -463,31 +463,46 @@
   <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
 </div>
 
+<!-- Column View Switcher -->
+<div class="scr-view-tabs">
+  <button class="scr-view-tab active" data-view="overview" onclick="switchView('overview')">Overview</button>
+  <button class="scr-view-tab" data-view="valuation" onclick="switchView('valuation')">Valuation</button>
+  <button class="scr-view-tab" data-view="financial" onclick="switchView('financial')">Financial</button>
+  <button class="scr-view-tab" data-view="ownership" onclick="switchView('ownership')">Ownership</button>
+  <button class="scr-view-tab" data-view="performance" onclick="switchView('performance')">Performance</button>
+  <button class="scr-view-tab" data-view="technical" onclick="switchView('technical')">Technical</button>
+</div>
+
 <!-- Table -->
 <div class="table-wrap">
   <table class="data-table" id="screener-table">
-    <thead>
-      <tr>
-        <th class="sortable" data-col="symbol">Symbol <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="sector">Sector <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="industry">Industry <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="price">Price <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="change">Change % <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="volume">Volume <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="relative_volume">Rel Vol <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="market_cap">Mkt Cap <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="p_e">P/E <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="sentiment">Sentiment <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="sentiment_score">Score <span class="sort-arrow">↕</span></th>
-      </tr>
-    </thead>
+    <thead id="screener-thead"></thead>
     <tbody id="screener-body">
-      <tr><td colspan="11" class="loading">Loading...</td></tr>
+      <tr><td class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
 
 <style>
+.scr-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+.scr-view-tab {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  padding: 5px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.scr-view-tab:hover { color: var(--text); border-color: var(--accent); }
+.scr-view-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .scr-top-bar {
   display: flex;
   flex-wrap: wrap;
@@ -615,6 +630,71 @@ let socialCountMap = {};
 let sortCol = "";
 let sortDir = 1;
 let orderDir = 1;
+let currentView = "overview";
+
+// Column definitions: label + formatting type
+const COLUMN_DEFS = {
+  symbol:                       { label: "Symbol",        type: "ticker" },
+  sector:                       { label: "Sector",        type: "text" },
+  industry:                     { label: "Industry",      type: "text" },
+  country:                      { label: "Country",       type: "text" },
+  market_cap:                   { label: "Mkt Cap",       type: "marketcap" },
+  price:                        { label: "Price",         type: "price" },
+  change:                       { label: "Change %",      type: "pctchange" },
+  volume:                       { label: "Volume",        type: "volume" },
+  relative_volume:              { label: "Rel Vol",       type: "relvol" },
+  average_volume:               { label: "Avg Volume",    type: "volume" },
+  p_e:                          { label: "P/E",           type: "ratio" },
+  forward_p_e:                  { label: "Fwd P/E",       type: "ratio" },
+  peg:                          { label: "PEG",           type: "ratio" },
+  p_s:                          { label: "P/S",           type: "ratio" },
+  p_b:                          { label: "P/B",           type: "ratio" },
+  p_cash:                       { label: "P/Cash",        type: "ratio" },
+  p_free_cash_flow:             { label: "P/FCF",         type: "ratio" },
+  dividend_yield:                { label: "Div Yield",     type: "pct" },
+  payout_ratio:                  { label: "Payout Ratio",  type: "pct" },
+  current_ratio:                 { label: "Current Ratio",type: "ratio" },
+  quick_ratio:                   { label: "Quick Ratio",  type: "ratio" },
+  lt_debt_equity:                { label: "LT Debt/Eq",   type: "ratio" },
+  total_debt_equity:             { label: "Debt/Eq",      type: "ratio" },
+  gross_margin:                  { label: "Gross Margin", type: "pct" },
+  operating_margin:              { label: "Oper Margin",  type: "pct" },
+  profit_margin:                  { label: "Net Margin",   type: "pct" },
+  shares_outstanding:            { label: "Shares Out",   type: "sharesM" },
+  float:                         { label: "Float %",      type: "pct" },
+  insider_ownership:              { label: "Insider Own",  type: "pct" },
+  insider_transactions:           { label: "Insider Trans",type: "pct" },
+  institutional_ownership:        { label: "Inst Own",     type: "pct" },
+  institutional_transactions:     { label: "Inst Trans",   type: "pct" },
+  short_float:                    { label: "Short Float",  type: "pct" },
+  short_ratio:                    { label: "Short Ratio",  type: "ratio" },
+  performance_week:               { label: "Perf Week",    type: "pct" },
+  performance_month:              { label: "Perf Month",   type: "pct" },
+  performance_quarter:            { label: "Perf Qtr",     type: "pct" },
+  performance_half_year:          { label: "Perf 6M",      type: "pct" },
+  performance_year:               { label: "Perf Year",    type: "pct" },
+  performance_ytd:                { label: "Perf YTD",     type: "pct" },
+  volatility_week:                { label: "Volatility Wk",type: "pct" },
+  volatility_month:               { label: "Volatility Mo",type: "pct" },
+  average_true_range:             { label: "ATR",          type: "ratio" },
+  relative_strength_index_14:     { label: "RSI (14)",     type: "ratio" },
+  "20_day_simple_moving_average": { label: "SMA20",        type: "pct" },
+  "50_day_simple_moving_average": { label: "SMA50",        type: "pct" },
+  "200_day_simple_moving_average":{ label: "SMA200",       type: "pct" },
+  "52_week_high":                 { label: "52W High",     type: "pct" },
+  "52_week_low":                  { label: "52W Low",      type: "pct" },
+  sentiment:                      { label: "Sentiment",    type: "sentiment" },
+  sentiment_score:                { label: "Score",        type: "score" },
+};
+
+const VIEW_SETS = {
+  overview:    ["symbol","sector","industry","country","market_cap","p_e","price","change","volume","sentiment","sentiment_score"],
+  valuation:   ["symbol","p_e","forward_p_e","peg","p_s","p_b","p_cash","p_free_cash_flow","price","change","sentiment","sentiment_score"],
+  financial:   ["symbol","dividend_yield","payout_ratio","current_ratio","quick_ratio","lt_debt_equity","total_debt_equity","gross_margin","operating_margin","profit_margin","sentiment","sentiment_score"],
+  ownership:   ["symbol","shares_outstanding","float","insider_ownership","insider_transactions","institutional_ownership","institutional_transactions","short_float","short_ratio","sentiment","sentiment_score"],
+  performance: ["symbol","performance_week","performance_month","performance_quarter","performance_half_year","performance_year","performance_ytd","volatility_week","volatility_month","sentiment","sentiment_score"],
+  technical:   ["symbol","relative_strength_index_14","20_day_simple_moving_average","50_day_simple_moving_average","200_day_simple_moving_average","52_week_high","52_week_low","average_true_range","price","change","sentiment","sentiment_score"],
+};
 
 function formatVolume(val) {
   const n = parseInt(String(val).replace(/,/g, "")) || 0;
@@ -671,6 +751,70 @@ function switchTab(tab) {
       field.style.display = field.classList.contains("cat-" + tab) ? "flex" : "none";
     }
   });
+}
+
+function switchView(view) {
+  currentView = view;
+  document.querySelectorAll(".scr-view-tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.view === view);
+  });
+  renderHeader();
+  applyFilters();
+}
+
+function renderHeader() {
+  const cols = VIEW_SETS[currentView];
+  const thead = document.getElementById("screener-thead");
+  thead.innerHTML = "<tr>" + cols.map(col => {
+    const def = COLUMN_DEFS[col];
+    const activeClass = sortCol === col ? (sortDir === 1 ? " sort-asc" : " sort-desc") : "";
+    return `<th class="sortable${activeClass}" data-col="${col}">${def.label} <span class="sort-arrow">↕</span></th>`;
+  }).join("") + "</tr>";
+}
+
+function formatCell(row, col) {
+  const def = COLUMN_DEFS[col];
+  const raw = row[col];
+  switch (def.type) {
+    case "ticker":
+      return `<a class="ticker-link" href="/charts?symbol=${row.symbol}"><strong>${row.symbol}</strong></a>`;
+    case "text":
+      return raw || "—";
+    case "marketcap":
+      return formatMarketCap(raw);
+    case "price":
+      return raw ? "$" + raw : "—";
+    case "pctchange": {
+      const chg = parseFloat(raw) || 0;
+      const cls = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
+      const sign = chg > 0 ? "+" : "";
+      return `<span class="${cls}">${sign}${chg.toFixed(2)}%</span>`;
+    }
+    case "volume":
+      return formatVolume(raw);
+    case "relvol": {
+      const rv = parseFloat(raw) || 0;
+      return rv > 0 ? rv.toFixed(2) + "x" : "—";
+    }
+    case "ratio":
+      return (raw !== undefined && raw !== null && raw !== "") ? raw : "—";
+    case "pct":
+      return (raw !== undefined && raw !== null && raw !== "") ? raw : "—";
+    case "sharesM":
+      return (raw !== undefined && raw !== null && raw !== "") ? raw + "M" : "—";
+    case "sentiment": {
+      const sent = row.sentiment || "None";
+      const sc = row._sc || {};
+      const scTip = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
+      const posts = socialCountMap[row.symbol] || 0;
+      return `<span title="${scTip}"><span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
+        <span style="font-size:10px;color:var(--muted);margin-left:4px;">${posts} posts</span></span>`;
+    }
+    case "score":
+      return formatScore(row.sentiment_score);
+    default:
+      return raw || "—";
+  }
 }
 
 function toggleOrderDir() {
@@ -750,7 +894,7 @@ async function loadScreener() {
 
   } catch (e) {
     document.getElementById("screener-body").innerHTML =
-      '<tr><td colspan="11" class="error">Failed to load data.</td></tr>';
+      `<tr><td colspan="${VIEW_SETS[currentView].length}" class="error">Failed to load data.</td></tr>`;
   }
 }
 
@@ -1058,53 +1202,29 @@ function renderTable(rows) {
   document.getElementById("stat-bullish").textContent = bull;
   document.getElementById("stat-bearish").textContent = bear;
 
+  const cols = VIEW_SETS[currentView];
   const body = document.getElementById("screener-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="11" class="empty">No stocks match your filters.</td></tr>';
+    body.innerHTML = `<tr><td colspan="${cols.length}" class="empty">No stocks match your filters.</td></tr>`;
     return;
   }
   body.innerHTML = rows.map(r => {
-    const chg      = parseFloat(r.change) || 0;
-    const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
-    const chgSign  = chg > 0 ? "+" : "";
-    const sent     = r.sentiment || "None";
-    const rv       = parseFloat(r.relative_volume) || 0;
-    const sc       = r._sc || {};
-    const scTip    = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
-    const posts    = socialCountMap[r.symbol] || 0;
-    const pe       = r.p_e ? r.p_e : "—";
-    return `<tr>
-      <td><a class="ticker-link" href="/charts?symbol=${r.symbol}"><strong>${r.symbol}</strong></a></td>
-      <td>${r.sector || "—"}</td>
-      <td>${r.industry || "—"}</td>
-      <td>$${r.price || "—"}</td>
-      <td class="${chgClass}">${chgSign}${chg.toFixed(2)}%</td>
-      <td>${formatVolume(r.volume)}</td>
-      <td>${rv > 0 ? rv.toFixed(2) + "x" : "—"}</td>
-      <td>${formatMarketCap(r.market_cap)}</td>
-      <td>${pe}</td>
-      <td title="${scTip}">
-        <span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
-        <span style="font-size:10px;color:var(--muted);margin-left:4px;">${posts} posts</span>
-      </td>
-      <td>${formatScore(r.sentiment_score)}</td>
-    </tr>`;
+    return "<tr>" + cols.map(col => `<td>${formatCell(r, col)}</td>`).join("") + "</tr>";
   }).join("");
 }
 
-document.querySelectorAll("th.sortable").forEach(th => {
-  th.addEventListener("click", () => {
-    const col = th.dataset.col;
-    if (sortCol === col) {
-      sortDir *= -1;
-    } else {
-      document.querySelectorAll("th.sortable").forEach(t => t.classList.remove("sort-asc", "sort-desc"));
-      sortCol = col;
-      sortDir = 1;
-    }
-    th.className = "sortable " + (sortDir === 1 ? "sort-asc" : "sort-desc");
-    applyFilters();
-  });
+document.getElementById("screener-thead").addEventListener("click", (e) => {
+  const th = e.target.closest("th.sortable");
+  if (!th) return;
+  const col = th.dataset.col;
+  if (sortCol === col) {
+    sortDir *= -1;
+  } else {
+    sortCol = col;
+    sortDir = 1;
+  }
+  renderHeader();
+  applyFilters();
 });
 
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
@@ -1158,5 +1278,6 @@ document.getElementById("f-score-dir").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadScreener);
 switchTab("descriptive");
+renderHeader();
 </script>
 {% endblock %}
