@@ -39,28 +39,34 @@
 <div class="scr-panel-wrap">
   <button class="scr-toggle-btn" onclick="toggleFilters()">▸ Filters</button>
   <div class="scr-panel" id="scr-panel" style="display:none;">
-    <div class="scr-panel-grid">
+    <div class="scr-tabs">
+      <button class="scr-tab active" data-tab="descriptive" onclick="switchTab('descriptive')">Descriptive</button>
+      <button class="scr-tab" data-tab="fundamental" onclick="switchTab('fundamental')">Fundamental</button>
+      <button class="scr-tab" data-tab="technical" onclick="switchTab('technical')">Technical</button>
+      <button class="scr-tab" data-tab="all" onclick="switchTab('all')">All</button>
+    </div>
+    <div class="scr-panel-grid" id="scr-panel-grid">
 
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">SECTOR</label>
         <select id="f-sector" class="filter-select">
           <option value="">All</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">INDUSTRY</label>
         <select id="f-industry" class="filter-select">
           <option value="">All</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">COUNTRY</label>
         <select id="f-country" class="filter-select">
           <option value="">All</option>
         </select>
       </div>
 
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">MARKET CAP</label>
         <select id="f-mktcap" class="filter-select">
           <option value="">All</option>
@@ -69,7 +75,7 @@
           <option value="large">Large (&gt;$10B)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">PRICE RANGE</label>
         <select id="f-price" class="filter-select">
           <option value="">Any</option>
@@ -80,7 +86,7 @@
           <option value="100">Under $100</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">PRICE CHANGE</label>
         <select id="f-change" class="filter-select">
           <option value="">Any</option>
@@ -92,7 +98,7 @@
           <option value="-10">-10% or more</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">AVG VOLUME</label>
         <select id="f-avgvol" class="filter-select">
           <option value="">Any</option>
@@ -102,7 +108,7 @@
           <option value="5000000">5M+</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">REL VOLUME</label>
         <select id="f-relvol" class="filter-select">
           <option value="">Any</option>
@@ -113,7 +119,7 @@
         </select>
       </div>
 
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">P/E</label>
         <select id="f-pe" class="filter-select">
           <option value="">Any</option>
@@ -124,7 +130,7 @@
           <option value="high">High (&gt;25)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">DIVIDEND YIELD</label>
         <select id="f-divyield" class="filter-select">
           <option value="">Any</option>
@@ -134,7 +140,7 @@
           <option value="4">4%+</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">SHORT FLOAT</label>
         <select id="f-shortfloat" class="filter-select">
           <option value="">Any</option>
@@ -143,7 +149,7 @@
           <option value="20">20%+</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">RSI (14)</label>
         <select id="f-rsi" class="filter-select">
           <option value="">Any</option>
@@ -151,7 +157,7 @@
           <option value="oversold">Oversold (&lt;30)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">PERFORMANCE (MONTH)</label>
         <select id="f-perfmonth" class="filter-select">
           <option value="">Any</option>
@@ -162,13 +168,13 @@
         </select>
       </div>
 
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">INDEX</label>
         <select id="f-index" class="filter-select">
           <option value="">Any</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">ANALYST RECOM</label>
         <select id="f-analyst" class="filter-select">
           <option value="">Any</option>
@@ -178,7 +184,7 @@
           <option value="sell">Sell (&gt;3.5)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">OPTIONABLE</label>
         <select id="f-optionable" class="filter-select">
           <option value="">Any</option>
@@ -186,7 +192,7 @@
           <option value="No">No</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">SHORTABLE</label>
         <select id="f-shortable" class="filter-select">
           <option value="">Any</option>
@@ -194,7 +200,7 @@
           <option value="No">No</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">SHARES OUTSTANDING</label>
         <select id="f-sharesout" class="filter-select">
           <option value="">Any</option>
@@ -204,7 +210,7 @@
           <option value="over1000">Over 1B</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">FLOAT %</label>
         <select id="f-float" class="filter-select">
           <option value="">Any</option>
@@ -213,7 +219,7 @@
           <option value="high">High (&gt;50%)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">IPO DATE</label>
         <select id="f-ipo" class="filter-select">
           <option value="">Any</option>
@@ -222,7 +228,7 @@
           <option value="established">Established (&gt;5 Years)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">TARGET PRICE</label>
         <select id="f-target" class="filter-select">
           <option value="">Any</option>
@@ -231,7 +237,7 @@
         </select>
       </div>
 
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">FORWARD P/E</label>
         <select id="f-fpe" class="filter-select">
           <option value="">Any</option>
@@ -240,7 +246,7 @@
           <option value="high">High (&gt;25)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">PEG</label>
         <select id="f-peg" class="filter-select">
           <option value="">Any</option>
@@ -248,7 +254,7 @@
           <option value="high">High (&gt;1)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">P/S</label>
         <select id="f-ps" class="filter-select">
           <option value="">Any</option>
@@ -257,7 +263,7 @@
           <option value="high">High (&gt;5)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">P/B</label>
         <select id="f-pb" class="filter-select">
           <option value="">Any</option>
@@ -266,7 +272,7 @@
           <option value="high">High (&gt;3)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">EPS GROWTH THIS YEAR</label>
         <select id="f-epsty" class="filter-select">
           <option value="">Any</option>
@@ -275,7 +281,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">EPS GROWTH NEXT YEAR</label>
         <select id="f-epsny" class="filter-select">
           <option value="">Any</option>
@@ -284,7 +290,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">ROE</label>
         <select id="f-roe" class="filter-select">
           <option value="">Any</option>
@@ -293,7 +299,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">ROA</label>
         <select id="f-roa" class="filter-select">
           <option value="">Any</option>
@@ -302,7 +308,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">DEBT/EQUITY</label>
         <select id="f-de" class="filter-select">
           <option value="">Any</option>
@@ -310,7 +316,7 @@
           <option value="high">High (&gt;1)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">GROSS MARGIN</label>
         <select id="f-gm" class="filter-select">
           <option value="">Any</option>
@@ -319,7 +325,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">OPERATING MARGIN</label>
         <select id="f-om" class="filter-select">
           <option value="">Any</option>
@@ -328,7 +334,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">NET MARGIN</label>
         <select id="f-nm" class="filter-select">
           <option value="">Any</option>
@@ -337,7 +343,7 @@
           <option value="neg">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">INSIDER OWNERSHIP</label>
         <select id="f-insown" class="filter-select">
           <option value="">Any</option>
@@ -345,7 +351,7 @@
           <option value="30">Over 30%</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">INSTITUTIONAL OWNERSHIP</label>
         <select id="f-instown" class="filter-select">
           <option value="">Any</option>
@@ -354,7 +360,7 @@
         </select>
       </div>
 
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">SMA20</label>
         <select id="f-sma20" class="filter-select">
           <option value="">Any</option>
@@ -362,7 +368,7 @@
           <option value="below">Price Below SMA20</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">SMA50</label>
         <select id="f-sma50" class="filter-select">
           <option value="">Any</option>
@@ -370,7 +376,7 @@
           <option value="below">Price Below SMA50</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">SMA200</label>
         <select id="f-sma200" class="filter-select">
           <option value="">Any</option>
@@ -378,7 +384,7 @@
           <option value="below">Price Below SMA200</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">52-WEEK RANGE</label>
         <select id="f-52wk" class="filter-select">
           <option value="">Any</option>
@@ -386,7 +392,7 @@
           <option value="near_low">Near 52W Low (&lt;10%)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">PERFORMANCE (WEEK)</label>
         <select id="f-perfweek" class="filter-select">
           <option value="">Any</option>
@@ -394,7 +400,7 @@
           <option value="down">Negative</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-technical">
         <label class="scr-filter-label">PERFORMANCE (YTD)</label>
         <select id="f-perfytd" class="filter-select">
           <option value="">Any</option>
@@ -402,8 +408,11 @@
           <option value="down">Negative</option>
         </select>
       </div>
+    </div>
 
-      <div class="scr-field">
+    <div class="scr-social-heading">Social Sentiment (always shown, not part of FinViz tabs)</div>
+    <div class="scr-panel-grid">
+      <div class="scr-field cat-social">
         <label class="scr-filter-label">SOCIAL SENTIMENT</label>
         <select id="f-sentiment" class="filter-select">
           <option value="">All</option>
@@ -413,7 +422,7 @@
           <option value="strongbear">Strong Bear (&lt;-0.5)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-social">
         <label class="scr-filter-label">MIN POSTS</label>
         <select id="f-posts" class="filter-select">
           <option value="">Any</option>
@@ -423,7 +432,7 @@
           <option value="50">50+</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-social">
         <label class="scr-filter-label">SCORE RANGE</label>
         <select id="f-score-range" class="filter-select">
           <option value="">Any</option>
@@ -434,7 +443,7 @@
           <option value="strongbear">Strong Bear (&lt;-0.5)</option>
         </select>
       </div>
-      <div class="scr-field">
+      <div class="scr-field cat-social">
         <label class="scr-filter-label">SCORE DIRECTION</label>
         <select id="f-score-dir" class="filter-select">
           <option value="">Any</option>
@@ -533,6 +542,36 @@
   gap: 0.35rem;
 }
 .scr-field .filter-select { width: 100%; }
+.scr-tabs {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+}
+.scr-tab {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--muted);
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.scr-tab:hover { color: var(--text); border-color: var(--accent); }
+.scr-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.scr-social-heading {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 1rem 0 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
 .scr-reset-btn {
   background: transparent;
   border: 1px solid var(--border);
@@ -619,6 +658,19 @@ function toggleFilters() {
   const open  = panel.style.display === "none";
   panel.style.display = open ? "block" : "none";
   btn.textContent = (open ? "▾" : "▸") + " Filters";
+}
+
+function switchTab(tab) {
+  document.querySelectorAll(".scr-tab").forEach(btn => {
+    btn.classList.toggle("active", btn.dataset.tab === tab);
+  });
+  document.querySelectorAll("#scr-panel-grid .scr-field").forEach(field => {
+    if (tab === "all") {
+      field.style.display = "flex";
+    } else {
+      field.style.display = field.classList.contains("cat-" + tab) ? "flex" : "none";
+    }
+  });
 }
 
 function toggleOrderDir() {
@@ -1105,5 +1157,6 @@ document.getElementById("f-score-range").addEventListener("change", applyFilters
 document.getElementById("f-score-dir").addEventListener("change", applyFilters);
 
 window.registerPageLoader(loadScreener);
+switchTab("descriptive");
 </script>
 {% endblock %}
