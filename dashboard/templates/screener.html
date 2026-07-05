@@ -23,9 +23,9 @@
       <option value="">Default</option>
       <option value="symbol">Ticker</option>
       <option value="price">Price</option>
-      <option value="change_pct">Change %</option>
+      <option value="change">Change %</option>
       <option value="volume">Volume</option>
-      <option value="rel_volume">Rel Vol</option>
+      <option value="relative_volume">Rel Vol</option>
       <option value="market_cap">Market Cap</option>
       <option value="sentiment_score">Sentiment Score</option>
     </select>
@@ -40,6 +40,26 @@
   <button class="scr-toggle-btn" onclick="toggleFilters()">▸ Filters</button>
   <div class="scr-panel" id="scr-panel" style="display:none;">
     <div class="scr-panel-grid">
+
+      <div class="scr-field">
+        <label class="scr-filter-label">SECTOR</label>
+        <select id="f-sector" class="filter-select">
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">INDUSTRY</label>
+        <select id="f-industry" class="filter-select">
+          <option value="">All</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">COUNTRY</label>
+        <select id="f-country" class="filter-select">
+          <option value="">All</option>
+        </select>
+      </div>
+
       <div class="scr-field">
         <label class="scr-filter-label">MARKET CAP</label>
         <select id="f-mktcap" class="filter-select">
@@ -92,6 +112,56 @@
           <option value="5">5x+</option>
         </select>
       </div>
+
+      <div class="scr-field">
+        <label class="scr-filter-label">P/E</label>
+        <select id="f-pe" class="filter-select">
+          <option value="">Any</option>
+          <option value="profitable">Profitable (P/E &gt; 0)</option>
+          <option value="unprofitable">Unprofitable (no P/E)</option>
+          <option value="low">Low (&lt;15)</option>
+          <option value="mid">Mid (15–25)</option>
+          <option value="high">High (&gt;25)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">DIVIDEND YIELD</label>
+        <select id="f-divyield" class="filter-select">
+          <option value="">Any</option>
+          <option value="none">None</option>
+          <option value="1">1%+</option>
+          <option value="2">2%+</option>
+          <option value="4">4%+</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">SHORT FLOAT</label>
+        <select id="f-shortfloat" class="filter-select">
+          <option value="">Any</option>
+          <option value="5">5%+</option>
+          <option value="10">10%+</option>
+          <option value="20">20%+</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">RSI (14)</label>
+        <select id="f-rsi" class="filter-select">
+          <option value="">Any</option>
+          <option value="overbought">Overbought (&gt;70)</option>
+          <option value="oversold">Oversold (&lt;30)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">PERFORMANCE (MONTH)</label>
+        <select id="f-perfmonth" class="filter-select">
+          <option value="">Any</option>
+          <option value="up">Positive</option>
+          <option value="down">Negative</option>
+          <option value="10">+10% or more</option>
+          <option value="-10">-10% or more</option>
+        </select>
+      </div>
+
       <div class="scr-field">
         <label class="scr-filter-label">SOCIAL SENTIMENT</label>
         <select id="f-sentiment" class="filter-select">
@@ -149,17 +219,20 @@
     <thead>
       <tr>
         <th class="sortable" data-col="symbol">Symbol <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="sector">Sector <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="industry">Industry <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="price">Price <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="change_pct">Change % <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="change">Change % <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="volume">Volume <span class="sort-arrow">↕</span></th>
-        <th class="sortable" data-col="rel_volume">Rel Vol <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="relative_volume">Rel Vol <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="market_cap">Mkt Cap <span class="sort-arrow">↕</span></th>
+        <th class="sortable" data-col="p_e">P/E <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="sentiment">Sentiment <span class="sort-arrow">↕</span></th>
         <th class="sortable" data-col="sentiment_score">Score <span class="sort-arrow">↕</span></th>
       </tr>
     </thead>
     <tbody id="screener-body">
-      <tr><td colspan="8" class="loading">Loading...</td></tr>
+      <tr><td colspan="11" class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -293,6 +366,12 @@ function parseMarketCapNum(val) {
   return parseFloat(s.replace(/,/g, "")) || 0;
 }
 
+function parsePercent(val) {
+  if (val === undefined || val === null || val === "") return null;
+  const n = parseFloat(String(val).replace(/[%,]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
 function toggleFilters() {
   const panel = document.getElementById("scr-panel");
   const btn   = document.querySelector(".scr-toggle-btn");
@@ -308,13 +387,24 @@ function toggleOrderDir() {
 }
 
 function resetFilters() {
-  ["f-mktcap","f-price","f-change","f-avgvol","f-relvol","f-sentiment","f-posts","f-score-range","f-score-dir"].forEach(id => {
+  ["f-sector","f-industry","f-country","f-mktcap","f-price","f-change","f-avgvol","f-relvol",
+   "f-pe","f-divyield","f-shortfloat","f-rsi","f-perfmonth",
+   "f-sentiment","f-posts","f-score-range","f-score-dir"].forEach(id => {
     document.getElementById(id).value = "";
   });
   document.getElementById("filter-signal").value = "";
   document.getElementById("filter-symbol").value = "";
   document.getElementById("filter-order").value  = "";
   applyFilters();
+}
+
+function populateDropdown(id, values) {
+  const sel = document.getElementById(id);
+  const current = sel.value;
+  const opts = ['<option value="">All</option>'];
+  values.forEach(v => opts.push(`<option value="${v}">${v}</option>`));
+  sel.innerHTML = opts.join("");
+  sel.value = current;
 }
 
 async function loadScreener() {
@@ -352,6 +442,11 @@ async function loadScreener() {
       return { ...r, sentiment: dominant, sentiment_score, _sc: sc };
     });
 
+    // Populate dropdowns dynamically from whatever FinViz actually returned
+    populateDropdown("f-sector",   [...new Set(allRows.map(r => r.sector).filter(Boolean))].sort());
+    populateDropdown("f-industry", [...new Set(allRows.map(r => r.industry).filter(Boolean))].sort());
+    populateDropdown("f-country",  [...new Set(allRows.map(r => r.country).filter(Boolean))].sort());
+
     applyFilters();
 
     let bull = 0, bear = 0;
@@ -365,32 +460,49 @@ async function loadScreener() {
 
   } catch (e) {
     document.getElementById("screener-body").innerHTML =
-      '<tr><td colspan="8" class="error">Failed to load data.</td></tr>';
+      '<tr><td colspan="11" class="error">Failed to load data.</td></tr>';
   }
 }
 
 function applyFilters() {
-  const sym      = document.getElementById("filter-symbol").value.toUpperCase();
-  const signal   = document.getElementById("filter-signal").value;
-  const orderCol = document.getElementById("filter-order").value;
-  const mktcap   = document.getElementById("f-mktcap").value;
-  const price    = document.getElementById("f-price").value;
-  const change   = document.getElementById("f-change").value;
-  const avgvol   = document.getElementById("f-avgvol").value;
-  const relvol   = document.getElementById("f-relvol").value;
+  const sym       = document.getElementById("filter-symbol").value.toUpperCase();
+  const signal    = document.getElementById("filter-signal").value;
+  const orderCol  = document.getElementById("filter-order").value;
+  const sector    = document.getElementById("f-sector").value;
+  const industry  = document.getElementById("f-industry").value;
+  const country   = document.getElementById("f-country").value;
+  const mktcap    = document.getElementById("f-mktcap").value;
+  const price     = document.getElementById("f-price").value;
+  const change    = document.getElementById("f-change").value;
+  const avgvol    = document.getElementById("f-avgvol").value;
+  const relvol    = document.getElementById("f-relvol").value;
+  const peFilter  = document.getElementById("f-pe").value;
+  const divYield  = document.getElementById("f-divyield").value;
+  const shortFloat = document.getElementById("f-shortfloat").value;
+  const rsiFilter = document.getElementById("f-rsi").value;
+  const perfMonth = document.getElementById("f-perfmonth").value;
   const sentiment = document.getElementById("f-sentiment").value;
-  const posts    = document.getElementById("f-posts").value;
+  const posts     = document.getElementById("f-posts").value;
 
   let filtered = allRows.filter(r => {
-    const chg    = parseFloat(r.change_pct) || 0;
+    const chg    = parseFloat(r.change) || 0;
     const pr     = parseFloat(r.price) || 0;
-    const rv     = parseFloat(r.rel_volume) || 0;
-    const av     = parseInt(String(r.avg_volume || "0").replace(/,/g, "")) || 0;
+    const rv     = parseFloat(r.relative_volume) || 0;
+    const av     = parseInt(String(r.average_volume || "0").replace(/,/g, "")) || 0;
     const mc     = parseMarketCapNum(r.market_cap);
+    const pe     = parseFloat(r.p_e);
+    const dy     = parsePercent(r.dividend_yield);
+    const sf     = parsePercent(r.short_float);
+    const rsi    = parseFloat(r.relative_strength_index_14);
+    const perfM  = parsePercent(r.performance_month);
     const score  = r.sentiment_score;
     const pcount = socialCountMap[r.symbol] || 0;
 
     if (sym && !r.symbol.includes(sym)) return false;
+
+    if (sector   && r.sector !== sector)     return false;
+    if (industry && r.industry !== industry) return false;
+    if (country  && r.country !== country)   return false;
 
     if (signal === "bullish" && r.sentiment !== "Bullish") return false;
     if (signal === "bearish" && r.sentiment !== "Bearish") return false;
@@ -412,7 +524,30 @@ function applyFilters() {
     if (avgvol && av < parseInt(avgvol)) return false;
     if (relvol && rv < parseFloat(relvol)) return false;
 
-if (sentiment === "bullish"    && (score === null || score <= 0.05))  return false;
+    if (peFilter === "profitable"   && !(pe > 0))          return false;
+    if (peFilter === "unprofitable" && !(isNaN(pe) || pe <= 0)) return false;
+    if (peFilter === "low"          && !(pe > 0 && pe < 15))  return false;
+    if (peFilter === "mid"          && !(pe >= 15 && pe <= 25)) return false;
+    if (peFilter === "high"         && !(pe > 25))          return false;
+
+    if (divYield === "none" && !(dy === null || dy === 0)) return false;
+    if (divYield === "1"    && !(dy >= 1)) return false;
+    if (divYield === "2"    && !(dy >= 2)) return false;
+    if (divYield === "4"    && !(dy >= 4)) return false;
+
+    if (shortFloat === "5"  && !(sf >= 5))  return false;
+    if (shortFloat === "10" && !(sf >= 10)) return false;
+    if (shortFloat === "20" && !(sf >= 20)) return false;
+
+    if (rsiFilter === "overbought" && !(rsi > 70)) return false;
+    if (rsiFilter === "oversold"   && !(rsi < 30)) return false;
+
+    if (perfMonth === "up"   && !(perfM > 0))   return false;
+    if (perfMonth === "down" && !(perfM < 0))   return false;
+    if (perfMonth === "10"   && !(perfM >= 10)) return false;
+    if (perfMonth === "-10"  && !(perfM <= -10)) return false;
+
+    if (sentiment === "bullish"    && (score === null || score <= 0.05))  return false;
     if (sentiment === "bearish"    && (score === null || score >= -0.05)) return false;
     if (sentiment === "strongbull" && (score === null || score <= 0.09))  return false;
     if (sentiment === "strongbear" && (score === null || score >= -0.09)) return false;
@@ -472,25 +607,29 @@ function formatScore(score) {
 function renderTable(rows) {
   const body = document.getElementById("screener-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty">No stocks match your filters.</td></tr>';
+    body.innerHTML = '<tr><td colspan="11" class="empty">No stocks match your filters.</td></tr>';
     return;
   }
   body.innerHTML = rows.map(r => {
-    const chg      = parseFloat(r.change_pct) || 0;
+    const chg      = parseFloat(r.change) || 0;
     const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
     const chgSign  = chg > 0 ? "+" : "";
     const sent     = r.sentiment || "None";
-    const rv       = parseFloat(r.rel_volume) || 0;
+    const rv       = parseFloat(r.relative_volume) || 0;
     const sc       = r._sc || {};
     const scTip    = `Bullish: ${sc.bullish||0}  Bearish: ${sc.bearish||0}  Neutral: ${sc.none||0}`;
     const posts    = socialCountMap[r.symbol] || 0;
+    const pe       = r.p_e ? r.p_e : "—";
     return `<tr>
       <td><a class="ticker-link" href="/charts?symbol=${r.symbol}"><strong>${r.symbol}</strong></a></td>
+      <td>${r.sector || "—"}</td>
+      <td>${r.industry || "—"}</td>
       <td>$${r.price || "—"}</td>
       <td class="${chgClass}">${chgSign}${chg.toFixed(2)}%</td>
       <td>${formatVolume(r.volume)}</td>
       <td>${rv > 0 ? rv.toFixed(2) + "x" : "—"}</td>
       <td>${formatMarketCap(r.market_cap)}</td>
+      <td>${pe}</td>
       <td title="${scTip}">
         <span class="sent-badge sent-${sent.toLowerCase()}">${sent}</span>
         <span style="font-size:10px;color:var(--muted);margin-left:4px;">${posts} posts</span>
@@ -518,11 +657,19 @@ document.querySelectorAll("th.sortable").forEach(th => {
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
 document.getElementById("filter-signal").addEventListener("change", applyFilters);
 document.getElementById("filter-order").addEventListener("change", applyFilters);
+document.getElementById("f-sector").addEventListener("change", applyFilters);
+document.getElementById("f-industry").addEventListener("change", applyFilters);
+document.getElementById("f-country").addEventListener("change", applyFilters);
 document.getElementById("f-mktcap").addEventListener("change", applyFilters);
 document.getElementById("f-price").addEventListener("change", applyFilters);
 document.getElementById("f-change").addEventListener("change", applyFilters);
 document.getElementById("f-avgvol").addEventListener("change", applyFilters);
 document.getElementById("f-relvol").addEventListener("change", applyFilters);
+document.getElementById("f-pe").addEventListener("change", applyFilters);
+document.getElementById("f-divyield").addEventListener("change", applyFilters);
+document.getElementById("f-shortfloat").addEventListener("change", applyFilters);
+document.getElementById("f-rsi").addEventListener("change", applyFilters);
+document.getElementById("f-perfmonth").addEventListener("change", applyFilters);
 document.getElementById("f-sentiment").addEventListener("change", applyFilters);
 document.getElementById("f-posts").addEventListener("change", applyFilters);
 document.getElementById("f-score-range").addEventListener("change", applyFilters);
