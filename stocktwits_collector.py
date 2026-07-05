@@ -253,7 +253,19 @@ def main():
     if fv_rows:
         upsert_finviz(fv_rows)
         print(f"✓ {len(fv_rows)} FinViz rows upserted to MongoDB.")
-
+# Update 5-minute OHLC for watchlist
+    print("\nUpdating 5m OHLC...")
+    import yfinance as yf
+    for symbol in watchlist:
+        try:
+            df = yf.Ticker(symbol).history(period="1d", interval="5m")
+            if df.empty:
+                continue
+            rows = [{"date": ts.strftime("%Y-%m-%d %H:%M"), "open": round(float(r["Open"]),4), "high": round(float(r["High"]),4), "low": round(float(r["Low"]),4), "close": round(float(r["Close"]),4), "volume": int(r["Volume"])} for ts, r in df.iterrows()]
+            save_ohlc(symbol, rows)
+            print(f"  [{symbol}] {len(rows)} bars updated.")
+        except Exception as e:
+            print(f"  [{symbol}] Error: {e}")
     print("\n✓ All done!")
 
 
