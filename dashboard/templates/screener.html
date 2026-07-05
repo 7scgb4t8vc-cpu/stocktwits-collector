@@ -163,6 +163,75 @@
       </div>
 
       <div class="scr-field">
+        <label class="scr-filter-label">INDEX</label>
+        <select id="f-index" class="filter-select">
+          <option value="">Any</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">ANALYST RECOM</label>
+        <select id="f-analyst" class="filter-select">
+          <option value="">Any</option>
+          <option value="strongbuy">Strong Buy (&le;1.5)</option>
+          <option value="buy">Buy (1.5–2.5)</option>
+          <option value="hold">Hold (2.5–3.5)</option>
+          <option value="sell">Sell (&gt;3.5)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">OPTIONABLE</label>
+        <select id="f-optionable" class="filter-select">
+          <option value="">Any</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">SHORTABLE</label>
+        <select id="f-shortable" class="filter-select">
+          <option value="">Any</option>
+          <option value="Yes">Yes</option>
+          <option value="No">No</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">SHARES OUTSTANDING</label>
+        <select id="f-sharesout" class="filter-select">
+          <option value="">Any</option>
+          <option value="50">Under 50M</option>
+          <option value="200">50M–200M</option>
+          <option value="1000">200M–1B</option>
+          <option value="over1000">Over 1B</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">FLOAT %</label>
+        <select id="f-float" class="filter-select">
+          <option value="">Any</option>
+          <option value="low">Low (&lt;20%)</option>
+          <option value="mid">Mid (20–50%)</option>
+          <option value="high">High (&gt;50%)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">IPO DATE</label>
+        <select id="f-ipo" class="filter-select">
+          <option value="">Any</option>
+          <option value="2">Last 2 Years</option>
+          <option value="5">Last 5 Years</option>
+          <option value="established">Established (&gt;5 Years)</option>
+        </select>
+      </div>
+      <div class="scr-field">
+        <label class="scr-filter-label">TARGET PRICE</label>
+        <select id="f-target" class="filter-select">
+          <option value="">Any</option>
+          <option value="above">Above Price (Upside)</option>
+          <option value="below">Below Price (Downside)</option>
+        </select>
+      </div>
+
+      <div class="scr-field">
         <label class="scr-filter-label">SOCIAL SENTIMENT</label>
         <select id="f-sentiment" class="filter-select">
           <option value="">All</option>
@@ -389,6 +458,7 @@ function toggleOrderDir() {
 function resetFilters() {
   ["f-sector","f-industry","f-country","f-mktcap","f-price","f-change","f-avgvol","f-relvol",
    "f-pe","f-divyield","f-shortfloat","f-rsi","f-perfmonth",
+   "f-index","f-analyst","f-optionable","f-shortable","f-sharesout","f-float","f-ipo","f-target",
    "f-sentiment","f-posts","f-score-range","f-score-dir"].forEach(id => {
     document.getElementById(id).value = "";
   });
@@ -446,6 +516,9 @@ async function loadScreener() {
     populateDropdown("f-sector",   [...new Set(allRows.map(r => r.sector).filter(Boolean))].sort());
     populateDropdown("f-industry", [...new Set(allRows.map(r => r.industry).filter(Boolean))].sort());
     populateDropdown("f-country",  [...new Set(allRows.map(r => r.country).filter(Boolean))].sort());
+    const indexSet = new Set();
+    allRows.forEach(r => (r.index || "").split(",").map(s => s.trim()).filter(Boolean).forEach(v => indexSet.add(v)));
+    populateDropdown("f-index", [...indexSet].sort());
 
     applyFilters();
 
@@ -481,6 +554,14 @@ function applyFilters() {
   const shortFloat = document.getElementById("f-shortfloat").value;
   const rsiFilter = document.getElementById("f-rsi").value;
   const perfMonth = document.getElementById("f-perfmonth").value;
+  const indexFilter = document.getElementById("f-index").value;
+  const analyst    = document.getElementById("f-analyst").value;
+  const optionable = document.getElementById("f-optionable").value;
+  const shortable  = document.getElementById("f-shortable").value;
+  const sharesOut  = document.getElementById("f-sharesout").value;
+  const floatPct   = document.getElementById("f-float").value;
+  const ipoFilter  = document.getElementById("f-ipo").value;
+  const targetFilter = document.getElementById("f-target").value;
   const sentiment = document.getElementById("f-sentiment").value;
   const posts     = document.getElementById("f-posts").value;
 
@@ -546,6 +627,42 @@ function applyFilters() {
     if (perfMonth === "down" && !(perfM < 0))   return false;
     if (perfMonth === "10"   && !(perfM >= 10)) return false;
     if (perfMonth === "-10"  && !(perfM <= -10)) return false;
+
+    if (indexFilter && !((r.index || "").includes(indexFilter))) return false;
+
+    const rec = parseFloat(r.analyst_recom);
+    if (analyst === "strongbuy" && !(rec <= 1.5)) return false;
+    if (analyst === "buy"       && !(rec > 1.5 && rec <= 2.5)) return false;
+    if (analyst === "hold"      && !(rec > 2.5 && rec <= 3.5)) return false;
+    if (analyst === "sell"      && !(rec > 3.5)) return false;
+
+    if (optionable && r.optionable !== optionable) return false;
+    if (shortable  && r.shortable  !== shortable)  return false;
+
+    const shrOut = parseFloat(r.shares_outstanding); // in millions
+    if (sharesOut === "50"       && !(shrOut < 50))               return false;
+    if (sharesOut === "200"      && !(shrOut >= 50 && shrOut < 200)) return false;
+    if (sharesOut === "1000"     && !(shrOut >= 200 && shrOut < 1000)) return false;
+    if (sharesOut === "over1000" && !(shrOut >= 1000))            return false;
+
+    const fl = parsePercent(r.float);
+    if (floatPct === "low"  && !(fl !== null && fl < 20))  return false;
+    if (floatPct === "mid"  && !(fl !== null && fl >= 20 && fl <= 50)) return false;
+    if (floatPct === "high" && !(fl !== null && fl > 50)) return false;
+
+    if (ipoFilter && r.ipo_date) {
+      const ipoDt = new Date(r.ipo_date);
+      const yearsAgo = (Date.now() - ipoDt.getTime()) / (1000 * 60 * 60 * 24 * 365);
+      if (ipoFilter === "2" && !(yearsAgo <= 2)) return false;
+      if (ipoFilter === "5" && !(yearsAgo <= 5)) return false;
+      if (ipoFilter === "established" && !(yearsAgo > 5)) return false;
+    } else if (ipoFilter) {
+      return false;
+    }
+
+    const tgt = parseFloat(r.target_price);
+    if (targetFilter === "above" && !(tgt > pr)) return false;
+    if (targetFilter === "below" && !(tgt > 0 && tgt < pr)) return false;
 
     if (sentiment === "bullish"    && (score === null || score <= 0.05))  return false;
     if (sentiment === "bearish"    && (score === null || score >= -0.05)) return false;
@@ -670,6 +787,14 @@ document.getElementById("f-divyield").addEventListener("change", applyFilters);
 document.getElementById("f-shortfloat").addEventListener("change", applyFilters);
 document.getElementById("f-rsi").addEventListener("change", applyFilters);
 document.getElementById("f-perfmonth").addEventListener("change", applyFilters);
+document.getElementById("f-index").addEventListener("change", applyFilters);
+document.getElementById("f-analyst").addEventListener("change", applyFilters);
+document.getElementById("f-optionable").addEventListener("change", applyFilters);
+document.getElementById("f-shortable").addEventListener("change", applyFilters);
+document.getElementById("f-sharesout").addEventListener("change", applyFilters);
+document.getElementById("f-float").addEventListener("change", applyFilters);
+document.getElementById("f-ipo").addEventListener("change", applyFilters);
+document.getElementById("f-target").addEventListener("change", applyFilters);
 document.getElementById("f-sentiment").addEventListener("change", applyFilters);
 document.getElementById("f-posts").addEventListener("change", applyFilters);
 document.getElementById("f-score-range").addEventListener("change", applyFilters);
