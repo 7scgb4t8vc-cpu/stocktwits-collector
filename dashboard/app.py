@@ -240,30 +240,57 @@ def compute_sma(closes: list, period: int) -> list:
     return result
 
 
-def load_ohlc_data(symbol: str):
+def bucket_key(ts_str: str, interval: str):
+    dt = parse_timestamp(ts_str)
+    if not dt:
+        return None
+    if interval == "5m":
+        discard = dt.minute % 5
+        dt = dt - timedelta(minutes=discard, seconds=dt.second, microseconds=dt.microsecond)
+        return dt.strftime("%Y-%m-%d %H:%M")
+    if interval == "1h":
+        return dt.strftime("%Y-%m-%d %H:00")
+    if interval == "1w":
+        iso = dt.isocalendar()
+        return f"{iso[0]}-W{iso[1]:02d}"
+    return dt.strftime("%Y-%m-%d")  # "1d"
+
+
+def load_ohlc_data(symbol: str, interval: str = "1d"):
     symbol = symbol.upper()
-    rows = get_ohlc(symbol)
-    if not rows:
+    rows = get_price_history(symbol)
+
+    buckets = {}
+    for r in rows:
+        key = bucket_key(r.get("timestamp", ""), interval)
+        if not key:
+            continue
+        try:
+            price = float(str(r.get("price", "")).replace(",", "").strip())
+        except (TypeError, ValueError):
+            continue
+        try:
+            vol = int(str(r.get("volume", "0")).replace(",", "").strip())
+        except (TypeError, ValueError):
+            vol = 0
+        if key not in buckets:
+            buckets[key] = {"date": key, "open": price, "high": price, "low": price, "close": price, "volume": vol}
+        else:
+            b = buckets[key]
+            b["high"]   = max(b["high"], price)
+            b["low"]    = min(b["low"], price)
+            b["close"]  = price
+            b["volume"] = vol
+
+    ordered = [buckets[k] for k in sorted(buckets.keys())]
+    if not ordered:
         return {"symbol": symbol, "candles": []}
 
-    closes = [r["close"] for r in rows]
+    closes = [r["close"] for r in ordered]
     sma50  = compute_sma(closes, 50)
     sma200 = compute_sma(closes, 200)
 
-    candles = [
-        {
-            "date":   r["date"],
-            "open":   r["open"],
-            "high":   r["high"],
-            "low":    r["low"],
-            "close":  r["close"],
-            "volume": r["volume"],
-            "sma50":  sma50[i],
-            "sma200": sma200[i],
-        }
-        for i, r in enumerate(rows)
-    ]
-
+    candles = [{**r, "sma50": sma50[i], "sma200": sma200[i]} for i, r in enumerate(ordered)]
     return {"symbol": symbol, "candles": candles}
 
 
@@ -408,7 +435,8 @@ def api_charts_symbol_full(symbol):
 def api_ohlc(symbol):
     if symbol.upper() not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
-    return jsonify(load_ohlc_data(symbol))
+    interval = request.args.get("interval", "1d")
+    return jsonify(load_ohlc_data(symbol, interval))
 
 
 @app.route("/api/momentum")
