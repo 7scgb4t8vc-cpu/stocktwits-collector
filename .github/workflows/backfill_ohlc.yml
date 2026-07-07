@@ -1,0 +1,19 @@
+name: Backfill OHLC History
+on:
+  workflow_dispatch:
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install yfinance pytz pymongo
+      - name: Run OHLC backfill
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: python backfill_ohlc.py
