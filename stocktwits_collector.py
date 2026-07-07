@@ -33,7 +33,7 @@ FINVIZ_COLUMNS = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,
 
 FINVIZ_URL = (
     "https://elite.finviz.com/export?v=152"
-    "&f=sh_avgvol_o10000,sh_curvol_o5000,sh_price_o20,ta_rsi_nos60,geo_usa,cap_midover"
+    "&f=sh_avgvol_o10000,sh_curvol_o5000,ta_rsi_nos60,geo_usa"
     "&ft=4&c={columns}&auth={token}"
 )
 ST_HEADERS = {
@@ -160,88 +160,70 @@ def main():
 
     cursors = load_cursors()
 
-    # ── Load or build watchlist ───────────────────────────────────────────────
+    # ── User-managed watchlist (added/removed from the Screener page) ────────
     watchlist = load_watchlist()
+    print(f"\nCurrent user watchlist ({len(watchlist)} symbols): {watchlist}")
+
+    # ── Always fetch the full FinViz screener universe (not just watchlist) ──
+    print("\nFetching FinViz screener universe...")
+    fv_screener_rows = fetch_finviz_screener(finviz_token)
+    fv_lookup = {r.get("Ticker", "").strip(): r for r in fv_screener_rows}
+
+    fv_rows = []
+    for symbol, fv_raw in fv_lookup.items():
+        if not symbol:
+            continue
+        fv_data = parse_finviz_row(fv_raw)
+        fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
+        log_price(symbol, timestamp, fv_data.get("price"), fv_data.get("change"), fv_data.get("volume"))
+
+    if fv_rows:
+        upsert_finviz(fv_rows)
+        print(f"✓ {len(fv_rows)} FinViz rows upserted (full screener universe).")
+    else:
+        print("  No results from FinViz screener this run.")
+
+    # ── Collect StockTwits messages only for user-selected watchlist stocks ──
+    st_rows = []
 
     if not watchlist:
-        print("\nNo permanent watchlist found. Running FinViz filter to build one...")
-        fv_screener_rows = fetch_finviz_screener(finviz_token)
-        if not fv_screener_rows:
-            print("  No results from FinViz screener — cannot build watchlist.")
-            return
-
-        # Sort by volume descending, take top 30
-        def parse_volume(row):
-            try:
-                return int(str(row.get("Volume", "0")).replace(",", ""))
-            except:
-                return 0
-
-        fv_screener_rows.sort(key=parse_volume, reverse=True)
-        top_rows = fv_screener_rows[:WATCHLIST_SIZE]
-        watchlist = [r.get("Ticker", "").strip() for r in top_rows if r.get("Ticker", "").strip()]
-        save_watchlist(watchlist)
-        print(f"  Permanent watchlist: {watchlist}")
-
-        # Build fv_lookup from these rows so we don't re-fetch
-        fv_lookup = {r.get("Ticker", "").strip(): r for r in top_rows}
+        print("\nNo stocks in your watchlist yet — add some from the Screener page.")
     else:
-        print(f"\nLoaded permanent watchlist ({len(watchlist)} symbols): {watchlist}")
+        print("\nCollecting StockTwits messages for watchlist stocks...")
+        for symbol in watchlist:
+            since_id = cursors.get(symbol)
 
-        # Fetch fresh FinViz data for watchlist symbols
-        print("\nFetching fresh FinViz data...")
-        fv_screener_rows = fetch_finviz_screener(finviz_token)
-        fv_lookup = {r.get("Ticker", "").strip(): r for r in fv_screener_rows}
+            print(f"  [{symbol}] Fetching messages (since_id={since_id})...", end=" ")
+            try:
+                messages = fetch_messages(symbol, since_id)
+            except Exception as e:
+                print(f"✗ Error: {e}")
+                messages = []
 
-    # ── Collect data ──────────────────────────────────────────────────────────
-    st_rows = []
-    fv_rows = []
+            if messages:
+                cursors[symbol] = messages[0]["id"]
+                accepted = 0
+                for msg in messages:
+                    body = msg.get("body", "").replace("\n", " ").strip()
+                    cleaned = clean_message(body)
+                    if not is_quality_message(cleaned):
+                        continue
+                    st_rows.append({
+                        "_id":        msg["id"],
+                        "timestamp":  timestamp,
+                        "created_at": msg.get("created_at", timestamp),
+                        "symbol":     symbol,
+                        "message":    cleaned,
+                        "sentiment":  get_sentiment(msg),
+                        "likes":      msg.get("likes", {}).get("total", 0),
+                        "reshares":   msg.get("reshares", {}).get("reshared_count", 0),
+                    })
+                    accepted += 1
+                print(f"{len(messages)} fetched, {accepted} passed filters.")
+            else:
+                print("No new messages.")
 
-    print("\nCollecting StockTwits messages...")
-    for symbol in watchlist:
-        since_id = cursors.get(symbol)
-        fv_raw   = fv_lookup.get(symbol)
-
-        if fv_raw:
-            fv_data = parse_finviz_row(fv_raw)
-            print(f"  [{symbol}] Price={fv_data.get('price')} Chg={fv_data.get('change')} "
-                  f"Vol={fv_data.get('volume')} P/E={fv_data.get('p_e')} Cap={fv_data.get('market_cap')}")
-            fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
-            log_price(symbol, timestamp, fv_data.get("price"), fv_data.get("change"), fv_data.get("volume"))
-        else:
-            print(f"  [{symbol}] No FinViz data today (not in filter results).")
-
-        print(f"  [{symbol}] Fetching messages (since_id={since_id})...", end=" ")
-        try:
-            messages = fetch_messages(symbol, since_id)
-        except Exception as e:
-            print(f"✗ Error: {e}")
-            messages = []
-
-        if messages:
-            cursors[symbol] = messages[0]["id"]
-            accepted = 0
-            for msg in messages:
-                body = msg.get("body", "").replace("\n", " ").strip()
-                cleaned = clean_message(body)
-                if not is_quality_message(cleaned):
-                    continue
-                st_rows.append({
-                    "_id":        msg["id"],
-                    "timestamp":  timestamp,
-                    "created_at": msg.get("created_at", timestamp),
-                    "symbol":     symbol,
-                    "message":    cleaned,
-                    "sentiment":  get_sentiment(msg),
-                    "likes":      msg.get("likes", {}).get("total", 0),
-                    "reshares":   msg.get("reshares", {}).get("reshared_count", 0),
-                })
-                accepted += 1
-            print(f"{len(messages)} fetched, {accepted} passed filters.")
-        else:
-            print("No new messages.")
-
-        time.sleep(REQUEST_DELAY)
+            time.sleep(REQUEST_DELAY)
 
     if st_rows:
         insert_messages(st_rows)
@@ -249,10 +231,6 @@ def main():
         print(f"\n✓ {len(st_rows)} new StockTwits messages saved to MongoDB.")
     else:
         print("\n✓ No new StockTwits messages this run.")
-
-    if fv_rows:
-        upsert_finviz(fv_rows)
-        print(f"✓ {len(fv_rows)} FinViz rows upserted to MongoDB.")
 
     # Update today's OHLC candle from FinViz price snapshots already stored
     # via log_price() — no external market-data API needed.
