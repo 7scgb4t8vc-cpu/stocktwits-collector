@@ -14,15 +14,15 @@ ET = pytz.timezone("America/New_York")
 
 def backfill():
     watchlist = get_watchlist()
-    print(f"Backfilling {len(watchlist)} symbols...")
+    print(f"Backfilling {len(watchlist)} symbols...", flush=True)
 
     for symbol in watchlist:
-        print(f"  [{symbol}] Fetching 5m OHLC...", end=" ")
+        print(f"  [{symbol}] Fetching 5m OHLC...", end=" ", flush=True)
         try:
             ticker = yf.Ticker(symbol)
-            df = ticker.history(period="60d", interval="5m")
+            df = ticker.history(period="60d", interval="5m", timeout=15)
             if df.empty:
-                print("No data.")
+                print("No data.", flush=True)
                 continue
 
             rows = []
@@ -40,11 +40,11 @@ def backfill():
                 })
 
             save_ohlc(symbol, rows)
-            print(f"{len(rows)} bars saved.")
+            print(f"{len(rows)} bars saved.", flush=True)
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error: {e}", flush=True)
 
-    print("\nDone!")
+    print("\nDone!", flush=True)
 
 if __name__ == "__main__":
     backfill()
