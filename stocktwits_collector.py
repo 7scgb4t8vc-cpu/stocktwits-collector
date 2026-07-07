@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -253,19 +253,44 @@ def main():
     if fv_rows:
         upsert_finviz(fv_rows)
         print(f"✓ {len(fv_rows)} FinViz rows upserted to MongoDB.")
-# Update 5-minute OHLC for watchlist
-    print("\nUpdating 5m OHLC...")
-    import yfinance as yf
+
+    # Update today's OHLC candle from FinViz price snapshots already stored
+    # via log_price() — no external market-data API needed.
+    print("\nUpdating OHLC from FinViz price history...")
+    today = timestamp[:10]  # "YYYY-MM-DD"
     for symbol in watchlist:
         try:
-            df = yf.Ticker(symbol).history(period="1d", interval="5m")
-            if df.empty:
+            history = get_price_history(symbol)
+            today_prices = []
+            today_vol = 0
+            for r in history:
+                if not r.get("timestamp", "").startswith(today):
+                    continue
+                try:
+                    today_prices.append(float(str(r.get("price", "")).replace(",", "").strip()))
+                except (TypeError, ValueError):
+                    continue
+                try:
+                    today_vol = int(str(r.get("volume", "0")).replace(",", "").strip())
+                except (TypeError, ValueError):
+                    pass
+
+            if not today_prices:
+                print(f"  [{symbol}] No price data today, skipped.")
                 continue
-            rows = [{"date": ts.strftime("%Y-%m-%d %H:%M"), "open": round(float(r["Open"]),4), "high": round(float(r["High"]),4), "low": round(float(r["Low"]),4), "close": round(float(r["Close"]),4), "volume": int(r["Volume"])} for ts, r in df.iterrows()]
-            save_ohlc(symbol, rows)
-            print(f"  [{symbol}] {len(rows)} bars updated.")
+
+            save_ohlc(symbol, [{
+                "date":   today,
+                "open":   today_prices[0],
+                "high":   max(today_prices),
+                "low":    min(today_prices),
+                "close":  today_prices[-1],
+                "volume": today_vol,
+            }])
+            print(f"  [{symbol}] OHLC updated ({len(today_prices)} ticks today).")
         except Exception as e:
             print(f"  [{symbol}] Error: {e}")
+
     print("\n✓ All done!")
 
 
