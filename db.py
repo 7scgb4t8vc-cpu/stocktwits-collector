@@ -96,6 +96,10 @@ def add_to_watchlist(symbol: str):
 
 def remove_from_watchlist(symbol: str):
     watchlist_collection().delete_one({"symbol": symbol})
+    
+def get_watchlist():
+    docs = list(watchlist_collection().find())
+    return sorted(d["symbol"] for d in docs)
 
 def price_history_collection():
     return get_db()["price_history"]
