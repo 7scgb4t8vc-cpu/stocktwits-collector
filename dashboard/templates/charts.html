@@ -174,33 +174,37 @@ function sliceData(fullData, tf, viewEndMs) {
   }
 
   const volMap = {}, sentMap = {}, priceMap = {};
-  for (const row of fullData.volume_series) {
-    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
+
+  for (const m of (fullData.messages||[])) {
+    const rMs = new Date(m.created_at.replace(" ","T")+"Z").getTime();
     if (rMs < startMs || rMs > endMs) continue;
-    const bucket = roundToBucket(row.timestamp, bucketMin);
-    volMap[bucket] = (volMap[bucket]||0) + row.count;
-  }
-  for (const row of fullData.sentiment_series) {
-    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
-    if (rMs < startMs || rMs > endMs) continue;
-    const bucket = roundToBucket(row.timestamp, bucketMin);
+    const bucket = roundToBucket(m.created_at, bucketMin);
+    volMap[bucket] = (volMap[bucket]||0) + 1;
     if (!sentMap[bucket]) sentMap[bucket] = {bullish:0,bearish:0,neutral:0,mixed:0};
-    sentMap[bucket].bullish += row.bullish||0;
-    sentMap[bucket].bearish += row.bearish||0;
-    sentMap[bucket].neutral += row.neutral||0;
-    sentMap[bucket].mixed   += row.mixed||0;
+    sentMap[bucket][m.nlp_label] = (sentMap[bucket][m.nlp_label]||0) + 1;
   }
-  for (const row of fullData.correlation_series) {
-    const rMs = new Date(row.timestamp.replace(" ","T")+"Z").getTime();
+
+  for (const p of (fullData.price_ticks||[])) {
+    const rMs = new Date(p.timestamp.replace(" ","T")+"Z").getTime();
     if (rMs < startMs || rMs > endMs) continue;
-    const bucket = roundToBucket(row.timestamp, bucketMin);
-    if (row.price !== null && row.price !== undefined) priceMap[bucket] = row.price;
+    priceMap[roundToBucket(p.timestamp, bucketMin)] = p.price;
+  }
+
+  // forward-fill price across empty buckets so the line is continuous
+  let lastPrice = null;
+  const filledPrice = slots.map(ts => {
+    if (priceMap[ts] !== undefined) lastPrice = priceMap[ts];
+    return lastPrice;
+  });
+  const firstKnownIdx = filledPrice.findIndex(v => v !== null);
+  if (firstKnownIdx > 0) {
+    for (let i = 0; i < firstKnownIdx; i++) filledPrice[i] = filledPrice[firstKnownIdx];
   }
 
   return {
     volume_series:    slots.map(ts=>({timestamp:ts,count:volMap[ts]||0})),
     sentiment_series: slots.map(ts=>({timestamp:ts,...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0})})),
-    correlation_series: slots.map(ts=>({timestamp:ts,msg_count:volMap[ts]||0,price:priceMap[ts]??null})),
+    correlation_series: slots.map((ts,i)=>({timestamp:ts,msg_count:volMap[ts]||0,price:filledPrice[i]})),
   };
 }
 
