@@ -5,9 +5,12 @@ Usage: python backfill_ohlc.py
 """
 
 import os
+import pytz
 import yfinance as yf
 from datetime import datetime, timedelta
 from db import get_db, save_ohlc, get_watchlist
+
+ET = pytz.timezone("America/New_York")
 
 def backfill():
     watchlist = get_watchlist()
@@ -24,8 +27,11 @@ def backfill():
 
             rows = []
             for ts, row in df.iterrows():
+                # yfinance returns tz-aware timestamps — convert to ET so this
+                # lines up with price_history, which is stored in ET.
+                ts_et = ts.tz_convert(ET) if ts.tzinfo else ET.localize(ts)
                 rows.append({
-                    "date": ts.strftime("%Y-%m-%d %H:%M"),
+                    "date": ts_et.strftime("%Y-%m-%d %H:%M"),
                     "open":   round(float(row["Open"]), 4),
                     "high":   round(float(row["High"]), 4),
                     "low":    round(float(row["Low"]), 4),
