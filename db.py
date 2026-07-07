@@ -119,3 +119,13 @@ def save_cursors(cursors):
             {"$set": {"since_id": since_id}},
             upsert=True
         )
+def watchlist_collection():
+    return get_db()["watchlist"]
+
+def add_to_watchlist(symbol: str):
+    watchlist_collection().update_one(
+        {"symbol": symbol}, {"$set": {"symbol": symbol}}, upsert=True
+    )
+
+def remove_from_watchlist(symbol: str):
+    watchlist_collection().delete_one({"symbol": symbol})
