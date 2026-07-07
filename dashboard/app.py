@@ -9,7 +9,7 @@ import requests
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
-from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc
+from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist
 
 app = Flask(__name__)
 
@@ -99,9 +99,8 @@ def load_social():
 
 
 def load_screener():
-    watchlist = get_watchlist()
-    rows = get_finviz()
-    return [r for r in rows if r.get("symbol", "") in watchlist]
+    # Full FinViz universe — no longer restricted to the watchlist
+    return get_finviz()
 
 
 def load_frequency():
@@ -345,6 +344,24 @@ def api_social():
 @app.route("/api/screener")
 def api_screener():
     return jsonify(load_screener())
+
+
+@app.route("/api/watchlist/add", methods=["POST"])
+def api_watchlist_add():
+    symbol = (request.get_json(silent=True) or {}).get("symbol", "").upper().strip()
+    if not symbol:
+        return jsonify({"error": "No symbol provided"}), 400
+    add_to_watchlist(symbol)
+    return jsonify({"status": "added", "symbol": symbol})
+
+
+@app.route("/api/watchlist/remove", methods=["POST"])
+def api_watchlist_remove():
+    symbol = (request.get_json(silent=True) or {}).get("symbol", "").upper().strip()
+    if not symbol:
+        return jsonify({"error": "No symbol provided"}), 400
+    remove_from_watchlist(symbol)
+    return jsonify({"status": "removed", "symbol": symbol})
 
 
 @app.route("/api/frequency")
