@@ -321,6 +321,10 @@ def charts():
 def momentum():
     return render_template("momentum.html", page="momentum")
 
+@app.route("/news")
+def news():
+    return render_template("news.html", page="news")
+
 
 # ── API endpoints ─────────────────────────────────────────────────────────────
 
