@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>News</h1>
+  <p class="page-subtitle">Latest StockTwits activity across your watchlist</p>
+</div>
+
+<div class="filter-bar">
+  <input type="text" id="filter-symbol" placeholder="Filter by symbol (e.g. NVDA)" class="filter-input" />
+  <select id="filter-sentiment" class="filter-select">
+    <option value="">All sentiment</option>
+    <option value="bullish">Bullish</option>
+    <option value="bearish">Bearish</option>
+    <option value="neutral">Neutral</option>
+    <option value="mixed">Mixed</option>
+  </select>
+  <button class="btn-refresh" onclick="loadNews()">↻ Refresh now</button>
+</div>
+
+<div class="stats-bar">
+  <div class="stat-chip"><span id="stat-total">—</span> items</div>
+</div>
+
+<div class="table-wrap">
+  <table class="data-table" id="news-table">
+    <thead>
+      <tr>
+        <th data-key="timestamp">Time</th>
+        <th data-key="symbol">Ticker</th>
+        <th data-key="message">Headline</th>
+        <th data-key="nlp_label">Sentiment</th>
+        <th data-key="nlp_score">Score</th>
+      </tr>
+    </thead>
+    <tbody id="news-body">
+      <tr><td colspan="5" class="loading">Loading news...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let allNews = [];
+let sortKey = "timestamp";
+let sortDir = -1;
+
+async function loadNews() {
+  const body = document.getElementById("news-body");
+  body.innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
+
+  try {
+    const res = await fetch("/api/social");
+    allNews = await res.json();
+    applyFilters();
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="5" class="error">Failed to load data.</td></tr>';
+  }
+}
+
+function applyFilters() {
+  const symbol    = document.getElementById("filter-symbol").value.trim().toUpperCase();
+  const sentiment = document.getElementById("filter-sentiment").value.toLowerCase();
+
+  let rows = allNews;
+
+  if (symbol) {
+    rows = rows.filter(r => r.symbol === symbol);
+  }
+  if (sentiment) {
+    rows = rows.filter(r => (r.nlp_label || "").toLowerCase() === sentiment);
+  }
+
+  rows = rows.slice().sort((a, b) => {
+    let av = a[sortKey] ?? "";
+    let bv = b[sortKey] ?? "";
+    if (sortKey === "nlp_score") {
+      av = parseFloat(av) || 0;
+      bv = parseFloat(bv) || 0;
+    }
+    if (av < bv) return -1 * sortDir;
+    if (av > bv) return 1 * sortDir;
+    return 0;
+  });
+
+  document.getElementById("stat-total").textContent = rows.length;
+
+  const body = document.getElementById("news-body");
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="5" class="empty">No news found.</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map(r => {
+    const label = (r.nlp_label || "neutral").toLowerCase();
+    const score = r.nlp_score ? parseFloat(r.nlp_score).toFixed(2) : "—";
+    return `
+      <tr class="sentiment-${label}">
+        <td>${r.timestamp}</td>
+        <td><a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a></td>
+        <td>${escapeHtml(r.message)}</td>
+        <td><span class="sentiment-badge badge-${label}">${label}</span></td>
+        <td>${score}</td>
+      </tr>`;
+  }).join("");
+}
+
+function escapeHtml(text) {
+  const txt = document.createElement("textarea");
+  txt.innerHTML = String(text);
+  return txt.value;
+}
+
+document.getElementById("filter-symbol").addEventListener("input", applyFilters);
+document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
+
+document.querySelectorAll("#news-table thead th").forEach(th => {
+  th.style.cursor = "pointer";
+  th.addEventListener("click", () => {
+    const key = th.dataset.key;
+    if (sortKey === key) sortDir *= -1;
+    else { sortKey = key; sortDir = -1; }
+    applyFilters();
+  });
+});
+
+window.registerPageLoader(loadNews);
+</script>
+{% endblock %}
