@@ -89,6 +89,17 @@ def get_ohlc(symbol, limit_days=300):
         r.pop("_id", None)
     return sorted(rows, key=lambda r: r["date"])
 
+def watchlist_collection():
+    return get_db()["watchlist"]
+
+def add_to_watchlist(symbol: str):
+    watchlist_collection().update_one(
+        {"symbol": symbol}, {"$set": {"symbol": symbol}}, upsert=True
+    )
+
+def remove_from_watchlist(symbol: str):
+    watchlist_collection().delete_one({"symbol": symbol})
+
 def price_history_collection():
     return get_db()["price_history"]
 
