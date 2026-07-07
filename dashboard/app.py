@@ -147,7 +147,31 @@ def load_charts_data():
         "counts_over_time":    sorted(counts_over_time.items()),
     }
 
+def load_raw_price_ticks(symbol: str, cutoff: datetime):
+    """Merge backfilled 5m OHLC (deep history) with live FinViz price snapshots
+    (recent, overrides on overlap) into one continuous chronological tick list."""
+    ticks = {}
 
+    for r in get_ohlc(symbol, limit_days=100000):
+        try:
+            dt = datetime.strptime(r["date"], "%Y-%m-%d %H:%M")
+        except Exception:
+            continue
+        if dt >= cutoff:
+            ticks[dt] = r["close"]
+
+    for r in get_price_history(symbol):
+        dt = parse_timestamp(r.get("timestamp", ""))
+        if not dt or dt < cutoff:
+            continue
+        try:
+            price = float(str(r.get("price", "")).replace(",", "").strip())
+        except (TypeError, ValueError):
+            continue
+        ticks[dt] = price
+
+    ordered = sorted(ticks.items())
+    return [{"timestamp": dt.strftime("%Y-%m-%d %H:%M"), "price": p} for dt, p in ordered]
 def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = None):
     symbol = symbol.upper()
     hours  = TIMEFRAME_HOURS.get(timeframe, 24)
@@ -428,9 +452,31 @@ def api_charts_symbol(symbol):
 
 @app.route("/api/charts/<symbol>/full")
 def api_charts_symbol_full(symbol):
-    if symbol.upper() not in get_watchlist():
+    symbol = symbol.upper()
+    if symbol not in get_watchlist():
         return jsonify({"error": "Symbol not tracked"}), 404
-    return jsonify(load_symbol_chart_data(symbol, "30d"))
+
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    rows = get_messages(symbol=symbol)
+
+    messages = []
+    for row in rows:
+        raw_dt = row.get("created_at") or row.get("timestamp", "")
+        if raw_dt.endswith("Z"):
+            dt = datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
+        else:
+            dt = parse_timestamp(raw_dt)
+        if dt and dt >= cutoff:
+            label = (row.get("nlp_label") or "neutral").lower()
+            if label not in ("bullish", "bearish", "neutral", "mixed"):
+                label = "neutral"
+            messages.append({"created_at": dt.strftime("%Y-%m-%d %H:%M"), "nlp_label": label})
+
+    return jsonify({
+        "symbol": symbol,
+        "messages": messages,
+        "price_ticks": load_raw_price_ticks(symbol, cutoff),
+    })
 @app.route("/api/ohlc/<symbol>")
 def api_ohlc(symbol):
     if symbol.upper() not in get_watchlist():
