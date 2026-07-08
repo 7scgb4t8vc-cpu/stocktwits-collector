@@ -840,10 +840,12 @@ function switchView(view) {
   if (view === "news") {
     tableWrap.style.display = "none";
     newsCards.style.display = "grid";
+    document.getElementById("news-interval-bar").style.display = "block";
     renderNewsCards();
   } else {
     tableWrap.style.display = "block";
     newsCards.style.display = "none";
+    document.getElementById("news-interval-bar").style.display = "none";
     renderHeader();
     applyFilters();
   }
@@ -915,13 +917,13 @@ async function renderNewsCards() {
           </div>`;
         }).join("")}
       </div>`;
-    loadSparkline(s);
+    loadSparkline(s, document.getElementById("news-interval").value);
   }
 }
 
-async function loadSparkline(symbol) {
+async function loadSparkline(symbol, interval) {
   try {
-    const res = await fetch(`/api/ohlc/${symbol}`);
+    const res = await fetch(`/api/ohlc/${symbol}?interval=${interval}`);
     const data = await res.json();
     const candles = data.candles || [];
     const closes = candles.map(c => c.close);
