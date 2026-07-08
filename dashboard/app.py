@@ -6,6 +6,10 @@ Reads from MongoDB and serves the live dashboard.
 
 import os
 import requests
+import yfinance as yf
+import pytz
+
+ET = pytz.timezone("America/New_York")
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
@@ -172,6 +176,32 @@ def load_raw_price_ticks(symbol: str, cutoff: datetime):
 
     ordered = sorted(ticks.items())
     return [{"timestamp": dt.strftime("%Y-%m-%d %H:%M"), "price": p} for dt, p in ordered]
+    
+def ensure_ohlc_backfilled(symbol: str):
+    """On-demand backfill: fetch 60 days of 5m OHLC from yfinance the first
+    time a symbol is charted, so we don't have to bulk-backfill all 10k stocks."""
+    if get_ohlc(symbol, limit_days=1):
+        return
+    try:
+        ticker = yf.Ticker(symbol)
+        df = ticker.history(period="60d", interval="5m", timeout=15)
+        if df.empty:
+            return
+        rows = []
+        for ts, row in df.iterrows():
+            ts_et = ts.tz_convert(ET) if ts.tzinfo else ET.localize(ts)
+            rows.append({
+                "date": ts_et.strftime("%Y-%m-%d %H:%M"),
+                "open":   round(float(row["Open"]), 4),
+                "high":   round(float(row["High"]), 4),
+                "low":    round(float(row["Low"]), 4),
+                "close":  round(float(row["Close"]), 4),
+                "volume": int(row["Volume"]),
+            })
+        save_ohlc(symbol, rows)
+    except Exception as e:
+        print(f"On-demand OHLC backfill failed for {symbol}: {e}")
+
 def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = None):
     symbol = symbol.upper()
     hours  = TIMEFRAME_HOURS.get(timeframe, 24)
@@ -453,8 +483,10 @@ def api_charts_symbol(symbol):
 @app.route("/api/charts/<symbol>/full")
 def api_charts_symbol_full(symbol):
     symbol = symbol.upper()
-    if symbol not in get_watchlist():
-        return jsonify({"error": "Symbol not tracked"}), 404
+    if not get_finviz(symbol):
+        return jsonify({"error": "Unknown symbol"}), 404
+
+    ensure_ohlc_backfilled(symbol)
 
     cutoff = datetime.utcnow() - timedelta(days=30)
     rows = get_messages(symbol=symbol)
