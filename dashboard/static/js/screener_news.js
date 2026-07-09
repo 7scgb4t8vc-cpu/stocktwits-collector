@@ -138,7 +138,7 @@ function renderStatPanel(r) {
     ["Sales Q/Q", r.sales_growth_quarter_over_quarter],
     ["Inst Own", r.institutional_ownership],
     ["Inst Trans", r.institutional_transactions],
-    ["Earnings", r.earnings_date],
+    ["Earnings", (r.earnings_date || "").split(" ")[0]],
     ["Target Price", r.target_price],
     ["52W Range", format52wRange(r)],
   ];
