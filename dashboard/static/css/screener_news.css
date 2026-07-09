@@ -88,12 +88,19 @@
 .news-sidepanel-pair {
   display: flex;
   justify-content: space-between;
-  padding: 3px 0;
+  align-items: center;
+  height: 22px;
   border-bottom: 1px solid var(--border);
   gap: 6px;
 }
 .news-sidepanel-label { color: var(--muted); white-space: nowrap; }
-.news-sidepanel-value { font-weight: 600; text-align: right; }
+.news-sidepanel-value {
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .news-sidepanel-company {
   font-size: 13px;
   font-weight: 700;
