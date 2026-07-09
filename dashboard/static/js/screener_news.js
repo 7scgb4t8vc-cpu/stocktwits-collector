@@ -140,6 +140,15 @@ function renderStatPanel(r) {
     ${statRow("Analyst Recom", r.analyst_recom)}
     ${statRow("Target Price", r.target_price)}
     ${statRow("Avg Volume", formatVolume(r.average_volume))}
-    ${statRow("52W Range", (r["52_week_low"]||"—") + " / " + (r["52_week_high"]||"—"))}
+    ${statRow("52W Range", format52wRange(r))}
   `;
+}
+function format52wRange(r) {
+  const price = parseFloat(r.price);
+  const highPct = parseFloat(r["52_week_high"]);
+  const lowPct = parseFloat(r["52_week_low"]);
+  if (isNaN(price) || isNaN(highPct) || isNaN(lowPct)) return "—";
+  const high = price / (1 + highPct / 100);
+  const low = price / (1 + lowPct / 100);
+  return `${low.toFixed(2)} - ${high.toFixed(2)}`;
 }
