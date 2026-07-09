@@ -80,13 +80,19 @@
   flex-shrink: 0;
   font-size: 12px;
 }
-.news-sidepanel-row {
+.news-sidepanel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 1rem;
+}
+.news-sidepanel-pair {
   display: flex;
   justify-content: space-between;
   padding: 3px 0;
   border-bottom: 1px solid var(--border);
+  gap: 6px;
 }
-.news-sidepanel-label { color: var(--muted); }
+.news-sidepanel-label { color: var(--muted); white-space: nowrap; }
 .news-sidepanel-value { font-weight: 600; text-align: right; }
 .news-sidepanel-company {
   font-size: 13px;
