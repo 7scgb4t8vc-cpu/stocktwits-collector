@@ -484,16 +484,7 @@
   </table>
 </div>
 
-<!-- News cards: abnormally high-engagement StockTwits activity -->
-<div id="news-interval-bar" style="display:none; margin-bottom:0.75rem;">
-  <select id="news-interval" class="filter-select" onchange="renderNewsCards()">
-    <option value="5m">5 min</option>
-    <option value="1h">1 hour</option>
-    <option value="1d" selected>1 day</option>
-    <option value="1w">1 week</option>
-  </select>
-</div>
-<div id="news-cards" class="news-cards" style="display:none;"></div>
+{% include "_screener_news.html" %}
 
 <style>
 .scr-view-tabs {
