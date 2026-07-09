@@ -44,24 +44,26 @@ async function renderNewsCards() {
         <span class="news-card-price">$${stockRow.price || "—"}</span>
         <span class="${change > 0 ? "positive" : change < 0 ? "negative" : ""}">${stockRow.change ? (change > 0 ? "+" : "") + stockRow.change + "%" : ""}</span>
       </div>
-      <div class="news-card-stats">
-        <span>Mkt Cap: ${formatMarketCap(stockRow.market_cap)}</span>
-        <span>P/E: ${stockRow.p_e || "—"}</span>
-        <span>Vol: ${formatVolume(stockRow.volume)}</span>
-      </div>
-      <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
-      <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:0.75rem;">
-        <div>
-          <div class="news-chart-title">Price vs Message Volume</div>
-          <canvas id="corr-${s}" height="70"></canvas>
+      <div class="news-card-body">
+        <div class="news-card-charts">
+          <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
+          <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:0.75rem;">
+            <div>
+              <div class="news-chart-title">Price vs Message Volume</div>
+              <canvas id="corr-${s}" height="70"></canvas>
+            </div>
+            <div>
+              <div class="news-chart-title">Message Volume</div>
+              <canvas id="vol-${s}" height="30"></canvas>
+            </div>
+            <div>
+              <div class="news-chart-title">Sentiment Breakdown</div>
+              <canvas id="sent-${s}" height="30"></canvas>
+            </div>
+          </div>
         </div>
-        <div>
-          <div class="news-chart-title">Message Volume</div>
-          <canvas id="vol-${s}" height="30"></canvas>
-        </div>
-        <div>
-          <div class="news-chart-title">Sentiment Breakdown</div>
-          <canvas id="sent-${s}" height="30"></canvas>
+        <div class="news-card-sidepanel">
+          ${renderStatPanel(stockRow)}
         </div>
       </div>
       <div class="news-card-messages">
@@ -106,4 +108,38 @@ function escapeHtmlNews(text) {
   const txt = document.createElement("textarea");
   txt.innerHTML = String(text);
   return txt.value;
+}
+function statRow(label, value) {
+  return `<div class="news-sidepanel-row"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
+}
+
+function renderStatPanel(r) {
+  return `
+    <div class="news-sidepanel-company">${r.company || r.symbol}</div>
+    <div class="news-sidepanel-meta">${r.country || ""}${r.industry ? " · " + r.industry : ""}</div>
+    ${statRow("Market Cap", formatMarketCap(r.market_cap))}
+    ${statRow("EPS (TTM)", r.eps_ttm)}
+    ${statRow("P/E", r.p_e)}
+    ${statRow("EPS this Y", r.eps_growth_this_year)}
+    ${statRow("Forward P/E", r.forward_p_e)}
+    ${statRow("EPS next Y", r.eps_growth_next_year)}
+    ${statRow("PEG", r.peg)}
+    ${statRow("EPS past 5Y", r.eps_growth_past_5_years)}
+    ${statRow("P/S", r.p_s)}
+    ${statRow("EPS next 5Y", r.eps_growth_next_5_years)}
+    ${statRow("P/B", r.p_b)}
+    ${statRow("EPS Q/Q", r.eps_growth_quarter_over_quarter)}
+    ${statRow("Dividend", r.dividend_yield)}
+    ${statRow("Sales Q/Q", r.sales_growth_quarter_over_quarter)}
+    ${statRow("Insider Own", r.insider_ownership)}
+    ${statRow("Inst Own", r.institutional_ownership)}
+    ${statRow("Insider Trans", r.insider_transactions)}
+    ${statRow("Inst Trans", r.institutional_transactions)}
+    ${statRow("Short Float", r.short_float)}
+    ${statRow("Earnings", r.earnings_date)}
+    ${statRow("Analyst Recom", r.analyst_recom)}
+    ${statRow("Target Price", r.target_price)}
+    ${statRow("Avg Volume", formatVolume(r.average_volume))}
+    ${statRow("52W Range", (r["52_week_low"]||"—") + " / " + (r["52_week_high"]||"—"))}
+  `;
 }
