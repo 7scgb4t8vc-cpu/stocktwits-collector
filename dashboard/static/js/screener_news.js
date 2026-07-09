@@ -44,11 +44,25 @@ async function renderNewsCards() {
         <span class="news-card-price">$${stockRow.price || "—"}</span>
         <span class="${change > 0 ? "positive" : change < 0 ? "negative" : ""}">${stockRow.change ? (change > 0 ? "+" : "") + stockRow.change + "%" : ""}</span>
       </div>
-      <canvas id="spark-${s}" height="40"></canvas>
       <div class="news-card-stats">
         <span>Mkt Cap: ${formatMarketCap(stockRow.market_cap)}</span>
         <span>P/E: ${stockRow.p_e || "—"}</span>
         <span>Vol: ${formatVolume(stockRow.volume)}</span>
+      </div>
+      <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
+      <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:0.75rem;">
+        <div>
+          <div class="news-chart-title">Price vs Message Volume</div>
+          <canvas id="corr-${s}" height="70"></canvas>
+        </div>
+        <div>
+          <div class="news-chart-title">Message Volume</div>
+          <canvas id="vol-${s}" height="30"></canvas>
+        </div>
+        <div>
+          <div class="news-chart-title">Sentiment Breakdown</div>
+          <canvas id="sent-${s}" height="30"></canvas>
+        </div>
       </div>
       <div class="news-card-messages">
         ${msgs.map(m => {
@@ -64,28 +78,27 @@ async function renderNewsCards() {
           </div>`;
         }).join("")}
       </div>`;
-    loadSparkline(s, document.getElementById("news-interval").value);
+    loadRollingChart(s, document.getElementById("news-interval").value);
   }
 }
 
-async function loadSparkline(symbol, interval) {
+const _newsRollingCharts = {};
+const NEWS_INTERVAL_TO_TF = { "5m":"1h", "1h":"1d", "1d":"7d", "1w":"30d" };
+
+async function loadRollingChart(symbol, interval) {
   try {
-    const res = await fetch(`/api/ohlc/${symbol}?interval=${interval}`);
-    const data = await res.json();
-    const candles = data.candles || [];
-    const closes = candles.map(c => c.close);
-    const labels = candles.map(c => c.date);
-    const canvas = document.getElementById(`spark-${symbol}`);
-    if (!canvas || !closes.length) return;
-    new Chart(canvas, {
-      type: "line",
-      data: { labels, datasets: [{ data: closes, borderColor: "#58a6ff", backgroundColor: "rgba(88,166,255,0.08)", borderWidth: 1.5, pointRadius: 0, tension: 0.25, fill: true }] },
-      options: {
-        responsive: true,
-        plugins: { legend: { display: false }, tooltip: { enabled: false } },
-        scales: { x: { display: false }, y: { display: false } },
-      }
-    });
+    const res = await fetch(`/api/charts/${symbol}/full`);
+    const fullData = await res.json();
+    const tf = NEWS_INTERVAL_TO_TF[interval] || "1d";
+    const sliced = sliceRollingData(fullData, tf, null);
+
+    if (_newsRollingCharts[symbol]) destroyRollingCharts(_newsRollingCharts[symbol]);
+
+    _newsRollingCharts[symbol] = renderRollingCharts(
+      { correlation: `corr-${symbol}`, volume: `vol-${symbol}`, sentiment: `sent-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
+      sliced,
+      tf
+    );
   } catch (e) {}
 }
 
