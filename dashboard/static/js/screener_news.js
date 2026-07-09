@@ -109,39 +109,59 @@ function escapeHtmlNews(text) {
   txt.innerHTML = String(text);
   return txt.value;
 }
-function statRow(label, value) {
-  return `<div class="news-sidepanel-row"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
+function statPair(label, value) {
+  return `<div class="news-sidepanel-pair"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
 }
 
 function renderStatPanel(r) {
+  const leftCol = [
+    ["Market Cap", formatMarketCap(r.market_cap)],
+    ["P/E", r.p_e],
+    ["Forward P/E", r.forward_p_e],
+    ["PEG", r.peg],
+    ["P/S", r.p_s],
+    ["P/B", r.p_b],
+    ["Dividend", r.dividend_yield],
+    ["Insider Own", r.insider_ownership],
+    ["Insider Trans", r.insider_transactions],
+    ["Short Float", r.short_float],
+    ["Analyst Recom", r.analyst_recom],
+    ["Avg Volume", formatVolume(r.average_volume)],
+  ];
+  const rightCol = [
+    ["EPS (TTM)", r.eps_ttm],
+    ["EPS this Y", r.eps_growth_this_year],
+    ["EPS next Y", r.eps_growth_next_year],
+    ["EPS past 5Y", r.eps_growth_past_5_years],
+    ["EPS next 5Y", r.eps_growth_next_5_years],
+    ["EPS Q/Q", r.eps_growth_quarter_over_quarter],
+    ["Sales Q/Q", r.sales_growth_quarter_over_quarter],
+    ["Inst Own", r.institutional_ownership],
+    ["Inst Trans", r.institutional_transactions],
+    ["Earnings", r.earnings_date],
+    ["Target Price", r.target_price],
+    ["52W Range", format52wRange(r)],
+  ];
+
+  const rows = leftCol.map((pair, i) => statPair(...pair) + statPair(...rightCol[i]));
+
   return `
     <div class="news-sidepanel-company">${r.company || r.symbol}</div>
     <div class="news-sidepanel-meta">${r.country || ""}${r.industry ? " · " + r.industry : ""}</div>
-    ${statRow("Market Cap", formatMarketCap(r.market_cap))}
-    ${statRow("EPS (TTM)", r.eps_ttm)}
-    ${statRow("P/E", r.p_e)}
-    ${statRow("EPS this Y", r.eps_growth_this_year)}
-    ${statRow("Forward P/E", r.forward_p_e)}
-    ${statRow("EPS next Y", r.eps_growth_next_year)}
-    ${statRow("PEG", r.peg)}
-    ${statRow("EPS past 5Y", r.eps_growth_past_5_years)}
-    ${statRow("P/S", r.p_s)}
-    ${statRow("EPS next 5Y", r.eps_growth_next_5_years)}
-    ${statRow("P/B", r.p_b)}
-    ${statRow("EPS Q/Q", r.eps_growth_quarter_over_quarter)}
-    ${statRow("Dividend", r.dividend_yield)}
-    ${statRow("Sales Q/Q", r.sales_growth_quarter_over_quarter)}
-    ${statRow("Insider Own", r.insider_ownership)}
-    ${statRow("Inst Own", r.institutional_ownership)}
-    ${statRow("Insider Trans", r.insider_transactions)}
-    ${statRow("Inst Trans", r.institutional_transactions)}
-    ${statRow("Short Float", r.short_float)}
-    ${statRow("Earnings", r.earnings_date)}
-    ${statRow("Analyst Recom", r.analyst_recom)}
-    ${statRow("Target Price", r.target_price)}
-    ${statRow("Avg Volume", formatVolume(r.average_volume))}
-    ${statRow("52W Range", format52wRange(r))}
+    <div class="news-sidepanel-grid">
+      ${rows.join("")}
+    </div>
   `;
+}
+
+function format52wRange(r) {
+  const price = parseFloat(r.price);
+  const highPct = parseFloat(r["52_week_high"]);
+  const lowPct = parseFloat(r["52_week_low"]);
+  if (isNaN(price) || isNaN(highPct) || isNaN(lowPct)) return "—";
+  const high = price / (1 + highPct / 100);
+  const low = price / (1 + lowPct / 100);
+  return `${low.toFixed(2)} - ${high.toFixed(2)}`;
 }
 function format52wRange(r) {
   const price = parseFloat(r.price);
