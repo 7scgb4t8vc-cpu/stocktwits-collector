@@ -47,19 +47,9 @@ async function renderNewsCards() {
       <div class="news-card-body">
         <div class="news-card-charts">
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
-          <div style="display:flex;flex-direction:column;gap:1rem;margin-bottom:0.75rem;">
-            <div>
-              <div class="news-chart-title">Price vs Message Volume</div>
-              <canvas id="corr-${s}" height="70"></canvas>
-            </div>
-            <div>
-              <div class="news-chart-title">Message Volume</div>
-              <canvas id="vol-${s}" height="30"></canvas>
-            </div>
-            <div>
-              <div class="news-chart-title">Sentiment Breakdown</div>
-              <canvas id="sent-${s}" height="30"></canvas>
-            </div>
+          <div>
+            <div class="news-chart-title">Price vs Message Volume</div>
+            <canvas id="corr-${s}" height="70"></canvas>
           </div>
         </div>
         <div class="news-card-sidepanel">
@@ -97,7 +87,7 @@ async function loadRollingChart(symbol, interval) {
     if (_newsRollingCharts[symbol]) destroyRollingCharts(_newsRollingCharts[symbol]);
 
     _newsRollingCharts[symbol] = renderRollingCharts(
-      { correlation: `corr-${symbol}`, volume: `vol-${symbol}`, sentiment: `sent-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
+      { correlation: `corr-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
       sliced,
       tf
     );
