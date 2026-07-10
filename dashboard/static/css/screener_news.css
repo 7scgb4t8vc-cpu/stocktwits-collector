@@ -140,7 +140,6 @@
   display: flex;
   gap: 4px;
   flex-wrap: wrap;
-  margin-bottom: 6px;
 }
 .news-tf-btn, .news-bucket-btn {
   background: var(--bg3);
@@ -157,4 +156,19 @@
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+.news-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.news-toolbar-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
