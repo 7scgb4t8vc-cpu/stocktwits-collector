@@ -198,3 +198,15 @@ function format52wRange(r) {
   const low = price / (1 + lowPct / 100);
   return `${low.toFixed(2)} - ${high.toFixed(2)}`;
 }
+<div class="news-toolbar-row">
+            <span class="news-toolbar-label">Window</span>
+            <div class="news-tf-strip">
+              ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
+            </div>
+          </div>
+          <div class="news-toolbar-row">
+            <span class="news-toolbar-label">Interval</span>
+            <div class="news-bucket-strip">
+              ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
+            </div>
+          </div>
