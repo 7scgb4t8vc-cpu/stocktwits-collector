@@ -46,6 +46,12 @@ async function renderNewsCards() {
       </div>
       <div class="news-card-body">
         <div class="news-card-charts">
+          <div class="news-tf-strip">
+            ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
+          </div>
+          <div class="news-bucket-strip">
+            ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
+          </div>
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
           <div>
             <div class="news-chart-title">Price vs Message Volume</div>
@@ -70,28 +76,58 @@ async function renderNewsCards() {
           </div>`;
         }).join("")}
       </div>`;
-    loadRollingChart(s, document.getElementById("news-interval").value);
+    loadRollingChart(s);
   }
 }
 
+const _newsCardState = {};
+const _newsFullData = {};
 const _newsRollingCharts = {};
-const NEWS_INTERVAL_TO_TF = { "5m":"1h", "1h":"1d", "1d":"7d", "1w":"30d" };
 
-async function loadRollingChart(symbol, interval) {
+const NEWS_TF_OPTIONS = ["5m","15m","30m","1h","2h","4h","6h","12h","1d","7d","30d"];
+const NEWS_TF_LABELS = {"5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","6h":"6H","12h":"12H","1d":"D","7d":"W","30d":"M"};
+const NEWS_BUCKET_OPTIONS = {"1m":1,"3m":3,"5m":5,"15m":15,"30m":30,"1h":60,"d":1440,"w":10080,"m":43200};
+
+function newsCardState(symbol) {
+  if (!_newsCardState[symbol]) _newsCardState[symbol] = { tf: "1d", bucket: null };
+  return _newsCardState[symbol];
+}
+
+async function loadRollingChart(symbol) {
   try {
     const res = await fetch(`/api/charts/${symbol}/full`);
-    const fullData = await res.json();
-    const tf = NEWS_INTERVAL_TO_TF[interval] || "1d";
-    const sliced = sliceRollingData(fullData, tf, null);
+    _newsFullData[symbol] = await res.json();
+    updateNewsChart(symbol);
+  } catch(e) {}
+}
 
-    if (_newsRollingCharts[symbol]) destroyRollingCharts(_newsRollingCharts[symbol]);
+function updateNewsChart(symbol) {
+  const fullData = _newsFullData[symbol];
+  if (!fullData) return;
+  const state = newsCardState(symbol);
+  const sliced = sliceRollingData(fullData, state.tf, null, state.bucket);
+  if (_newsRollingCharts[symbol]) destroyRollingCharts(_newsRollingCharts[symbol]);
+  _newsRollingCharts[symbol] = renderRollingCharts(
+    { correlation: `corr-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
+    sliced,
+    state.tf
+  );
+}
 
-    _newsRollingCharts[symbol] = renderRollingCharts(
-      { correlation: `corr-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
-      sliced,
-      tf
-    );
-  } catch (e) {}
+function setNewsTf(symbol, tf) {
+  newsCardState(symbol).tf = tf;
+  document.querySelectorAll(`.news-tf-btn[data-symbol="${symbol}"]`).forEach(b=>{
+    b.classList.toggle("news-tf-active", b.dataset.tf === tf);
+  });
+  updateNewsChart(symbol);
+}
+
+function setNewsBucket(symbol, bucketLabel) {
+  newsCardState(symbol).bucket = NEWS_BUCKET_OPTIONS[bucketLabel];
+  document.querySelectorAll(`.news-bucket-btn[data-symbol="${symbol}"]`).forEach(b=>{
+    b.classList.toggle("news-bucket-active", b.dataset.bucket === bucketLabel);
+  });
+  updateNewsChart(symbol);
 }
 
 function escapeHtmlNews(text) {
