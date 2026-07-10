@@ -8,7 +8,51 @@ import os
 import requests
 import yfinance as yf
 import pytz
+import csv
+import io
+import re
 
+FINVIZ_COLUMNS = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88"
+
+FINVIZ_TICKER_URL = (
+    "https://elite.finviz.com/export?v=111"
+    "&t={tickers}&c={columns}&auth={token}"
+)
+
+FV_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://elite.finviz.com/",
+}
+
+def fetch_finviz_by_tickers(symbols, token):
+    if not symbols:
+        return []
+    tickers = ",".join(symbols)
+    url = FINVIZ_TICKER_URL.format(tickers=tickers, columns=FINVIZ_COLUMNS, token=token)
+    try:
+        resp = requests.get(url, headers=FV_HEADERS, timeout=20)
+        if resp.status_code != 200:
+            print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
+            return []
+        return list(csv.DictReader(io.StringIO(resp.text)))
+    except Exception as e:
+        print(f"  Error fetching FinViz by tickers: {e}")
+        return []
+
+def parse_finviz_row(row):
+    parsed = {}
+    for key, val in row.items():
+        if not key:
+            continue
+        field = re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
+        parsed[field] = val
+    return parsed
 ET = pytz.timezone("America/New_York")
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
@@ -567,7 +611,6 @@ import threading
 import time
 import uuid
 from db import get_active_symbols, log_price_tick, try_acquire_poller_lock
-from stocktwits_collector import fetch_finviz_by_tickers, parse_finviz_row
 
 _POLLER_WORKER_ID = str(uuid.uuid4())
 
