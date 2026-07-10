@@ -335,26 +335,3 @@ def is_quality_message(text: str) -> bool:
 
 if __name__ == "__main__":
     main()
-FINVIZ_TICKER_URL = (
-    "https://elite.finviz.com/export?v=111"
-    "&t={tickers}&c={columns}&auth={token}"
-)
-
-def fetch_finviz_by_tickers(symbols: list, token: str) -> list:
-    """Ticker-filtered FinViz export for the minute-level poller.
-    v=111 (Overview) is required to get Price; much lighter than the
-    full screener export since it's capped to ~50 symbols."""
-    if not symbols:
-        return []
-    tickers = ",".join(symbols)
-    url = FINVIZ_TICKER_URL.format(tickers=tickers, columns=FINVIZ_COLUMNS, token=token)
-    try:
-        resp = std_requests.get(url, headers=FV_HEADERS, timeout=20)
-        if resp.status_code != 200:
-            print(f"  Error: HTTP {resp.status_code} — {resp.text[:200]}")
-            return []
-        rows = list(csv.DictReader(io.StringIO(resp.text)))
-        return rows
-    except Exception as e:
-        print(f"  Error fetching FinViz by tickers: {e}")
-        return []
