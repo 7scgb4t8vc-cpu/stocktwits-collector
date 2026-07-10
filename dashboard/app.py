@@ -563,3 +563,35 @@ def api_set_active_symbols():
     symbols = [s.strip().upper() for s in symbols if isinstance(s, str) and s.strip()]
     set_active_symbols(symbols)
     return jsonify({"status": "ok", "count": len(symbols)})
+import threading
+import time
+import uuid
+from db import get_active_symbols, log_price_tick, try_acquire_poller_lock
+from stocktwits_collector import fetch_finviz_by_tickers, parse_finviz_row
+
+_POLLER_WORKER_ID = str(uuid.uuid4())
+
+def _price_poller_loop():
+    finviz_token = os.environ.get("FINVIZ_API_TOKEN", "")
+    if not finviz_token:
+        print("Poller: FINVIZ_API_TOKEN not set, skipping.")
+        return
+    while True:
+        try:
+            if try_acquire_poller_lock(_POLLER_WORKER_ID):
+                symbols = get_active_symbols()
+                if symbols:
+                    rows = fetch_finviz_by_tickers(symbols, finviz_token)
+                    now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
+                    for raw in rows:
+                        parsed = parse_finviz_row(raw)
+                        sym = parsed.get("ticker", "").strip().upper()
+                        price = parsed.get("price")
+                        if sym and price:
+                            log_price_tick(sym, now_et, price)
+                    print(f"Poller: logged {len(rows)} ticks for {symbols}")
+        except Exception as e:
+            print(f"Poller error: {e}")
+        time.sleep(60)
+
+threading.Thread(target=_price_poller_loop, daemon=True).start()
