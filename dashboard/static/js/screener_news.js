@@ -46,11 +46,17 @@ async function renderNewsCards() {
       </div>
       <div class="news-card-body">
         <div class="news-card-charts">
-          <div class="news-tf-strip">
-            ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
+          <div class="news-toolbar-row">
+            <span class="news-toolbar-label">Window</span>
+            <div class="news-tf-strip">
+              ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
+            </div>
           </div>
-          <div class="news-bucket-strip">
-            ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
+          <div class="news-toolbar-row">
+            <span class="news-toolbar-label">Interval</span>
+            <div class="news-bucket-strip">
+              ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
+            </div>
           </div>
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
           <div>
@@ -179,34 +185,3 @@ function renderStatPanel(r) {
     </div>
   `;
 }
-
-function format52wRange(r) {
-  const price = parseFloat(r.price);
-  const highPct = parseFloat(r["52_week_high"]);
-  const lowPct = parseFloat(r["52_week_low"]);
-  if (isNaN(price) || isNaN(highPct) || isNaN(lowPct)) return "—";
-  const high = price / (1 + highPct / 100);
-  const low = price / (1 + lowPct / 100);
-  return `${low.toFixed(2)} - ${high.toFixed(2)}`;
-}
-function format52wRange(r) {
-  const price = parseFloat(r.price);
-  const highPct = parseFloat(r["52_week_high"]);
-  const lowPct = parseFloat(r["52_week_low"]);
-  if (isNaN(price) || isNaN(highPct) || isNaN(lowPct)) return "—";
-  const high = price / (1 + highPct / 100);
-  const low = price / (1 + lowPct / 100);
-  return `${low.toFixed(2)} - ${high.toFixed(2)}`;
-}
-<div class="news-toolbar-row">
-            <span class="news-toolbar-label">Window</span>
-            <div class="news-tf-strip">
-              ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
-            </div>
-          </div>
-          <div class="news-toolbar-row">
-            <span class="news-toolbar-label">Interval</span>
-            <div class="news-bucket-strip">
-              ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
-            </div>
-          </div>
