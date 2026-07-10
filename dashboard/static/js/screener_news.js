@@ -49,7 +49,7 @@ async function renderNewsCards() {
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
           <div>
             <div class="news-chart-title">Price vs Message Volume</div>
-            <canvas id="corr-${s}" height="70"></canvas>
+            <canvas id="corr-${s}" height="130"></canvas>
           </div>
         </div>
         <div class="news-card-sidepanel">
