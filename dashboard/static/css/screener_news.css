@@ -130,7 +130,7 @@
   .news-card-sidepanel { width: 100%; }
 }
 .news-card-messages {
-  flex: 1;
+  flex: 0 0 220px;
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
