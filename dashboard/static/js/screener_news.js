@@ -21,7 +21,14 @@ async function renderNewsCards() {
     bySymbol[r.symbol].push(r);
   });
   const symbols = Object.keys(bySymbol).sort();
-
+  clearTimeout(_newsActiveSymbolsTimer);
+  _newsActiveSymbolsTimer = setTimeout(() => {
+    fetch("/api/active-symbols", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: symbols.slice(0, 50) }),
+    });
+  }, 2000);
   document.getElementById("stat-total").textContent   = abnormal.length;
   document.getElementById("stat-bullish").textContent = abnormal.filter(r => (r.nlp_label || "").toLowerCase() === "bullish").length;
   document.getElementById("stat-bearish").textContent = abnormal.filter(r => (r.nlp_label || "").toLowerCase() === "bearish").length;
@@ -89,6 +96,7 @@ async function renderNewsCards() {
 const _newsCardState = {};
 const _newsFullData = {};
 const _newsRollingCharts = {};
+let _newsActiveSymbolsTimer = null;
 
 const NEWS_TF_OPTIONS = ["5m","15m","30m","1h","2h","4h","6h","12h","1d","7d","30d"];
 const NEWS_TF_LABELS = {"5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","6h":"6H","12h":"12H","1d":"D","7d":"W","30d":"M"};
