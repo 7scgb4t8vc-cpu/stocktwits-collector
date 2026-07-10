@@ -133,3 +133,23 @@ def save_cursors(cursors):
             {"$set": {"since_id": since_id}},
             upsert=True
         )
+def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
+    """Atomically claim the poller lock if unclaimed, held by us, or stale.
+    Returns True if this worker holds the lock this cycle."""
+    coll = get_db()["poller_lock"]
+    now = datetime.utcnow()
+    stale_cutoff = now - timedelta(seconds=stale_after_seconds)
+    result = coll.find_one_and_update(
+        {
+            "_id": "singleton",
+            "$or": [
+                {"holder": worker_id},
+                {"updated_at": {"$lt": stale_cutoff}},
+                {"holder": {"$exists": False}},
+            ],
+        },
+        {"$set": {"holder": worker_id, "updated_at": now}},
+        upsert=True,
+        return_document=True,
+    )
+    return result.get("holder") == worker_id
