@@ -115,3 +115,8 @@
   .news-card-body { flex-direction: column; }
   .news-card-sidepanel { width: 100%; }
 }
+.news-card-messages {
+  max-height: 500px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
