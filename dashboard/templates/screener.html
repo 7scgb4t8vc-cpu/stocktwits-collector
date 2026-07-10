@@ -1281,6 +1281,11 @@ document.getElementById("screener-thead").addEventListener("click", (e) => {
   }
   renderHeader();
   applyFilters();
+  const symbols = rows.map(r => r.symbol);
+  fetch("/api/watchlist/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbols }),
 });
 
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
