@@ -153,3 +153,31 @@ def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
         return_document=True,
     )
     return result.get("holder") == worker_id
+def active_symbols_collection():
+    return get_db()["active_symbols"]
+
+def set_active_symbols(symbols):
+    """Overwrite the current filtered symbol list (max 50) that the
+    minute-level poller should track."""
+    symbols = symbols[:50]
+    active_symbols_collection().update_one(
+        {"_id": "current"},
+        {"$set": {"symbols": symbols, "updated_at": datetime.utcnow().isoformat()}},
+        upsert=True
+    )
+
+def get_active_symbols():
+    doc = active_symbols_collection().find_one({"_id": "current"})
+    return doc["symbols"] if doc else []
+
+def log_price_tick(symbol, timestamp, price):
+    """Minute-level price tick from the background poller. Writes to the
+    same price_history collection so existing chart code doesn't need to change."""
+    price_history_collection().insert_one({
+        "symbol": symbol,
+        "timestamp": timestamp,
+        "price": price,
+        "change_pct": None,
+        "volume": None,
+        "source": "minute_poll",
+    })
