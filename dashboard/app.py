@@ -553,3 +553,13 @@ def sync_watchlist():
     if symbols:
         coll.insert_many([{"symbol": s} for s in symbols])
     return {"status": "ok", "count": len(symbols)}
+
+from db import set_active_symbols
+
+@app.route("/api/active-symbols", methods=["POST"])
+def api_set_active_symbols():
+    data = request.get_json(silent=True) or {}
+    symbols = data.get("symbols", [])
+    symbols = [s.strip().upper() for s in symbols if isinstance(s, str) and s.strip()]
+    set_active_symbols(symbols)
+    return jsonify({"status": "ok", "count": len(symbols)})
