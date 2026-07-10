@@ -1257,7 +1257,6 @@ function renderTable(rows) {
   document.getElementById("stat-total").textContent   = rows.length;
   document.getElementById("stat-bullish").textContent = bull;
   document.getElementById("stat-bearish").textContent = bear;
-
   const cols = VIEW_SETS[currentView];
   const body = document.getElementById("screener-body");
   if (!rows.length) {
@@ -1267,6 +1266,13 @@ function renderTable(rows) {
   body.innerHTML = rows.map(r => {
     return "<tr>" + cols.map(col => `<td>${formatCell(r, col)}</td>`).join("") + "</tr>";
   }).join("");
+
+  const symbols = rows.map(r => r.symbol);
+  fetch("/api/watchlist/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbols }),
+  });
 }
 
 document.getElementById("screener-thead").addEventListener("click", (e) => {
@@ -1281,11 +1287,6 @@ document.getElementById("screener-thead").addEventListener("click", (e) => {
   }
   renderHeader();
   applyFilters();
-  const symbols = rows.map(r => r.symbol);
-  fetch("/api/watchlist/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbols }),
 });
 
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
