@@ -30,8 +30,8 @@ function roundToBucket(tsStr, bucketMin) {
   return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
 }
 
-function sliceRollingData(fullData, tf, viewEndMs) {
-  const bucketMin = BUCKET_MINUTES[tf] || 30;
+function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
+  const bucketMin = bucketMinOverride || BUCKET_MINUTES[tf] || 30;
   const tfMs = (TF_HOURS[tf] || 24) * 3600000;
   const endMs = viewEndMs || Date.now();
   const startMs = endMs - tfMs;
