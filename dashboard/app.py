@@ -545,4 +545,11 @@ def trigger_refresh():
     if resp.status_code == 204:
         return jsonify({"status": "triggered"})
     return jsonify({"error": resp.text}), resp.status_code
-
+@app.route("/api/watchlist/sync", methods=["POST"])
+def sync_watchlist():
+    symbols = request.json.get("symbols", [])
+    coll = get_db()["watchlist"]
+    coll.delete_many({})
+    if symbols:
+        coll.insert_many([{"symbol": s} for s in symbols])
+    return {"status": "ok", "count": len(symbols)}
