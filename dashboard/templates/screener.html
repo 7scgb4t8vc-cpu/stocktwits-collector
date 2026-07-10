@@ -1250,6 +1250,7 @@ async function toggleWatchlist(symbol, isTracked) {
 }
 function renderTable(rows) {
   let bull = 0, bear = 0;
+  let _activeSymbolsTimer = null;
   rows.forEach(r => {
     if (r.sentiment === "Bullish") bull++;
     else if (r.sentiment === "Bearish") bear++;
@@ -1273,6 +1274,15 @@ function renderTable(rows) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ symbols }),
   });
+
+  clearTimeout(_activeSymbolsTimer);
+  _activeSymbolsTimer = setTimeout(() => {
+    fetch("/api/active-symbols", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbols: symbols.slice(0, 50) }),
+    });
+  }, 2000);
 }
 
 document.getElementById("screener-thead").addEventListener("click", (e) => {
