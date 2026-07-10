@@ -181,3 +181,25 @@ def log_price_tick(symbol, timestamp, price):
         "volume": None,
         "source": "minute_poll",
     })
+def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
+    from pymongo.errors import DuplicateKeyError
+    coll = get_db()["poller_lock"]
+    now = datetime.utcnow()
+    stale_cutoff = now - timedelta(seconds=stale_after_seconds)
+    try:
+        result = coll.find_one_and_update(
+            {
+                "_id": "singleton",
+                "$or": [
+                    {"holder": worker_id},
+                    {"updated_at": {"$lt": stale_cutoff}},
+                    {"holder": {"$exists": False}},
+                ],
+            },
+            {"$set": {"holder": worker_id, "updated_at": now}},
+            upsert=True,
+            return_document=True,
+        )
+        return result.get("holder") == worker_id
+    except DuplicateKeyError:
+        return False
