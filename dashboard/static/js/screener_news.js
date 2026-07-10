@@ -144,7 +144,12 @@ function escapeHtmlNews(text) {
 function statPair(label, value) {
   return `<div class="news-sidepanel-pair"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
 }
-
+function format52wRange(r) {
+  const low = parseFloat(r.week_52_low);
+  const high = parseFloat(r.week_52_high);
+  if (isNaN(low) || isNaN(high)) return "—";
+  return `$${low.toFixed(2)} - $${high.toFixed(2)}`;
+}
 function renderStatPanel(r) {
   const leftCol = [
     ["Market Cap", formatMarketCap(r.market_cap)],
