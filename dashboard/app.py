@@ -638,3 +638,17 @@ def _price_poller_loop():
         time.sleep(60)
 
 threading.Thread(target=_price_poller_loop, daemon=True).start()
+
+@app.route("/api/debug-social")
+def debug_social():
+    watchlist = get_watchlist()
+    all_rows = get_messages()
+    matching = [r for r in all_rows if r.get("symbol", "") in watchlist]
+    return jsonify({
+        "watchlist_size": len(watchlist),
+        "aibz_in_watchlist": "AIBZ" in watchlist,
+        "total_messages": len(all_rows),
+        "matching_messages": len(matching),
+        "sample_watchlist": list(watchlist)[:5],
+        "sample_message_symbols": [r.get("symbol") for r in all_rows[:5]],
+    })
