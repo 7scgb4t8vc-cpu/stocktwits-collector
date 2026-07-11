@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history, get_active_symbols
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -182,9 +182,9 @@ def main():
 
     cursors = load_cursors()
 
-    # ── User-managed watchlist (added/removed from the Screener page) ────────
-    watchlist = load_watchlist()
-    print(f"\nCurrent user watchlist ({len(watchlist)} symbols): {watchlist}")
+    # ── Currently filtered/active symbols (from the Screener/News page) ──────
+    watchlist = get_active_symbols()
+    print(f"\nCurrent active symbols ({len(watchlist)} symbols): {watchlist}")
 
     # ── Always fetch the full FinViz screener universe (not just watchlist) ──
     print("\nFetching FinViz screener universe...")
