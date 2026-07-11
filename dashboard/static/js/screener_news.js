@@ -38,8 +38,6 @@ async function renderNewsCards(filteredRows) {
 
   const allMsgsForFiltered = symbols.flatMap(s => bySymbol[s] || []);
   document.getElementById("stat-total").textContent   = rows.length;
-  document.getElementById("stat-bullish").textContent = allMsgsForFiltered.filter(r => (r.nlp_label || "").toLowerCase() === "bullish").length;
-  document.getElementById("stat-bearish").textContent = allMsgsForFiltered.filter(r => (r.nlp_label || "").toLowerCase() === "bearish").length;
 
   if (!symbols.length) {
     container.innerHTML = '<div class="empty">No stocks match your filters.</div>';
