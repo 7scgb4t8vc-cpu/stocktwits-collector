@@ -127,10 +127,8 @@ def get_watchlist() -> set:
 
 def load_social():
     watchlist = get_watchlist()
-    rows = get_messages()
-    rows = [r for r in rows if r.get("symbol", "") in watchlist]
+    rows = get_messages(symbols=list(watchlist))
     rows.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
-
     result = []
     for row in rows:
         result.append({
