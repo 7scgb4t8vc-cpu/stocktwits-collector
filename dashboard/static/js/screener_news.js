@@ -7,7 +7,26 @@ function computeAbnormalMessages(rows) {
   const threshold = mean + 2 * stdev;
   return withEng.filter(r => r._eng > threshold && r._eng > 0);
 }
+function filterImportantMessages(rows) {
+  if (!rows.length) return [];
+  const withEng = rows.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
+  const engs = withEng.map(r => r._eng);
+  const mean = engs.reduce((a, b) => a + b, 0) / engs.length;
+  const variance = engs.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / engs.length;
+  const stdev = Math.sqrt(variance);
+  const threshold = mean + 2 * stdev;
+  const MIN_ENGAGEMENT = 3; // floor, so "unusual" can't just mean 1 like on a dead stock
 
+  let picked = withEng.filter(r => r._eng > threshold && r._eng >= MIN_ENGAGEMENT);
+
+  // Safety net: if nothing clears the bar (common for quiet small stocks),
+  // just show the single most-engaged message instead of leaving it empty
+  if (!picked.length) {
+    const best = withEng.reduce((a, b) => (b._eng > a._eng ? b : a), withEng[0]);
+    if (best._eng > 0) picked = [best];
+  }
+  return picked;
+}
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
 
@@ -48,7 +67,7 @@ async function renderNewsCards(filteredRows) {
 
   for (const s of symbols) {
     const stockRow = allRows.find(r => r.symbol === s) || {};
-    const msgs = (bySymbol[s] || []).sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+    const msgs = filterImportantMessages(bySymbol[s] || []).sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
     const change = parseFloat(stockRow.change) || 0;
     const card = document.getElementById(`news-card-${s}`);
     card.innerHTML = `
