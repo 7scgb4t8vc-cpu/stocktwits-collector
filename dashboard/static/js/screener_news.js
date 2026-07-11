@@ -22,8 +22,8 @@ function filterImportantMessages(rows) {
   // Safety net: if nothing clears the bar (common for quiet small stocks),
   // just show the single most-engaged message instead of leaving it empty
   if (!picked.length) {
-    const best = withEng.reduce((a, b) => (b._eng > a._eng ? b : a), withEng[0]);
-    if (best._eng > 0) picked = [best];
+    const sorted = [...withEng].sort((a, b) => b._eng - a._eng);
+    picked = sorted.slice(0, 3); // show a few most recent/relevant even with low engagement
   }
   return picked;
 }
