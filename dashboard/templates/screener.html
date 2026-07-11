@@ -238,14 +238,25 @@
         </select>
       </div>
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">SHORT FLOAT</label>
-        <select id="f-shortfloat" class="filter-select">
-          <option value="">Any</option>
-          <option value="5">5%+</option>
-          <option value="10">10%+</option>
-          <option value="20">20%+</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">SHORT FLOAT</label>
+  <select id="f-shortfloat" class="filter-select">
+    <option value="">Any</option>
+    <option value="low">Low (&lt;5%)</option>
+    <option value="high">High (&gt;20%)</option>
+    <option value="u5">Under 5%</option>
+    <option value="u10">Under 10%</option>
+    <option value="u15">Under 15%</option>
+    <option value="u20">Under 20%</option>
+    <option value="u25">Under 25%</option>
+    <option value="u30">Under 30%</option>
+    <option value="o5">Over 5%</option>
+    <option value="o10">Over 10%</option>
+    <option value="o15">Over 15%</option>
+    <option value="o20">Over 20%</option>
+    <option value="o25">Over 25%</option>
+    <option value="o30">Over 30%</option>
+  </select>
+</div>
       <div class="scr-field cat-technical">
   <label class="scr-filter-label">RSI (14)</label>
   <select id="f-rsi" class="filter-select">
@@ -1185,9 +1196,18 @@ function computeFilteredRows() {
     if (divYield === "2"    && !(dy >= 2)) return false;
     if (divYield === "4"    && !(dy >= 4)) return false;
 
-    if (shortFloat === "5"  && !(sf >= 5))  return false;
-    if (shortFloat === "10" && !(sf >= 10)) return false;
-    if (shortFloat === "20" && !(sf >= 20)) return false;
+    if (shortFloat === "low"  && !(sf !== null && sf < 5))  return false;
+    if (shortFloat === "high" && !(sf !== null && sf > 20)) return false;
+    if (shortFloat) {
+      const dir = shortFloat[0];
+      if ((dir === "u" || dir === "o") && sf !== null) {
+        const num = parseFloat(shortFloat.slice(1));
+        if (dir === "u" && !(sf < num)) return false;
+        if (dir === "o" && !(sf > num)) return false;
+      } else if (dir === "u" || dir === "o") {
+        return false;
+      }
+    }
 
     if (rsiFilter === "ob90"  && !(rsi > 90)) return false;
     if (rsiFilter === "ob80"  && !(rsi > 80)) return false;
