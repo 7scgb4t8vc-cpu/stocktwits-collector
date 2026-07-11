@@ -150,13 +150,36 @@ def fetch_trending() -> list:
     return resp.json().get("symbols", [])
 
 
-def fetch_messages(symbol: str, since_id=None) -> list:
-    """Always fetch the newest messages, regardless of backlog. Older skipped messages are accepted as lost."""
-    url    = f"{BASE_URL}/streams/symbol/{symbol}.json"
-    params = {"limit": 30}
-    resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
-    resp.raise_for_status()
-    return resp.json().get("messages", [])
+def fetch_messages(symbol: str, since_id=None, max_pages=5) -> list:
+    """Fetch up to max_pages of messages (30 per page), paging backward
+    with StockTwits' `max` cursor param until since_id is reached or
+    max_pages is hit."""
+    url = f"{BASE_URL}/streams/symbol/{symbol}.json"
+    all_messages = []
+    max_id = None
+
+    for _ in range(max_pages):
+        params = {"limit": 30}
+        if max_id:
+            params["max"] = max_id
+        resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=20)
+        resp.raise_for_status()
+        page = resp.json().get("messages", [])
+        if not page:
+            break
+
+        all_messages.extend(page)
+
+        oldest_id = page[-1]["id"]
+        if since_id and oldest_id <= since_id:
+            break
+        if oldest_id == max_id:
+            break
+        max_id = oldest_id - 1
+
+        time.sleep(REQUEST_DELAY)
+
+    return all_messages
 
 
 def get_sentiment(msg: dict) -> str:
