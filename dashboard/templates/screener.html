@@ -651,6 +651,7 @@ let orderDir = 1;
 let currentView = "overview";
 let currentWatchlist = new Set();
 let allSocialRows = [];
+let _activeSymbolsTimer = null;
 
 // Column definitions: label + formatting type
 const COLUMN_DEFS = {
@@ -1250,7 +1251,6 @@ async function toggleWatchlist(symbol, isTracked) {
 }
 function renderTable(rows) {
   let bull = 0, bear = 0;
-  let _activeSymbolsTimer = null;
   rows.forEach(r => {
     if (r.sentiment === "Bullish") bull++;
     else if (r.sentiment === "Bearish") bear++;
