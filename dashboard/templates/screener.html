@@ -88,16 +88,55 @@
   </select>
 </div>
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">PRICE RANGE</label>
-        <select id="f-price" class="filter-select">
-          <option value="">Any</option>
-          <option value="5">Under $5</option>
-          <option value="10">Under $10</option>
-          <option value="20">Under $20</option>
-          <option value="50">Under $50</option>
-          <option value="100">Under $100</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">PRICE RANGE</label>
+  <select id="f-price" class="filter-select">
+    <option value="">Any</option>
+    <option value="u1">Under $1</option>
+    <option value="u2">Under $2</option>
+    <option value="u3">Under $3</option>
+    <option value="u4">Under $4</option>
+    <option value="u5">Under $5</option>
+    <option value="u7">Under $7</option>
+    <option value="u10">Under $10</option>
+    <option value="u15">Under $15</option>
+    <option value="u20">Under $20</option>
+    <option value="u30">Under $30</option>
+    <option value="u40">Under $40</option>
+    <option value="u50">Under $50</option>
+    <option value="u60">Under $60</option>
+    <option value="u70">Under $70</option>
+    <option value="u80">Under $80</option>
+    <option value="u90">Under $90</option>
+    <option value="u100">Under $100</option>
+    <option value="o1">Over $1</option>
+    <option value="o2">Over $2</option>
+    <option value="o3">Over $3</option>
+    <option value="o4">Over $4</option>
+    <option value="o5">Over $5</option>
+    <option value="o7">Over $7</option>
+    <option value="o10">Over $10</option>
+    <option value="o15">Over $15</option>
+    <option value="o20">Over $20</option>
+    <option value="o30">Over $30</option>
+    <option value="o40">Over $40</option>
+    <option value="o50">Over $50</option>
+    <option value="o60">Over $60</option>
+    <option value="o70">Over $70</option>
+    <option value="o80">Over $80</option>
+    <option value="o90">Over $90</option>
+    <option value="o100">Over $100</option>
+    <option value="r1-5">$1 to $5</option>
+    <option value="r1-10">$1 to $10</option>
+    <option value="r1-20">$1 to $20</option>
+    <option value="r1-50">$1 to $50</option>
+    <option value="r5-10">$5 to $10</option>
+    <option value="r5-20">$5 to $20</option>
+    <option value="r5-50">$5 to $50</option>
+    <option value="r10-20">$10 to $20</option>
+    <option value="r10-50">$10 to $50</option>
+    <option value="r20-50">$20 to $50</option>
+  </select>
+</div>
       <div class="scr-field cat-technical">
         <label class="scr-filter-label">PRICE CHANGE</label>
         <select id="f-change" class="filter-select">
@@ -1052,7 +1091,16 @@ function computeFilteredRows() {
     if (mktcap === "u2b"   && !(mc < 2_000_000_000))   return false;
     if (mktcap === "u300m" && !(mc < 300_000_000))     return false;
  
-    if (price && pr > parseFloat(price)) return false;
+    if (price) {
+      if (price[0] === "u") {
+        if (!(pr < parseFloat(price.slice(1)))) return false;
+      } else if (price[0] === "o") {
+        if (!(pr > parseFloat(price.slice(1)))) return false;
+      } else if (price[0] === "r") {
+        const [lo, hi] = price.slice(1).split("-").map(Number);
+        if (!(pr >= lo && pr <= hi)) return false;
+      }
+    }
 
     if (change === "gainers" && chg <= 0)  return false;
     if (change === "losers"  && chg >= 0)  return false;
