@@ -1269,11 +1269,6 @@ function renderTable(rows) {
   }).join("");
 
   const symbols = rows.map(r => r.symbol);
-  fetch("/api/watchlist/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ symbols }),
-  });
 
   clearTimeout(_activeSymbolsTimer);
   _activeSymbolsTimer = setTimeout(() => {
