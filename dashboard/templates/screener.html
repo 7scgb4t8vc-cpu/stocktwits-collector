@@ -110,15 +110,28 @@
         </select>
       </div>
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">REL VOLUME</label>
-        <select id="f-relvol" class="filter-select">
-          <option value="">Any</option>
-          <option value="1.5">1.5x+</option>
-          <option value="2">2x+</option>
-          <option value="3">3x+</option>
-          <option value="5">5x+</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">REL VOLUME</label>
+  <select id="f-relvol" class="filter-select">
+    <option value="">Any</option>
+    <option value="o10">Over 10x</option>
+    <option value="o5">Over 5x</option>
+    <option value="o4">Over 4x</option>
+    <option value="o3">Over 3x</option>
+    <option value="o2">Over 2x</option>
+    <option value="o1.5">Over 1.5x</option>
+    <option value="o1">Over 1x</option>
+    <option value="o0.75">Over 0.75x</option>
+    <option value="o0.5">Over 0.5x</option>
+    <option value="o0.25">Over 0.25x</option>
+    <option value="u2">Under 2x</option>
+    <option value="u1.5">Under 1.5x</option>
+    <option value="u1">Under 1x</option>
+    <option value="u0.75">Under 0.75x</option>
+    <option value="u0.5">Under 0.5x</option>
+    <option value="u0.25">Under 0.25x</option>
+    <option value="u0.1">Under 0.1x</option>
+  </select>
+</div>
 
       <div class="scr-field cat-fundamental">
         <label class="scr-filter-label">P/E</label>
@@ -1027,7 +1040,12 @@ function computeFilteredRows() {
     if (change === "-10"     && chg > -10) return false;
 
     if (avgvol && av < parseInt(avgvol)) return false;
-    if (relvol && rv < parseFloat(relvol)) return false;
+    if (relvol) {
+      const dir = relvol[0];           // "o" or "u"
+      const num = parseFloat(relvol.slice(1));
+      if (dir === "o" && !(rv > num)) return false;
+      if (dir === "u" && !(rv < num)) return false;
+    }
 
     if (peFilter === "profitable"   && !(pe > 0))          return false;
     if (peFilter === "unprofitable" && !(isNaN(pe) || pe <= 0)) return false;
