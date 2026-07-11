@@ -74,15 +74,11 @@
 .rolling-tooltip .tt-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .rolling-tooltip .tt-label { color: #8b949e; }
 .rolling-tooltip .tt-val { font-weight: 700; }
+
 .news-card-body {
   display: flex;
   gap: 1.25rem;
-  align-items: flex-start;
-}
-.news-card-body {
-  display: flex;
-  gap: 1.25rem;
-  align-items: flex-start;
+  align-items: stretch;
   flex: 0 0 auto;
   min-width: 0;
 }
@@ -93,6 +89,9 @@
   font-size: 12px;
   min-width: 0;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 .news-sidepanel-grid {
   display: grid;
