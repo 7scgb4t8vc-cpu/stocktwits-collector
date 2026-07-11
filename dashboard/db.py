@@ -27,18 +27,24 @@ def insert_messages(messages):
             upsert=True
         )
 
-def get_messages(symbol=None, scored_only=False, unscored_only=False, days=30):
+def get_messages(symbol=None, symbols=None, scored_only=False, unscored_only=False, days=30):
     coll = messages_collection()
     query = {}
     if symbol:
         query["symbol"] = symbol
+    elif symbols:
+        query["symbol"] = {"$in": symbols}
     if scored_only:
         query["nlp_label"] = {"$exists": True}
     if unscored_only:
         query["nlp_label"] = {"$exists": False}
     cutoff = datetime.utcnow() - timedelta(days=days)
-    query["created_at"] = {"$gte": cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")}
-    return list(coll.find(query).sort("created_at", -1).limit(5000))
+    cutoff_str = cutoff.strftime("%Y-%m-%dT%H:%M:%SZ")
+    query["$or"] = [
+        {"created_at": {"$gte": cutoff_str}},
+        {"created_at": {"$exists": False}},
+    ]
+    return list(coll.find(query).sort("created_at", -1))
 
 def update_sentiment(message_id, sentiment, score):
     messages_collection().update_one(
