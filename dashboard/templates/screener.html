@@ -150,15 +150,28 @@
         </select>
       </div>
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">AVG VOLUME</label>
-        <select id="f-avgvol" class="filter-select">
-          <option value="">Any</option>
-          <option value="100000">100K+</option>
-          <option value="500000">500K+</option>
-          <option value="1000000">1M+</option>
-          <option value="5000000">5M+</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">AVG VOLUME</label>
+  <select id="f-avgvol" class="filter-select">
+    <option value="">Any</option>
+    <option value="u50000">Under 50K</option>
+    <option value="u100000">Under 100K</option>
+    <option value="u500000">Under 500K</option>
+    <option value="u750000">Under 750K</option>
+    <option value="u1000000">Under 1M</option>
+    <option value="o50000">Over 50K</option>
+    <option value="o100000">Over 100K</option>
+    <option value="o200000">Over 200K</option>
+    <option value="o300000">Over 300K</option>
+    <option value="o400000">Over 400K</option>
+    <option value="o500000">Over 500K</option>
+    <option value="o750000">Over 750K</option>
+    <option value="o1000000">Over 1M</option>
+    <option value="o2000000">Over 2M</option>
+    <option value="o5000000">Over 5M</option>
+    <option value="o10000000">Over 10M</option>
+    <option value="o20000000">Over 20M</option>
+  </select>
+</div>
       <div class="scr-field cat-descriptive">
   <label class="scr-filter-label">REL VOLUME</label>
   <select id="f-relvol" class="filter-select">
@@ -1109,7 +1122,12 @@ function computeFilteredRows() {
     if (change === "-5"      && chg > -5)  return false;
     if (change === "-10"     && chg > -10) return false;
 
-    if (avgvol && av < parseInt(avgvol)) return false;
+    if (avgvol) {
+      const dir = avgvol[0];
+      const num = parseInt(avgvol.slice(1));
+      if (dir === "u" && !(av < num)) return false;
+      if (dir === "o" && !(av > num)) return false;
+    }
     if (relvol) {
       const dir = relvol[0];           // "o" or "u"
       const num = parseFloat(relvol.slice(1));
