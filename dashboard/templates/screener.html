@@ -68,14 +68,25 @@
       </div>
 
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">MARKET CAP</label>
-        <select id="f-mktcap" class="filter-select">
-          <option value="">All</option>
-          <option value="small">Small (&lt;$2B)</option>
-          <option value="mid">Mid ($2B–$10B)</option>
-          <option value="large">Large (&gt;$10B)</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">MARKET CAP</label>
+  <select id="f-mktcap" class="filter-select">
+    <option value="">All</option>
+    <option value="mega">Mega ($200B+)</option>
+    <option value="large">Large ($10B–$200B)</option>
+    <option value="mid">Mid ($2B–$10B)</option>
+    <option value="small">Small ($300M–$2B)</option>
+    <option value="micro">Micro ($50M–$300M)</option>
+    <option value="nano">Nano (Under $50M)</option>
+    <option value="o10b">+Large (Over $10B)</option>
+    <option value="o2b">+Mid (Over $2B)</option>
+    <option value="o300m">+Small (Over $300M)</option>
+    <option value="o50m">+Micro (Over $50M)</option>
+    <option value="u200b">-Large (Under $200B)</option>
+    <option value="u10b">-Mid (Under $10B)</option>
+    <option value="u2b">-Small (Under $2B)</option>
+    <option value="u300m">-Micro (Under $300M)</option>
+  </select>
+</div>
       <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">PRICE RANGE</label>
         <select id="f-price" class="filter-select">
@@ -1026,10 +1037,21 @@ function computeFilteredRows() {
     if (signal === "bearish" && r.sentiment !== "Bearish") return false;
     if (signal === "unusual" && rv < 2) return false;
 
-    if (mktcap === "small"  && mc >= 2_000_000_000)  return false;
-    if (mktcap === "mid"    && (mc < 2_000_000_000 || mc > 10_000_000_000)) return false;
-    if (mktcap === "large"  && mc <= 10_000_000_000) return false;
-
+    if (mktcap === "mega"  && !(mc >= 200_000_000_000)) return false;
+    if (mktcap === "large" && !(mc >= 10_000_000_000 && mc < 200_000_000_000)) return false;
+    if (mktcap === "mid"   && !(mc >= 2_000_000_000 && mc < 10_000_000_000)) return false;
+    if (mktcap === "small" && !(mc >= 300_000_000 && mc < 2_000_000_000)) return false;
+    if (mktcap === "micro" && !(mc >= 50_000_000 && mc < 300_000_000)) return false;
+    if (mktcap === "nano"  && !(mc < 50_000_000)) return false;
+    if (mktcap === "o10b"  && !(mc > 10_000_000_000))  return false;
+    if (mktcap === "o2b"   && !(mc > 2_000_000_000))   return false;
+    if (mktcap === "o300m" && !(mc > 300_000_000))     return false;
+    if (mktcap === "o50m"  && !(mc > 50_000_000))      return false;
+    if (mktcap === "u200b" && !(mc < 200_000_000_000)) return false;
+    if (mktcap === "u10b"  && !(mc < 10_000_000_000))  return false;
+    if (mktcap === "u2b"   && !(mc < 2_000_000_000))   return false;
+    if (mktcap === "u300m" && !(mc < 300_000_000))     return false;
+ 
     if (price && pr > parseFloat(price)) return false;
 
     if (change === "gainers" && chg <= 0)  return false;
