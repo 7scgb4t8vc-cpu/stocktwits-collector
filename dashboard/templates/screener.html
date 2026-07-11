@@ -138,17 +138,37 @@
   </select>
 </div>
       <div class="scr-field cat-technical">
-        <label class="scr-filter-label">PRICE CHANGE</label>
-        <select id="f-change" class="filter-select">
-          <option value="">Any</option>
-          <option value="gainers">Gainers</option>
-          <option value="losers">Losers</option>
-          <option value="5">+5% or more</option>
-          <option value="10">+10% or more</option>
-          <option value="-5">-5% or more</option>
-          <option value="-10">-10% or more</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">PRICE CHANGE</label>
+  <select id="f-change" class="filter-select">
+    <option value="">Any</option>
+    <option value="gainers">Up</option>
+    <option value="losers">Down</option>
+    <option value="u1">Up 1%+</option>
+    <option value="u2">Up 2%+</option>
+    <option value="u3">Up 3%+</option>
+    <option value="u4">Up 4%+</option>
+    <option value="u5">Up 5%+</option>
+    <option value="u6">Up 6%+</option>
+    <option value="u7">Up 7%+</option>
+    <option value="u8">Up 8%+</option>
+    <option value="u9">Up 9%+</option>
+    <option value="u10">Up 10%+</option>
+    <option value="u15">Up 15%+</option>
+    <option value="u20">Up 20%+</option>
+    <option value="d1">Down 1%+</option>
+    <option value="d2">Down 2%+</option>
+    <option value="d3">Down 3%+</option>
+    <option value="d4">Down 4%+</option>
+    <option value="d5">Down 5%+</option>
+    <option value="d6">Down 6%+</option>
+    <option value="d7">Down 7%+</option>
+    <option value="d8">Down 8%+</option>
+    <option value="d9">Down 9%+</option>
+    <option value="d10">Down 10%+</option>
+    <option value="d15">Down 15%+</option>
+    <option value="d20">Down 20%+</option>
+  </select>
+</div>
       <div class="scr-field cat-descriptive">
   <label class="scr-filter-label">AVG VOLUME</label>
   <select id="f-avgvol" class="filter-select">
@@ -227,13 +247,23 @@
         </select>
       </div>
       <div class="scr-field cat-technical">
-        <label class="scr-filter-label">RSI (14)</label>
-        <select id="f-rsi" class="filter-select">
-          <option value="">Any</option>
-          <option value="overbought">Overbought (&gt;70)</option>
-          <option value="oversold">Oversold (&lt;30)</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">RSI (14)</label>
+  <select id="f-rsi" class="filter-select">
+    <option value="">Any</option>
+    <option value="ob90">Overbought (&gt;90)</option>
+    <option value="ob80">Overbought (&gt;80)</option>
+    <option value="ob70">Overbought (&gt;70)</option>
+    <option value="ob60">Overbought (&gt;60)</option>
+    <option value="os10">Oversold (&lt;10)</option>
+    <option value="os20">Oversold (&lt;20)</option>
+    <option value="os30">Oversold (&lt;30)</option>
+    <option value="os40">Oversold (&lt;40)</option>
+    <option value="nob50">Not Overbought (&lt;50)</option>
+    <option value="nob60">Not Overbought (&lt;60)</option>
+    <option value="nos40">Not Oversold (&gt;40)</option>
+    <option value="nos50">Not Oversold (&gt;50)</option>
+  </select>
+</div>
       <div class="scr-field cat-technical">
         <label class="scr-filter-label">PERFORMANCE (MONTH)</label>
         <select id="f-perfmonth" class="filter-select">
@@ -288,14 +318,25 @@
         </select>
       </div>
       <div class="scr-field cat-descriptive">
-        <label class="scr-filter-label">FLOAT %</label>
-        <select id="f-float" class="filter-select">
-          <option value="">Any</option>
-          <option value="low">Low (&lt;20%)</option>
-          <option value="mid">Mid (20–50%)</option>
-          <option value="high">High (&gt;50%)</option>
-        </select>
-      </div>
+  <label class="scr-filter-label">FLOAT %</label>
+  <select id="f-float" class="filter-select">
+    <option value="">Any</option>
+    <option value="u10">Under 10%</option>
+    <option value="u20">Under 20%</option>
+    <option value="u30">Under 30%</option>
+    <option value="u40">Under 40%</option>
+    <option value="u50">Under 50%</option>
+    <option value="o10">Over 10%</option>
+    <option value="o20">Over 20%</option>
+    <option value="o30">Over 30%</option>
+    <option value="o40">Over 40%</option>
+    <option value="o50">Over 50%</option>
+    <option value="o60">Over 60%</option>
+    <option value="o70">Over 70%</option>
+    <option value="o80">Over 80%</option>
+    <option value="o90">Over 90%</option>
+  </select>
+</div>
       <div class="scr-field cat-descriptive">
         <label class="scr-filter-label">IPO DATE</label>
         <select id="f-ipo" class="filter-select">
@@ -1115,12 +1156,10 @@ function computeFilteredRows() {
       }
     }
 
-    if (change === "gainers" && chg <= 0)  return false;
-    if (change === "losers"  && chg >= 0)  return false;
-    if (change === "5"       && chg < 5)   return false;
-    if (change === "10"      && chg < 10)  return false;
-    if (change === "-5"      && chg > -5)  return false;
-    if (change === "-10"     && chg > -10) return false;
+    if (change === "gainers" && !(chg > 0))  return false;
+    if (change === "losers"  && !(chg < 0))  return false;
+    if (change[0] === "u" && !(chg >= parseFloat(change.slice(1))))  return false;
+    if (change[0] === "d" && !(chg <= -parseFloat(change.slice(1)))) return false;
 
     if (avgvol) {
       const dir = avgvol[0];
@@ -1150,8 +1189,18 @@ function computeFilteredRows() {
     if (shortFloat === "10" && !(sf >= 10)) return false;
     if (shortFloat === "20" && !(sf >= 20)) return false;
 
-    if (rsiFilter === "overbought" && !(rsi > 70)) return false;
-    if (rsiFilter === "oversold"   && !(rsi < 30)) return false;
+    if (rsiFilter === "ob90"  && !(rsi > 90)) return false;
+    if (rsiFilter === "ob80"  && !(rsi > 80)) return false;
+    if (rsiFilter === "ob70"  && !(rsi > 70)) return false;
+    if (rsiFilter === "ob60"  && !(rsi > 60)) return false;
+    if (rsiFilter === "os10"  && !(rsi < 10)) return false;
+    if (rsiFilter === "os20"  && !(rsi < 20)) return false;
+    if (rsiFilter === "os30"  && !(rsi < 30)) return false;
+    if (rsiFilter === "os40"  && !(rsi < 40)) return false;
+    if (rsiFilter === "nob50" && !(rsi < 50)) return false;
+    if (rsiFilter === "nob60" && !(rsi < 60)) return false;
+    if (rsiFilter === "nos40" && !(rsi > 40)) return false;
+    if (rsiFilter === "nos50" && !(rsi > 50)) return false;
 
     if (perfMonth === "up"   && !(perfM > 0))   return false;
     if (perfMonth === "down" && !(perfM < 0))   return false;
@@ -1176,9 +1225,13 @@ function computeFilteredRows() {
     if (sharesOut === "over1000" && !(shrOut >= 1000))               return false;
 
     const fl = parsePercent(r.float);
-    if (floatPct === "low"  && !(fl !== null && fl < 20))              return false;
-    if (floatPct === "mid"  && !(fl !== null && fl >= 20 && fl <= 50)) return false;
-    if (floatPct === "high" && !(fl !== null && fl > 50))              return false;
+    if (floatPct) {
+      if (fl === null) return false;
+      const dir = floatPct[0];
+      const num = parseFloat(floatPct.slice(1));
+      if (dir === "u" && !(fl < num)) return false;
+      if (dir === "o" && !(fl > num)) return false;
+    }
 
     if (ipoFilter) {
       if (!r.ipo_date) return false;
