@@ -786,11 +786,15 @@ function switchView(view) {
     tableWrap.style.display = "none";
     newsCards.style.display = "grid";
     document.getElementById("news-interval-bar").style.display = "block";
+    document.querySelector(".bullish-chip").style.display = "none";
+    document.querySelector(".bearish-chip").style.display = "none";
     renderNewsCards(computeFilteredRows());
   } else {
     tableWrap.style.display = "block";
     newsCards.style.display = "none";
     document.getElementById("news-interval-bar").style.display = "none";
+    document.querySelector(".bullish-chip").style.display = "";
+    document.querySelector(".bearish-chip").style.display = "";
     renderHeader();
     applyFilters();
   }
