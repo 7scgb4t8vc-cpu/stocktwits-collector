@@ -786,7 +786,7 @@ function switchView(view) {
     tableWrap.style.display = "none";
     newsCards.style.display = "grid";
     document.getElementById("news-interval-bar").style.display = "block";
-    renderNewsCards();
+    renderNewsCards(computeFilteredRows());
   } else {
     tableWrap.style.display = "block";
     newsCards.style.display = "none";
