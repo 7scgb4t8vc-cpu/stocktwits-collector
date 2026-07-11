@@ -8,19 +8,19 @@ function computeAbnormalMessages(rows) {
   return withEng.filter(r => r._eng > threshold && r._eng > 0);
 }
 
-async function renderNewsCards() {
-  const sym = document.getElementById("filter-symbol").value.toUpperCase();
+async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
 
-  let abnormal = computeAbnormalMessages(allSocialRows);
-  if (sym) abnormal = abnormal.filter(r => r.symbol.includes(sym));
+  const minPosts = parseInt(document.getElementById("f-posts").value) || 0;
 
-  const bySymbol = {};
-  abnormal.forEach(r => {
-    if (!bySymbol[r.symbol]) bySymbol[r.symbol] = [];
-    bySymbol[r.symbol].push(r);
-  });
-  const symbols = Object.keys(bySymbol).sort();
+  let rows = filteredRows || [];
+  if (minPosts) {
+    rows = rows.filter(r => (socialCountMap[r.symbol] || 0) >= minPosts);
+  }
+  rows = rows.slice(0, 50);
+
+  const symbols = rows.map(r => r.symbol);
+
   clearTimeout(_newsActiveSymbolsTimer);
   _newsActiveSymbolsTimer = setTimeout(() => {
     fetch("/api/active-symbols", {
@@ -29,12 +29,20 @@ async function renderNewsCards() {
       body: JSON.stringify({ symbols: symbols.slice(0, 50) }),
     });
   }, 2000);
-  document.getElementById("stat-total").textContent   = abnormal.length;
-  document.getElementById("stat-bullish").textContent = abnormal.filter(r => (r.nlp_label || "").toLowerCase() === "bullish").length;
-  document.getElementById("stat-bearish").textContent = abnormal.filter(r => (r.nlp_label || "").toLowerCase() === "bearish").length;
+
+  const bySymbol = {};
+  allSocialRows.forEach(r => {
+    if (!bySymbol[r.symbol]) bySymbol[r.symbol] = [];
+    bySymbol[r.symbol].push(r);
+  });
+
+  const allMsgsForFiltered = symbols.flatMap(s => bySymbol[s] || []);
+  document.getElementById("stat-total").textContent   = rows.length;
+  document.getElementById("stat-bullish").textContent = allMsgsForFiltered.filter(r => (r.nlp_label || "").toLowerCase() === "bullish").length;
+  document.getElementById("stat-bearish").textContent = allMsgsForFiltered.filter(r => (r.nlp_label || "").toLowerCase() === "bearish").length;
 
   if (!symbols.length) {
-    container.innerHTML = '<div class="empty">No abnormally high-engagement messages found.</div>';
+    container.innerHTML = '<div class="empty">No stocks match your filters.</div>';
     return;
   }
 
@@ -42,7 +50,7 @@ async function renderNewsCards() {
 
   for (const s of symbols) {
     const stockRow = allRows.find(r => r.symbol === s) || {};
-    const msgs = bySymbol[s].sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+    const msgs = (bySymbol[s] || []).sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
     const change = parseFloat(stockRow.change) || 0;
     const card = document.getElementById(`news-card-${s}`);
     card.innerHTML = `
@@ -76,7 +84,7 @@ async function renderNewsCards() {
         </div>
       </div>
       <div class="news-card-messages">
-        ${msgs.map(m => {
+        ${msgs.length ? msgs.map(m => {
           const label = (m.nlp_label || "neutral").toLowerCase();
           return `
           <div class="news-msg sentiment-${label}">
@@ -87,7 +95,7 @@ async function renderNewsCards() {
             </div>
             <p class="news-msg-text">${escapeHtmlNews(m.message)}</p>
           </div>`;
-        }).join("")}
+        }).join("") : '<div class="empty" style="font-size:12px;">No messages yet.</div>'}
       </div>`;
     loadRollingChart(s);
   }
