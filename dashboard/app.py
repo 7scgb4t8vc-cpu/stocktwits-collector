@@ -126,8 +126,9 @@ def get_watchlist() -> set:
 # ── Data loaders ──────────────────────────────────────────────────────────────
 
 def load_social():
-    watchlist = get_watchlist()
-    rows = get_messages(symbols=list(watchlist))
+    active = set(get_active_symbols())
+    rows = get_messages()
+    rows = [r for r in rows if r.get("symbol", "") in active]
     rows.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
     result = []
     for row in rows:
@@ -452,11 +453,10 @@ def news():
 
 @app.route("/api/social")
 def api_social():
-    watchlist = get_watchlist()
     symbol = request.args.get("symbol", "").upper()
     label  = request.args.get("label", "")
     rows   = load_social()
-    if symbol and symbol in watchlist:
+    if symbol:
         rows = [r for r in rows if r["symbol"] == symbol]
     if label:
         rows = [r for r in rows if r["sentiment"].lower() == label.lower()
