@@ -56,7 +56,7 @@ ET = pytz.timezone("America/New_York")
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
-from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist
+from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist, get_blocked_symbols
 
 app = Flask(__name__)
 
@@ -621,4 +621,7 @@ def debug_social():
         "matching_messages": len(matching),
         "sample_watchlist": list(watchlist)[:5],
         "sample_message_symbols": [r.get("symbol") for r in all_rows[:5]],
+@app.route("/api/blocked-symbols")
+def api_blocked_symbols():
+    return jsonify(get_blocked_symbols())
     })
