@@ -92,11 +92,6 @@ async function renderNewsCards(filteredRows) {
             <button class="news-tf-btn" id="news-now-${s}" onclick="resetNewsNow('${s}')" disabled>Now</button>
             <input type="datetime-local" id="news-date-${s}" class="date-picker" title="Jump to date/time">
           </div>
-          <div class="news-toolbar-row">
-            <span class="news-toolbar-label">Interval</span>
-            <div class="news-bucket-strip">
-              ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
-            </div>
           </div>
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
           <div id="news-drag-${s}" style="cursor:grab;">
