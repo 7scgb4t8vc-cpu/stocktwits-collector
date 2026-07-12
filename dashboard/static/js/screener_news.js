@@ -75,7 +75,7 @@ async function renderNewsCards(filteredRows) {
       <div class="news-card-header">
         <a class="ticker-link" href="/charts?symbol=${s}"><strong>${s}</strong></a>
         <span class="news-card-price">$${stockRow.price || "—"}</span>
-        <span class="${change > 0 ? "positive" : change < 0 ? "negative" : ""}">${stockRow.change ? (change > 0 ? "+" : "") + stockRow.change + "%" : ""}</span>
+        <span class="${change > 0 ? "positive" : change < 0 ? "negative" : ""}">${stockRow.change ? (change > 0 ? "+" : "") + String(stockRow.change).replace("%","") + "%" : ""}</span>
       </div>
       <div class="news-card-body">
         <div class="news-card-charts">
