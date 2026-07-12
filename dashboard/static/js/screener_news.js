@@ -83,15 +83,14 @@ async function renderNewsCards(filteredRows) {
             <div class="news-tf-strip">
               ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
             </div>
-          </div>
-          <div class="news-toolbar-row">
-            <span class="news-toolbar-label">Window</span>
-            <div class="news-tf-strip">
-              ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
-            </div>
             <button class="news-tf-btn" id="news-now-${s}" onclick="resetNewsNow('${s}')" disabled>Now</button>
             <input type="datetime-local" id="news-date-${s}" class="date-picker" title="Jump to date/time">
           </div>
+          <div class="news-toolbar-row">
+            <span class="news-toolbar-label">Interval</span>
+            <div class="news-bucket-strip">
+              ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
+            </div>
           </div>
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
           <div id="news-drag-${s}" style="cursor:grab;">
