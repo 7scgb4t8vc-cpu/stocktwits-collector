@@ -173,3 +173,16 @@ def log_price_tick(symbol, timestamp, price):
         "volume": None,
         "source": "minute_poll",
     })
+def blocked_symbols_collection():
+    return get_db()["blocked_symbols"]
+
+def add_blocked_symbol(symbol: str, reason: str = "not_found"):
+    blocked_symbols_collection().update_one(
+        {"symbol": symbol},
+        {"$set": {"symbol": symbol, "reason": reason}},
+        upsert=True
+    )
+
+def get_blocked_symbols() -> list:
+    docs = list(blocked_symbols_collection().find())
+    return [d["symbol"] for d in docs]
