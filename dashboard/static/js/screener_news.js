@@ -85,13 +85,21 @@ async function renderNewsCards(filteredRows) {
             </div>
           </div>
           <div class="news-toolbar-row">
+            <span class="news-toolbar-label">Window</span>
+            <div class="news-tf-strip">
+              ${NEWS_TF_OPTIONS.map(tf=>`<button class="news-tf-btn${tf==='1d'?' news-tf-active':''}" data-symbol="${s}" data-tf="${tf}" onclick="setNewsTf('${s}','${tf}')">${NEWS_TF_LABELS[tf]}</button>`).join("")}
+            </div>
+            <button class="news-tf-btn" id="news-now-${s}" onclick="resetNewsNow('${s}')" disabled>Now</button>
+            <input type="datetime-local" id="news-date-${s}" class="date-picker" title="Jump to date/time">
+          </div>
+          <div class="news-toolbar-row">
             <span class="news-toolbar-label">Interval</span>
             <div class="news-bucket-strip">
               ${Object.keys(NEWS_BUCKET_OPTIONS).map(b=>`<button class="news-bucket-btn" data-symbol="${s}" data-bucket="${b}" onclick="setNewsBucket('${s}','${b}')">${b}</button>`).join("")}
             </div>
           </div>
           <div id="rolling-tooltip-${s}" class="rolling-tooltip"></div>
-          <div>
+          <div id="news-drag-${s}" style="cursor:grab;">
             <div class="news-chart-title">Price vs Message Volume</div>
             <canvas id="corr-${s}" height="130"></canvas>
           </div>
@@ -128,7 +136,7 @@ const NEWS_TF_LABELS = {"5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4
 const NEWS_BUCKET_OPTIONS = {"1m":1,"3m":3,"5m":5,"15m":15,"30m":30,"1h":60,"d":1440,"w":10080,"m":43200};
 
 function newsCardState(symbol) {
-  if (!_newsCardState[symbol]) _newsCardState[symbol] = { tf: "1d", bucket: null };
+  if (!_newsCardState[symbol]) _newsCardState[symbol] = { tf: "1d", bucket: null, viewEnd: null };
   return _newsCardState[symbol];
 }
 
@@ -136,6 +144,7 @@ async function loadRollingChart(symbol) {
   try {
     const res = await fetch(`/api/charts/${symbol}/full`);
     _newsFullData[symbol] = await res.json();
+    syncNewsDatePicker(symbol);
     updateNewsChart(symbol);
   } catch(e) {}
 }
@@ -144,7 +153,7 @@ function updateNewsChart(symbol) {
   const fullData = _newsFullData[symbol];
   if (!fullData) return;
   const state = newsCardState(symbol);
-  const sliced = sliceRollingData(fullData, state.tf, null, state.bucket);
+  const sliced = sliceRollingData(fullData, state.tf, state.viewEnd, state.bucket);
   if (_newsRollingCharts[symbol]) destroyRollingCharts(_newsRollingCharts[symbol]);
   _newsRollingCharts[symbol] = renderRollingCharts(
     { correlation: `corr-${symbol}`, tooltip: `rolling-tooltip-${symbol}` },
@@ -168,7 +177,56 @@ function setNewsBucket(symbol, bucketLabel) {
   });
   updateNewsChart(symbol);
 }
+function syncNewsDatePicker(symbol) {
+  const picker = document.getElementById(`news-date-${symbol}`);
+  if (!picker) return;
+  const state = newsCardState(symbol);
+  if (state.viewEnd) {
+    const d = new Date(state.viewEnd);
+    const pad = n => String(n).padStart(2, "0");
+    picker.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  } else {
+    picker.value = "";
+  }
+  const nowBtn = document.getElementById(`news-now-${symbol}`);
+  if (nowBtn) nowBtn.disabled = !state.viewEnd;
+}
 
+function resetNewsNow(symbol) {
+  newsCardState(symbol).viewEnd = null;
+  syncNewsDatePicker(symbol);
+  updateNewsChart(symbol);
+}
+
+// ── Drag to pan (per-card) ─────────────────────────────────────────────
+const _newsDragState = { symbol: null, startX: null, startViewEnd: null, pending: false };
+
+function setupNewsDragGlobal() {
+  window.addEventListener("mousemove", (e) => {
+    const st = _newsDragState;
+    if (!st.pending) return;
+    const dx = e.clientX - st.startX;
+    if (Math.abs(dx) < 3) return;
+    const area = document.getElementById(`news-drag-${st.symbol}`);
+    if (!area) return;
+    const state = newsCardState(st.symbol);
+    const tfMs = (TF_HOURS[state.tf] || 24) * 3600000;
+    const msPerPx = tfMs / area.offsetWidth;
+    const newEnd = st.startViewEnd - dx * msPerPx;
+    state.viewEnd = newEnd > Date.now() ? null : newEnd;
+    syncNewsDatePicker(st.symbol);
+    updateNewsChart(st.symbol);
+  });
+  window.addEventListener("mouseup", () => {
+    const st = _newsDragState;
+    if (!st.pending) return;
+    const area = document.getElementById(`news-drag-${st.symbol}`);
+    if (area) area.classList.remove("dragging");
+    st.pending = false;
+    st.symbol = null;
+  });
+}
+setupNewsDragGlobal();
 function escapeHtmlNews(text) {
   const txt = document.createElement("textarea");
   txt.innerHTML = String(text);
@@ -223,3 +281,28 @@ function renderStatPanel(r) {
     </div>
   `;
 }
+document.getElementById("news-cards").addEventListener("mousedown", (e) => {
+  const area = e.target.closest("[id^='news-drag-']");
+  if (!area) return;
+  const symbol = area.id.replace("news-drag-", "");
+  _newsDragState.symbol = symbol;
+  _newsDragState.startX = e.clientX;
+  _newsDragState.startViewEnd = newsCardState(symbol).viewEnd || Date.now();
+  _newsDragState.pending = true;
+  area.classList.add("dragging");
+});
+
+document.getElementById("news-cards").addEventListener("change", (e) => {
+  const input = e.target.closest("[id^='news-date-']");
+  if (!input) return;
+  const symbol = input.id.replace("news-date-", "");
+  const state = newsCardState(symbol);
+  if (!input.value) {
+    state.viewEnd = null;
+  } else {
+    const ms = new Date(input.value).getTime();
+    state.viewEnd = ms > Date.now() ? null : ms;
+  }
+  syncNewsDatePicker(symbol);
+  updateNewsChart(symbol);
+});
