@@ -209,3 +209,16 @@ def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
         return result.get("holder") == worker_id
     except DuplicateKeyError:
         return False
+def blocked_symbols_collection():
+    return get_db()["blocked_symbols"]
+
+def add_blocked_symbol(symbol: str, reason: str = "not_found"):
+    blocked_symbols_collection().update_one(
+        {"symbol": symbol},
+        {"$set": {"symbol": symbol, "reason": reason}},
+        upsert=True
+    )
+
+def get_blocked_symbols() -> list:
+    docs = list(blocked_symbols_collection().find())
+    return [d["symbol"] for d in docs]
