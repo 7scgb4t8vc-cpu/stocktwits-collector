@@ -323,10 +323,23 @@ def main():
 import re
 import html as html_lib
 
-PROFANITY = {
-    "fuck", "shit", "ass", "bitch", "cunt", "dick", "cock",
-    "pussy", "bastard", "piss", "crap", "damn", "fag", "slut"
-}
+# Word stems — regex below catches variations (plurals, -ing, -er, censored chars, etc.)
+PROFANITY_STEMS = [
+    "fuck", "shit", "bitch", "cunt", "dick", "cock", "pussy",
+    "bastard", "piss", "crap", "damn", "fag", "slut", "whore", "asshole"
+]
+
+def _build_profanity_pattern(stems):
+    # Allow common letter-swap censoring (e.g. sh*t, f#ck) by treating
+    # vowels as optionally replaced with a symbol, and allow a suffix
+    # of letters (plurals, -ing, -er, etc.)
+    parts = []
+    for stem in stems:
+        fuzzy = re.sub(r"[aeiou]", r"[aeiou*#@]", stem)
+        parts.append(fuzzy + r"[a-z]*")
+    return re.compile(r"\b(" + "|".join(parts) + r")\b", re.IGNORECASE)
+
+PROFANITY_PATTERN = _build_profanity_pattern(PROFANITY_STEMS)
 
 def clean_message(text: str) -> str:
     """Clean raw StockTwits message text."""
@@ -353,11 +366,8 @@ def is_quality_message(text: str) -> bool:
     real_words = [w for w in words if re.match(r"^[a-zA-Z]{2,}$", w)]
     if len(real_words) < 2:
         return False
-    lower_words = set(w.lower().strip(".,!?") for w in words)
-    if lower_words & PROFANITY:
+    if PROFANITY_PATTERN.search(text):
         return False
     return True
-
-
-if __name__ == "__main__":
+    if __name__ == "__main__":
     main()
