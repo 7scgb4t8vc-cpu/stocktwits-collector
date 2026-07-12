@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history, get_active_symbols
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history, get_active_symbols, add_blocked_symbol
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -243,6 +243,9 @@ def main():
                 messages = fetch_messages(symbol, since_id)
             except Exception as e:
                 print(f"✗ Error: {e}")
+                if "404" in str(e):
+                    add_blocked_symbol(symbol, reason="not_found_on_stocktwits")
+                    print(f"  [{symbol}] Marked as blocked (no StockTwits page).")
                 messages = []
 
             if messages:
