@@ -33,6 +33,7 @@ async function renderNewsCards(filteredRows) {
   const minPosts = parseInt(document.getElementById("f-posts").value) || 0;
 
   let rows = filteredRows || [];
+  rows = rows.filter(r => !_blockedSymbols.has(r.symbol));
   if (minPosts) {
     rows = rows.filter(r => (socialCountMap[r.symbol] || 0) >= minPosts);
   }
@@ -124,6 +125,16 @@ const _newsCardState = {};
 const _newsFullData = {};
 const _newsRollingCharts = {};
 let _newsActiveSymbolsTimer = null;
+let _blockedSymbols = new Set();
+
+async function loadBlockedSymbols() {
+  try {
+    const res = await fetch("/api/blocked-symbols");
+    const list = await res.json();
+    _blockedSymbols = new Set(list);
+  } catch (e) {}
+}
+loadBlockedSymbols();
 
 const NEWS_TF_OPTIONS = ["5m","15m","30m","1h","2h","4h","6h","12h","1d","7d","30d"];
 const NEWS_TF_LABELS = {"5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","6h":"6H","12h":"12H","1d":"D","7d":"W","30d":"M"};
