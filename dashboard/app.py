@@ -621,7 +621,8 @@ def debug_social():
         "matching_messages": len(matching),
         "sample_watchlist": list(watchlist)[:5],
         "sample_message_symbols": [r.get("symbol") for r in all_rows[:5]],
+    })
+
 @app.route("/api/blocked-symbols")
 def api_blocked_symbols():
     return jsonify(get_blocked_symbols())
-    })
