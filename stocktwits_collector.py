@@ -370,4 +370,4 @@ def is_quality_message(text: str) -> bool:
         return False
     return True
     if __name__ == "__main__":
-    main()
+        main()
