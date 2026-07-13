@@ -369,5 +369,7 @@ def is_quality_message(text: str) -> bool:
     if PROFANITY_PATTERN.search(text):
         return False
     return True
-    if __name__ == "__main__":
-        main()
+
+
+if __name__ == "__main__":
+    main()
