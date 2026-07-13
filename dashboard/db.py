@@ -46,10 +46,7 @@ def get_messages(symbol=None, scored_only=False, unscored_only=False, days=7):
     if unscored_only:
         query["nlp_label"] = {"$exists": False}
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    query["$or"] = [
-        {"created_at": {"$gte": cutoff}},
-        {"created_at": {"$exists": False}},
-    ]
+    query["created_at"] = {"$gte": cutoff}
     return list(coll.find(query).limit(20000))
 
 def update_sentiment(message_id, sentiment, score):
