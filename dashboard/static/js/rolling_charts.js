@@ -33,9 +33,9 @@ function etStringToUtcMs(tsStr) {
 }
 
 function roundToBucketFromMs(ms, bucketMin) {
-  const d = new Date(ms);
-  const discard = d.getUTCMinutes() % bucketMin;
-  d.setUTCMinutes(d.getUTCMinutes() - discard, 0, 0);
+  const bucketMs = bucketMin * 60000;
+  const flooredMs = ms - (ms % bucketMs);
+  const d = new Date(flooredMs);
   return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
 }
 function formatTickLabel(raw, tf) {
@@ -53,10 +53,8 @@ function formatFullDate(raw) {
 }
 
 function roundToBucket(tsStr, bucketMin) {
-  const d = new Date(tsStr.replace(" ","T")+"Z");
-  const discard = d.getUTCMinutes() % bucketMin;
-  d.setUTCMinutes(d.getUTCMinutes() - discard, 0, 0);
-  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
+  const ms = new Date(tsStr.replace(" ","T")+"Z").getTime();
+  return roundToBucketFromMs(ms, bucketMin);
 }
 
 function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
