@@ -7,6 +7,8 @@ MONGO_URI = os.environ.get("MONGO_URI")
 _client = None
 
 
+import certifi
+
 def get_db():
     global _client
     if _client is None:
@@ -15,6 +17,8 @@ def get_db():
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=5000,
             socketTimeoutMS=20000,
+            tls=True,
+            tlsCAFile=certifi.where(),
         )
         db = _client["stocktwits"]
         db["messages"].create_index("created_at")
