@@ -5,3 +5,4 @@ pymongo
 yfinance
 pytz
 curl_cffi
+
