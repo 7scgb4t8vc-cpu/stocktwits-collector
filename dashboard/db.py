@@ -6,6 +6,7 @@ MONGO_URI = os.environ.get("MONGO_URI")
 
 _client = None
 
+
 def get_db():
     global _client
     if _client is None:
