@@ -8,7 +8,36 @@ const BUCKET_MINUTES = {
   "4h":15,"6h":15,"12h":30,"1d":30,"7d":60,"30d":240
 };
 const SPARSE_TIMEFRAMES = new Set(["5m","15m","30m","1h","2h"]);
+function getETOffsetMinutes(utcMs) {
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/New_York', hour12: false,
+    year:'numeric', month:'2-digit', day:'2-digit',
+    hour:'2-digit', minute:'2-digit', second:'2-digit'
+  });
+  const parts = dtf.formatToParts(new Date(utcMs));
+  const map = {};
+  parts.forEach(p => { if (p.type !== 'literal') map[p.type] = p.value; });
+  const hour = map.hour === '24' ? '00' : map.hour;
+  const asUTC = Date.UTC(map.year, map.month - 1, map.day, hour, map.minute, map.second);
+  return (utcMs - asUTC) / 60000;
+}
 
+function etStringToUtcMs(tsStr) {
+  const clean = tsStr.replace(" ET", "").trim();
+  const [datePart, timePart] = clean.split(" ");
+  const [y, m, d] = datePart.split("-").map(Number);
+  const [hh, mm] = timePart.split(":").map(Number);
+  const guessUtc = Date.UTC(y, m - 1, d, hh, mm);
+  const offsetMin = getETOffsetMinutes(guessUtc);
+  return guessUtc + offsetMin * 60000;
+}
+
+function roundToBucketFromMs(ms, bucketMin) {
+  const d = new Date(ms);
+  const discard = d.getUTCMinutes() % bucketMin;
+  d.setUTCMinutes(d.getUTCMinutes() - discard, 0, 0);
+  return d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0")+"-"+String(d.getUTCDate()).padStart(2,"0")+" "+String(d.getUTCHours()).padStart(2,"0")+":"+String(d.getUTCMinutes()).padStart(2,"0");
+}
 function formatTickLabel(raw, tf) {
   const d = new Date(raw.replace(" ","T")+"Z");
   if (["5m","15m","30m","1h","2h","4h","6h","12h"].includes(tf))
@@ -56,9 +85,9 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
   }
 
   for (const p of (fullData.price_ticks||[])) {
-    const rMs = new Date(p.timestamp.replace(" ","T")+"Z").getTime();
+    const rMs = etStringToUtcMs(p.timestamp);
     if (rMs < startMs || rMs > endMs) continue;
-    priceMap[roundToBucket(p.timestamp, bucketMin)] = p.price;
+    priceMap[roundToBucketFromMs(rMs, bucketMin)] = p.price;
   }
 
   let lastPrice = null;
