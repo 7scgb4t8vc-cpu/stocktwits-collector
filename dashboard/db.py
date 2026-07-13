@@ -9,7 +9,12 @@ _client = None
 def get_db():
     global _client
     if _client is None:
-        _client = MongoClient(MONGO_URI)
+        _client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=20000,
+        )
         db = _client["stocktwits"]
         db["messages"].create_index("created_at")
         db["messages"].create_index([("symbol", 1), ("created_at", -1)])
