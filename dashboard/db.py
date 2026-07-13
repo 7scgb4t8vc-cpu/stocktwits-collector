@@ -10,6 +10,9 @@ def get_db():
     global _client
     if _client is None:
         _client = MongoClient(MONGO_URI)
+        db = _client["stocktwits"]
+        db["messages"].create_index("created_at")
+        db["messages"].create_index([("symbol", 1), ("created_at", -1)])
     return _client["stocktwits"]
 
 def messages_collection():
