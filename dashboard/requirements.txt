@@ -2,6 +2,7 @@ flask==3.1.0
 gunicorn==23.0.0
 requests==2.32.3
 pymongo[srv]==4.9.2
+certifi
 yfinance
 pytz
 curl_cffi
