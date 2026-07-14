@@ -10,34 +10,44 @@ function computeAbnormalMessages(rows) {
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
 
-  // Bucket messages by hour using their timestamp
-  const bucketMs = 60 * 60 * 1000;
+  const bucketMinutes = 30;
+  const bucketMs = bucketMinutes * 60 * 1000;
+
+  const timestamps = rows
+    .map(r => new Date((r.timestamp || r.created_at || "").replace(" ", "T") + "Z").getTime())
+    .filter(t => !isNaN(t));
+  if (!timestamps.length) return [];
+
+  const minTs = Math.min(...timestamps);
+  const maxTs = Math.max(...timestamps);
+
+  // Build every bucket in range, including empty ones
   const buckets = {};
+  for (let t = minTs - (minTs % bucketMs); t <= maxTs; t += bucketMs) {
+    buckets[t] = [];
+  }
   rows.forEach(r => {
-    const ts = new Date((r.timestamp || "").replace(" ", "T") + "Z").getTime();
+    const ts = new Date((r.timestamp || r.created_at || "").replace(" ", "T") + "Z").getTime();
     if (isNaN(ts)) return;
-    const key = Math.floor(ts / bucketMs);
+    const key = ts - (ts % bucketMs);
     if (!buckets[key]) buckets[key] = [];
     buckets[key].push(r);
   });
 
-  const bucketEntries = Object.entries(buckets);
-  const counts = bucketEntries.map(([, msgs]) => msgs.length);
+  const counts = Object.values(buckets).map(msgs => msgs.length);
   const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
   const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length;
   const stdev = Math.sqrt(variance);
-  const threshold = mean + 1.5 * stdev;
+  const threshold = Math.max(2, mean + 1.5 * stdev);
 
-  // Only buckets that are a real spike (above threshold AND at least 3 messages)
-  const spikeBuckets = bucketEntries.filter(([, msgs]) => msgs.length >= Math.max(3, threshold));
+  const spikeBuckets = Object.values(buckets).filter(msgs => msgs.length >= threshold);
 
-  // From each spike, take the single most-engaged message as the representative one
-  const picks = spikeBuckets.map(([, msgs]) => {
+  const picks = spikeBuckets.map(msgs => {
     const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
     return withEng.sort((a, b) => b._eng - a._eng)[0];
   });
 
-  return picks.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+  return picks.sort((a, b) => (b.timestamp || b.created_at || "").localeCompare(a.timestamp || a.created_at || ""));
 }
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
