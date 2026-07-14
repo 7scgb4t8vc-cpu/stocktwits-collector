@@ -15,7 +15,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install collector dependencies
-        run: pip install curl-cffi requests pytz pymongo
+        run: pip install curl-cffi requests pytz "pymongo[srv]" certifi
       - name: Run collector
         env:
           FINVIZ_API_TOKEN: ${{ secrets.FINVIZ_API_TOKEN }}
