@@ -62,14 +62,17 @@ def update_sentiment(message_id, sentiment, score):
 def finviz_collection():
     return get_db()["finviz"]
 
+from pymongo import ReplaceOne
+
 def upsert_finviz(rows):
+    if not rows:
+        return
     coll = finviz_collection()
-    for row in rows:
-        coll.update_one(
-            {"symbol": row["symbol"]},
-            {"$set": row},
-            upsert=True
-        )
+    operations = [
+        ReplaceOne({"symbol": row["symbol"]}, row, upsert=True)
+        for row in rows
+    ]
+    coll.bulk_write(operations, ordered=False)
 
 def get_finviz(symbol=None):
     coll = finviz_collection()
