@@ -10,22 +10,18 @@ function computeAbnormalMessages(rows) {
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
   const withEng = rows.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
-  const engs = withEng.map(r => r._eng);
-  const mean = engs.reduce((a, b) => a + b, 0) / engs.length;
-  const variance = engs.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / engs.length;
-  const stdev = Math.sqrt(variance);
-  const threshold = mean + 2 * stdev;
-  const MIN_ENGAGEMENT = 3; // floor, so "unusual" can't just mean 1 like on a dead stock
+  const engs = withEng.map(r => r._eng).sort((a, b) => a - b);
+  const mid = Math.floor(engs.length / 2);
+  const median = engs.length % 2 !== 0 ? engs[mid] : (engs[mid - 1] + engs[mid]) / 2;
 
-  let picked = withEng.filter(r => r._eng > threshold && r._eng >= MIN_ENGAGEMENT);
+  const MIN_ENGAGEMENT = 5; // absolute floor so trivial nano-stock posts never qualify
+  const RELATIVE_MULTIPLIER = 3; // must clear 3x this stock's own median engagement
 
-  // Safety net: if nothing clears the bar (common for quiet small stocks),
-  // just show the single most-engaged message instead of leaving it empty
-  if (!picked.length) {
-    const sorted = [...withEng].sort((a, b) => b._eng - a._eng);
-    picked = sorted.slice(0, 3); // show a few most recent/relevant even with low engagement
-  }
-  return picked;
+  const threshold = Math.max(MIN_ENGAGEMENT, median * RELATIVE_MULTIPLIER);
+
+  return withEng
+    .filter(r => r._eng >= threshold)
+    .sort((a, b) => b._eng - a._eng);
 }
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
