@@ -5,10 +5,19 @@ MONGO_URI = os.environ.get("MONGO_URI")
 
 _client = None
 
+import certifi
+
 def get_db():
     global _client
     if _client is None:
-        _client = MongoClient(MONGO_URI)
+        _client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=20000,
+            tls=True,
+            tlsCAFile=certifi.where(),
+        )
     return _client["stocktwits"]
 
 def messages_collection():
