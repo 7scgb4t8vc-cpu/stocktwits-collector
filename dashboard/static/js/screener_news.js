@@ -9,18 +9,35 @@ function computeAbnormalMessages(rows) {
 }
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
-  const withEng = rows.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
 
-  // Skip stocks with zero engagement across the board — nothing to rank
-  if (withEng.every(r => r._eng === 0)) return [];
+  // Bucket messages by hour using their timestamp
+  const bucketMs = 60 * 60 * 1000;
+  const buckets = {};
+  rows.forEach(r => {
+    const ts = new Date((r.timestamp || "").replace(" ", "T") + "Z").getTime();
+    if (isNaN(ts)) return;
+    const key = Math.floor(ts / bucketMs);
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(r);
+  });
 
-  const sorted = [...withEng].sort((a, b) => a._eng - b._eng);
-  const percentileIdx = Math.floor(sorted.length * 0.85); // top 15%
-  const threshold = sorted[percentileIdx]?._eng ?? 0;
+  const bucketEntries = Object.entries(buckets);
+  const counts = bucketEntries.map(([, msgs]) => msgs.length);
+  const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
+  const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length;
+  const stdev = Math.sqrt(variance);
+  const threshold = mean + 1.5 * stdev;
 
-  return withEng
-    .filter(r => r._eng > 0 && r._eng >= threshold && r._eng > sorted[0]._eng) // must beat the bottom, not just tie everyone
-    .sort((a, b) => b._eng - a._eng);
+  // Only buckets that are a real spike (above threshold AND at least 3 messages)
+  const spikeBuckets = bucketEntries.filter(([, msgs]) => msgs.length >= Math.max(3, threshold));
+
+  // From each spike, take the single most-engaged message as the representative one
+  const picks = spikeBuckets.map(([, msgs]) => {
+    const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
+    return withEng.sort((a, b) => b._eng - a._eng)[0];
+  });
+
+  return picks.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
 }
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
