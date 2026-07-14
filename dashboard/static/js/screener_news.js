@@ -10,17 +10,16 @@ function computeAbnormalMessages(rows) {
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
   const withEng = rows.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
-  const engs = withEng.map(r => r._eng).sort((a, b) => a - b);
-  const mid = Math.floor(engs.length / 2);
-  const median = engs.length % 2 !== 0 ? engs[mid] : (engs[mid - 1] + engs[mid]) / 2;
 
-  const MIN_ENGAGEMENT = 5; // absolute floor so trivial nano-stock posts never qualify
-  const RELATIVE_MULTIPLIER = 3; // must clear 3x this stock's own median engagement
+  // Skip stocks with zero engagement across the board — nothing to rank
+  if (withEng.every(r => r._eng === 0)) return [];
 
-  const threshold = Math.max(MIN_ENGAGEMENT, median * RELATIVE_MULTIPLIER);
+  const sorted = [...withEng].sort((a, b) => a._eng - b._eng);
+  const percentileIdx = Math.floor(sorted.length * 0.85); // top 15%
+  const threshold = sorted[percentileIdx]?._eng ?? 0;
 
   return withEng
-    .filter(r => r._eng >= threshold)
+    .filter(r => r._eng > 0 && r._eng >= threshold && r._eng > sorted[0]._eng) // must beat the bottom, not just tie everyone
     .sort((a, b) => b._eng - a._eng);
 }
 async function renderNewsCards(filteredRows) {
