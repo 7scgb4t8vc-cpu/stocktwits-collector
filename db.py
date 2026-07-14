@@ -14,7 +14,7 @@ def get_db():
             MONGO_URI,
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=5000,
-            socketTimeoutMS=20000,
+            socketTimeoutMS=60000,
             tls=True,
             tlsCAFile=certifi.where(),
         )
@@ -72,7 +72,9 @@ def upsert_finviz(rows):
         ReplaceOne({"symbol": row["symbol"]}, row, upsert=True)
         for row in rows
     ]
-    coll.bulk_write(operations, ordered=False)
+    batch_size = 2000
+    for i in range(0, len(operations), batch_size):
+        coll.bulk_write(operations[i:i + batch_size], ordered=False)
 
 def get_finviz(symbol=None):
     coll = finviz_collection()
