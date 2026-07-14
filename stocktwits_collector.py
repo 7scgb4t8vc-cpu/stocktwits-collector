@@ -209,25 +209,6 @@ def main():
     watchlist = get_active_symbols()
     print(f"\nCurrent active symbols ({len(watchlist)} symbols): {watchlist}")
 
-    # ── Always fetch the full FinViz screener universe (not just watchlist) ──
-    print("\nFetching FinViz screener universe...")
-    fv_screener_rows = fetch_finviz_screener(finviz_token)
-    fv_lookup = {r.get("Ticker", "").strip(): r for r in fv_screener_rows}
-
-    fv_rows = []
-    for symbol, fv_raw in fv_lookup.items():
-        if not symbol:
-            continue
-        fv_data = parse_finviz_row(fv_raw)
-        fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
-        log_price(symbol, timestamp, fv_data.get("price"), fv_data.get("change"), fv_data.get("volume"))
-
-    if fv_rows:
-        upsert_finviz(fv_rows)
-        print(f"✓ {len(fv_rows)} FinViz rows upserted (full screener universe).")
-    else:
-        print("  No results from FinViz screener this run.")
-
     # ── Collect StockTwits messages only for user-selected watchlist stocks ──
     st_rows = []
 
