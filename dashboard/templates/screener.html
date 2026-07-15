@@ -16,6 +16,7 @@
       <option value="bullish">Social Bullish</option>
       <option value="bearish">Social Bearish</option>
       <option value="unusual">Unusual Volume</option>
+      <option value="hot">🔥 Hot Right Now</option>
     </select>
   </div>
   <div class="scr-filter-group">
@@ -779,6 +780,7 @@ let orderDir = 1;
 let currentView = "overview";
 let currentWatchlist = new Set();
 let allSocialRows = [];
+let hotSymbolsSet = new Set();
 let _activeSymbolsTimer = null;
 
 // Column definitions: label + formatting type
@@ -1029,6 +1031,7 @@ async function loadScreener() {
     const scoreMap     = await scoreRes.json();
     currentWatchlist   = new Set(await symbolsRes.json());
     allSocialRows = socialRows;
+    hotSymbolsSet = computeHotSymbols(socialRows);
 
     const sentMap = {};
     socialCountMap = {};
@@ -1140,6 +1143,7 @@ function computeFilteredRows() {
     if (signal === "bullish" && r.sentiment !== "Bullish") return false;
     if (signal === "bearish" && r.sentiment !== "Bearish") return false;
     if (signal === "unusual" && rv < 2) return false;
+    if (signal === "hot" && !hotSymbolsSet.has(r.symbol)) return false;
 
     if (mktcap === "mega"  && !(mc >= 200_000_000_000)) return false;
     if (mktcap === "large" && !(mc >= 10_000_000_000 && mc < 200_000_000_000)) return false;
