@@ -14,7 +14,11 @@ function filterImportantMessages(rows) {
   const bucketMs = bucketMinutes * 60 * 1000;
 
   const parseMsgTime = r => {
-    const raw = (r.created_at || r.timestamp || "").replace(" ET", "").trim();
+    if (r.created_at) {
+      // Already full ISO with Z, e.g. "2026-07-15T14:21:10Z"
+      return new Date(r.created_at).getTime();
+    }
+    const raw = (r.timestamp || "").replace(" ET", "").trim();
     return new Date(raw.replace(" ", "T") + "Z").getTime();
   };
   const timestamps = rows.map(parseMsgTime).filter(t => !isNaN(t));
