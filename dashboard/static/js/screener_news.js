@@ -73,6 +73,60 @@ function filterImportantMessages(rows) {
 
   return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
 }
+function computeHotSymbols(allRows) {
+  const bucketMinutes = 15;
+  const bucketMs = bucketMinutes * 60 * 1000;
+  const nowMs = Date.now();
+  const windowMs = 3 * 60 * 60 * 1000; // look at last 3 hours to establish baseline
+
+  const bySymbol = {};
+  allRows.forEach(r => {
+    if (!bySymbol[r.symbol]) bySymbol[r.symbol] = [];
+    bySymbol[r.symbol].push(r);
+  });
+
+  const parseMsgTime = r => {
+    if (r.created_at) return new Date(r.created_at).getTime();
+    const raw = (r.timestamp || "").replace(" ET", "").trim();
+    return new Date(raw.replace(" ", "T") + "Z").getTime();
+  };
+
+  const hotSymbols = new Set();
+
+  Object.entries(bySymbol).forEach(([symbol, rows]) => {
+    const recent = rows.filter(r => {
+      const ts = parseMsgTime(r);
+      return !isNaN(ts) && ts >= nowMs - windowMs;
+    });
+    if (recent.length < 3) return; // not enough data to judge
+
+    const buckets = {};
+    recent.forEach(r => {
+      const ts = parseMsgTime(r);
+      const key = ts - (ts % bucketMs);
+      buckets[key] = (buckets[key] || 0) + 1;
+    });
+
+    const keys = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+    const latestKey = nowMs - (nowMs % bucketMs);
+    const latestCount = buckets[latestKey] || 0;
+    if (latestCount === 0) return;
+
+    const priorCounts = keys.filter(k => k !== latestKey).map(k => buckets[k]);
+    if (!priorCounts.length) return;
+
+    const mean = priorCounts.reduce((a, b) => a + b, 0) / priorCounts.length;
+    const variance = priorCounts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / priorCounts.length;
+    const stdev = Math.sqrt(variance);
+    const threshold = mean + 2 * stdev;
+
+    if (latestCount > mean && latestCount >= threshold && latestCount >= 2) {
+      hotSymbols.add(symbol);
+    }
+  });
+
+  return hotSymbols;
+}
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
 
