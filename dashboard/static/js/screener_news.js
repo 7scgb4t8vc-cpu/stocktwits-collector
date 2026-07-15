@@ -40,15 +40,15 @@ function filterImportantMessages(rows) {
   const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
   const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length;
   const stdev = Math.sqrt(variance);
-  const threshold = Math.max(3, mean + 2.5 * stdev); // stricter bar
+  // No fixed floor — purely relative, so quiet nano stocks can still show a spike off a low baseline
+  const threshold = mean + 2 * stdev;
 
-  // Mark which buckets qualify, then merge consecutive qualifying buckets into single spike events
-  const isSpike = bucketKeys.map(k => buckets[k].length >= threshold);
+  const isSpike = bucketKeys.map(k => buckets[k].length > 0 && buckets[k].length >= threshold && buckets[k].length > mean);
   const spikeGroups = [];
   let current = null;
   bucketKeys.forEach((k, i) => {
     if (isSpike[i]) {
-      if (!current) { current = []; }
+      if (!current) current = [];
       current.push(...buckets[k]);
     } else if (current) {
       spikeGroups.push(current);
@@ -57,14 +57,19 @@ function filterImportantMessages(rows) {
   });
   if (current) spikeGroups.push(current);
 
-  // From each merged spike event, take the single most-engaged message
-  const MIN_PICK_ENGAGEMENT = 1; // require at least some engagement to be shown
+  // Engagement requirement scales with the stock's own typical engagement,
+  // instead of a fixed "must have 1+ like" bar that starves quiet nano stocks
+  const allEng = rows.map(r => (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0));
+  const sortedEng = [...allEng].sort((a, b) => a - b);
+  const medianEng = sortedEng[Math.floor(sortedEng.length / 2)] || 0;
+  const minPickEngagement = Math.max(0, medianEng); // top messages just need to beat their own stock's median
+
   const picks = spikeGroups
     .map(msgs => {
       const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
       return withEng.sort((a, b) => b._eng - a._eng)[0];
     })
-    .filter(pick => pick && pick._eng >= MIN_PICK_ENGAGEMENT);
+    .filter(pick => pick && pick._eng >= minPickEngagement);
 
   return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
 }
