@@ -10,37 +10,18 @@ function computeAbnormalMessages(rows) {
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
 
-  const parseMsgTime = r => {
-    if (r.created_at) return new Date(r.created_at).getTime();
-    const raw = (r.timestamp || "").replace(" ET", "").trim();
-    return new Date(raw.replace(" ", "T") + "Z").getTime();
-  };
+  const MIN_ENGAGEMENT = 3; // must have at least 3 combined likes+reshares to count as "important"
+  const TOP_N = 3;          // show at most 3 per stock
 
-  const TOP_N = 3;
-  const MIN_ENGAGEMENT = 1; // still exclude true zero-engagement posts
+  const withEng = rows.map(r => ({
+    ...r,
+    _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0)
+  }));
 
-  // Group by calendar day (UTC date of the message)
-  const byDay = {};
-  rows.forEach(r => {
-    const ts = parseMsgTime(r);
-    if (isNaN(ts)) return;
-    const dayKey = new Date(ts).toISOString().slice(0, 10); // "YYYY-MM-DD"
-    if (!byDay[dayKey]) byDay[dayKey] = [];
-    const eng = (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0);
-    byDay[dayKey].push({ ...r, _eng: eng });
-  });
-
-  // Take top N per day (that clear the engagement floor)
-  let picks = [];
-  Object.values(byDay).forEach(dayMsgs => {
-    const topForDay = dayMsgs
-      .filter(m => m._eng >= MIN_ENGAGEMENT)
-      .sort((a, b) => b._eng - a._eng)
-      .slice(0, TOP_N);
-    picks.push(...topForDay);
-  });
-
-  return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
+  return withEng
+    .filter(r => r._eng >= MIN_ENGAGEMENT)
+    .sort((a, b) => b._eng - a._eng)
+    .slice(0, TOP_N);
 }
 function computeHotSymbols(allRows) {
   const bucketMinutes = 15;
