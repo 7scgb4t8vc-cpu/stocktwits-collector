@@ -57,12 +57,28 @@ function roundToBucket(tsStr, bucketMin) {
   return roundToBucketFromMs(ms, bucketMin);
 }
 
+// Sliding trailing-window message counts.
+// At every 1-minute step `t`, counts messages with timestamp in (t - windowMs, t].
+// `sortedTimesMs` must be ascending. `stepsMs` must be ascending.
+function computeSlidingVolume(sortedTimesMs, stepsMs, windowMs) {
+  const counts = new Array(stepsMs.length);
+  let left = 0, right = 0;
+  for (let i = 0; i < stepsMs.length; i++) {
+    const t = stepsMs[i];
+    while (right < sortedTimesMs.length && sortedTimesMs[right] <= t) right++;
+    while (left < right && sortedTimesMs[left] <= t - windowMs) left++;
+    counts[i] = right - left;
+  }
+  return counts;
+}
+
 function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
   const bucketMin = bucketMinOverride || BUCKET_MINUTES[tf] || 30;
   const tfMs = (TF_HOURS[tf] || 24) * 3600000;
   const endMs = viewEndMs || Date.now();
   const startMs = endMs - tfMs;
 
+  // --- bucketed slots (still used for sentiment bars) ---
   const slots = [];
   let t = startMs - (startMs % (bucketMin * 60000));
   while (t <= endMs) {
@@ -71,25 +87,40 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
     t += bucketMin * 60000;
   }
 
-  const volMap = {}, sentMap = {}, priceMap = {};
-
+  const sentMap = {};
   for (const m of (fullData.messages||[])) {
     const rMs = new Date(m.created_at.replace(" ","T")+"Z").getTime();
     if (rMs < startMs || rMs > endMs) continue;
     const bucket = roundToBucket(m.created_at, bucketMin);
-    volMap[bucket] = (volMap[bucket]||0) + 1;
     if (!sentMap[bucket]) sentMap[bucket] = {bullish:0,bearish:0,neutral:0,mixed:0};
     sentMap[bucket][m.nlp_label] = (sentMap[bucket][m.nlp_label]||0) + 1;
   }
 
+  // --- moving-average slots for volume/price: step 1 minute, trailing window = bucketMin (the selected INTERVAL) ---
+  const windowMs = bucketMin * 60000;
+  const maStepMs = 60000;
+  const maStartMs = startMs - (startMs % maStepMs);
+  const maStepsMs = [];
+  for (let tm = maStartMs; tm <= endMs; tm += maStepMs) maStepsMs.push(tm);
+  const maTimestamps = maStepsMs.map(ms => roundToBucketFromMs(ms, 1));
+
+  // messages need to be pulled from windowMs before startMs too, since early points still need lookback
+  const sortedTimesMs = (fullData.messages||[])
+    .map(m => new Date(m.created_at.replace(" ","T")+"Z").getTime())
+    .filter(rMs => !isNaN(rMs) && rMs > maStartMs - windowMs && rMs <= endMs)
+    .sort((a,b) => a-b);
+
+  const slidingCounts = computeSlidingVolume(sortedTimesMs, maStepsMs, windowMs);
+
+  // price forward-filled at 1-minute resolution to match maStepsMs
+  const priceMap = {};
   for (const p of (fullData.price_ticks||[])) {
     const rMs = etStringToUtcMs(p.timestamp);
-    if (rMs < startMs || rMs > endMs) continue;
-    priceMap[roundToBucketFromMs(rMs, bucketMin)] = p.price;
+    if (rMs < maStartMs || rMs > endMs) continue;
+    priceMap[roundToBucketFromMs(rMs, 1)] = p.price;
   }
-
   let lastPrice = null;
-  const filledPrice = slots.map(ts => {
+  const filledPrice = maTimestamps.map(ts => {
     if (priceMap[ts] !== undefined) lastPrice = priceMap[ts];
     return lastPrice;
   });
@@ -99,9 +130,9 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
   }
 
   return {
-    volume_series:    slots.map(ts=>({timestamp:ts,count:volMap[ts]||0})),
+    volume_series:    maTimestamps.map((ts,i)=>({timestamp:ts,count:slidingCounts[i]})),
     sentiment_series: slots.map(ts=>({timestamp:ts,...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0})})),
-    correlation_series: slots.map((ts,i)=>({timestamp:ts,msg_count:volMap[ts]||0,price:filledPrice[i]})),
+    correlation_series: maTimestamps.map((ts,i)=>({timestamp:ts,msg_count:slidingCounts[i],price:filledPrice[i]})),
   };
 }
 
@@ -140,8 +171,8 @@ function renderRollingCharts(ids, sliced, tf) {
       data:{
         labels: sliced.correlation_series.map(d=>d.timestamp),
         datasets:[
-          { label:"Message Volume", data:sliced.correlation_series.map(d=>d.msg_count), borderColor:"#3fb950", backgroundColor:"rgba(63,185,80,0.1)", borderWidth:2, pointRadius:2, tension:0.3, yAxisID:"yMsg" },
-          ...(hasPrice?[{ label:"Price ($)", data:sliced.correlation_series.map(d=>d.price), borderColor:"#58a6ff", backgroundColor:"rgba(88,166,255,0.1)", borderWidth:2, pointRadius:2, tension:0.3, yAxisID:"yPrice", spanGaps:true }]:[]),
+          { label:"Message Volume", data:sliced.correlation_series.map(d=>d.msg_count), borderColor:"#3fb950", backgroundColor:"rgba(63,185,80,0.1)", borderWidth:2, pointRadius:0, tension:0.3, yAxisID:"yMsg" },
+          ...(hasPrice?[{ label:"Price ($)", data:sliced.correlation_series.map(d=>d.price), borderColor:"#58a6ff", backgroundColor:"rgba(88,166,255,0.1)", borderWidth:2, pointRadius:0, tension:0.3, yAxisID:"yPrice", spanGaps:true }]:[]),
         ]
       },
       options:{
@@ -166,8 +197,8 @@ function renderRollingCharts(ids, sliced, tf) {
   const volCanvas = document.getElementById(ids.volume);
   if (volCanvas) {
     out.volume = new Chart(volCanvas,{
-      type:"bar",
-      data:{labels:sliced.volume_series.map(v=>v.timestamp),datasets:[{label:"Messages",data:sliced.volume_series.map(v=>v.count),backgroundColor:"#3fb950"}]},
+      type:"line",
+      data:{labels:sliced.volume_series.map(v=>v.timestamp),datasets:[{label:"Messages",data:sliced.volume_series.map(v=>v.count),borderColor:"#3fb950",backgroundColor:"rgba(63,185,80,0.1)",borderWidth:2,pointRadius:0,tension:0.3,fill:true}]},
       options:{...chartDefaults,interaction:{mode:"index",intersect:false},plugins:{legend:{display:false},tooltip:{enabled:false,external:makeSharedTooltip(ids.tooltip, tf, tt=>tt.dataPoints.map(dp=>({color:"#3fb950",label:"Volume",val:dp.parsed.y})))}},scales:{x:{...chartDefaults.scales.x,ticks:{display:false}},y:{...chartDefaults.scales.y}}}
     });
   }
