@@ -58,10 +58,13 @@ function filterImportantMessages(rows) {
   if (current) spikeGroups.push(current);
 
   // From each merged spike event, take the single most-engaged message
-  const picks = spikeGroups.map(msgs => {
-    const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
-    return withEng.sort((a, b) => b._eng - a._eng)[0];
-  });
+  const MIN_PICK_ENGAGEMENT = 1; // require at least some engagement to be shown
+  const picks = spikeGroups
+    .map(msgs => {
+      const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
+      return withEng.sort((a, b) => b._eng - a._eng)[0];
+    })
+    .filter(pick => pick && pick._eng >= MIN_PICK_ENGAGEMENT);
 
   return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
 }
