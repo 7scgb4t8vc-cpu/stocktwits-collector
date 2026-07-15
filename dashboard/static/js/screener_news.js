@@ -13,9 +13,11 @@ function filterImportantMessages(rows) {
   const bucketMinutes = 30;
   const bucketMs = bucketMinutes * 60 * 1000;
 
-  const timestamps = rows
-    .map(r => new Date((r.timestamp || r.created_at || "").replace(" ", "T") + "Z").getTime())
-    .filter(t => !isNaN(t));
+  const parseMsgTime = r => {
+    const raw = (r.created_at || r.timestamp || "").replace(" ET", "").trim();
+    return new Date(raw.replace(" ", "T") + "Z").getTime();
+  };
+  const timestamps = rows.map(parseMsgTime).filter(t => !isNaN(t));
   if (!timestamps.length) return [];
 
   const minTs = Math.min(...timestamps);
@@ -27,7 +29,7 @@ function filterImportantMessages(rows) {
     buckets[t] = [];
   }
   rows.forEach(r => {
-    const ts = new Date((r.timestamp || r.created_at || "").replace(" ", "T") + "Z").getTime();
+    const ts = parseMsgTime(r);
     if (isNaN(ts)) return;
     const key = ts - (ts % bucketMs);
     if (!buckets[key]) buckets[key] = [];
@@ -47,7 +49,7 @@ function filterImportantMessages(rows) {
     return withEng.sort((a, b) => b._eng - a._eng)[0];
   });
 
-  return picks.sort((a, b) => (b.timestamp || b.created_at || "").localeCompare(a.timestamp || a.created_at || ""));
+  return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
 }
 async function renderNewsCards(filteredRows) {
   const container = document.getElementById("news-cards");
