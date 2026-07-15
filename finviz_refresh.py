@@ -14,7 +14,7 @@ from datetime import datetime
 import pytz
 import requests as std_requests
 
-from db import upsert_finviz, log_price
+from db import upsert_finviz, log_prices_bulk
 
 FINVIZ_COLUMNS = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88"
 
@@ -91,12 +91,21 @@ def main():
     fv_lookup = {r.get("Ticker", "").strip(): r for r in fv_screener_rows}
 
     fv_rows = []
+    price_rows = []
     for symbol, fv_raw in fv_lookup.items():
         if not symbol:
             continue
         fv_data = parse_finviz_row(fv_raw)
         fv_rows.append({"symbol": symbol, "timestamp": timestamp, **fv_data})
-        log_price(symbol, timestamp, fv_data.get("price"), fv_data.get("change"), fv_data.get("volume"))
+        price_rows.append({
+            "symbol": symbol,
+            "timestamp": timestamp,
+            "price": fv_data.get("price"),
+            "change_pct": fv_data.get("change"),
+            "volume": fv_data.get("volume"),
+        })
+
+    log_prices_bulk(price_rows)
 
     if fv_rows:
         upsert_finviz(fv_rows)
