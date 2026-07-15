@@ -133,6 +133,7 @@ def load_social():
     for row in rows:
         result.append({
             "timestamp":  row.get("timestamp", ""),
+            "created_at": row.get("created_at", row.get("timestamp", "")),
             "symbol":     row.get("symbol", ""),
             "message":    row.get("message", ""),
             "sentiment":  row.get("sentiment", "None"),
