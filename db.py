@@ -133,7 +133,14 @@ def log_price(symbol, timestamp, price, change_pct, volume):
         "change_pct": change_pct,
         "volume": volume,
     })
-
+def log_prices_bulk(rows):
+    """rows: list of dicts with symbol, timestamp, price, change_pct, volume"""
+    if not rows:
+        return
+    coll = price_history_collection()
+    batch_size = 2000
+    for i in range(0, len(rows), batch_size):
+        coll.insert_many(rows[i:i + batch_size])
 def get_price_history(symbol):
     rows = list(price_history_collection().find({"symbol": symbol}))
     for r in rows:
