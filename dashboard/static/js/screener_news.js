@@ -9,46 +9,56 @@ function computeAbnormalMessages(rows) {
 }
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
-
   const bucketMinutes = 30;
   const bucketMs = bucketMinutes * 60 * 1000;
-
   const parseMsgTime = r => {
-    if (r.created_at) {
-      // Already full ISO with Z, e.g. "2026-07-15T14:21:10Z"
-      return new Date(r.created_at).getTime();
-    }
+    if (r.created_at) return new Date(r.created_at).getTime();
     const raw = (r.timestamp || "").replace(" ET", "").trim();
     return new Date(raw.replace(" ", "T") + "Z").getTime();
   };
   const timestamps = rows.map(parseMsgTime).filter(t => !isNaN(t));
   if (!timestamps.length) return [];
-
   const minTs = Math.min(...timestamps);
   const maxTs = Math.max(...timestamps);
 
-  // Build every bucket in range, including empty ones
+  const bucketKeys = [];
   const buckets = {};
   for (let t = minTs - (minTs % bucketMs); t <= maxTs; t += bucketMs) {
     buckets[t] = [];
+    bucketKeys.push(t);
   }
   rows.forEach(r => {
     const ts = parseMsgTime(r);
     if (isNaN(ts)) return;
     const key = ts - (ts % bucketMs);
-    if (!buckets[key]) buckets[key] = [];
+    if (!buckets[key]) { buckets[key] = []; bucketKeys.push(key); }
     buckets[key].push(r);
   });
+  bucketKeys.sort((a, b) => a - b);
 
-  const counts = Object.values(buckets).map(msgs => msgs.length);
+  const counts = bucketKeys.map(k => buckets[k].length);
   const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
   const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length;
   const stdev = Math.sqrt(variance);
-  const threshold = Math.max(2, mean + 1.5 * stdev);
+  const threshold = Math.max(3, mean + 2.5 * stdev); // stricter bar
 
-  const spikeBuckets = Object.values(buckets).filter(msgs => msgs.length >= threshold);
+  // Mark which buckets qualify, then merge consecutive qualifying buckets into single spike events
+  const isSpike = bucketKeys.map(k => buckets[k].length >= threshold);
+  const spikeGroups = [];
+  let current = null;
+  bucketKeys.forEach((k, i) => {
+    if (isSpike[i]) {
+      if (!current) { current = []; }
+      current.push(...buckets[k]);
+    } else if (current) {
+      spikeGroups.push(current);
+      current = null;
+    }
+  });
+  if (current) spikeGroups.push(current);
 
-  const picks = spikeBuckets.map(msgs => {
+  // From each merged spike event, take the single most-engaged message
+  const picks = spikeGroups.map(msgs => {
     const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
     return withEng.sort((a, b) => b._eng - a._eng)[0];
   });
