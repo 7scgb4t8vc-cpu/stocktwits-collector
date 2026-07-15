@@ -9,67 +9,36 @@ function computeAbnormalMessages(rows) {
 }
 function filterImportantMessages(rows) {
   if (!rows.length) return [];
-  const bucketMinutes = 30;
-  const bucketMs = bucketMinutes * 60 * 1000;
+
   const parseMsgTime = r => {
     if (r.created_at) return new Date(r.created_at).getTime();
     const raw = (r.timestamp || "").replace(" ET", "").trim();
     return new Date(raw.replace(" ", "T") + "Z").getTime();
   };
-  const timestamps = rows.map(parseMsgTime).filter(t => !isNaN(t));
-  if (!timestamps.length) return [];
-  const minTs = Math.min(...timestamps);
-  const maxTs = Math.max(...timestamps);
 
-  const bucketKeys = [];
-  const buckets = {};
-  for (let t = minTs - (minTs % bucketMs); t <= maxTs; t += bucketMs) {
-    buckets[t] = [];
-    bucketKeys.push(t);
-  }
+  const TOP_N = 3;
+  const MIN_ENGAGEMENT = 1; // still exclude true zero-engagement posts
+
+  // Group by calendar day (UTC date of the message)
+  const byDay = {};
   rows.forEach(r => {
     const ts = parseMsgTime(r);
     if (isNaN(ts)) return;
-    const key = ts - (ts % bucketMs);
-    if (!buckets[key]) { buckets[key] = []; bucketKeys.push(key); }
-    buckets[key].push(r);
+    const dayKey = new Date(ts).toISOString().slice(0, 10); // "YYYY-MM-DD"
+    if (!byDay[dayKey]) byDay[dayKey] = [];
+    const eng = (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0);
+    byDay[dayKey].push({ ...r, _eng: eng });
   });
-  bucketKeys.sort((a, b) => a - b);
 
-  const counts = bucketKeys.map(k => buckets[k].length);
-  const mean = counts.reduce((a, b) => a + b, 0) / counts.length;
-  const variance = counts.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / counts.length;
-  const stdev = Math.sqrt(variance);
-  // No fixed floor — purely relative, so quiet nano stocks can still show a spike off a low baseline
-  const threshold = mean + 2 * stdev;
-
-  const isSpike = bucketKeys.map(k => buckets[k].length > 0 && buckets[k].length >= threshold && buckets[k].length > mean);
-  const spikeGroups = [];
-  let current = null;
-  bucketKeys.forEach((k, i) => {
-    if (isSpike[i]) {
-      if (!current) current = [];
-      current.push(...buckets[k]);
-    } else if (current) {
-      spikeGroups.push(current);
-      current = null;
-    }
+  // Take top N per day (that clear the engagement floor)
+  let picks = [];
+  Object.values(byDay).forEach(dayMsgs => {
+    const topForDay = dayMsgs
+      .filter(m => m._eng >= MIN_ENGAGEMENT)
+      .sort((a, b) => b._eng - a._eng)
+      .slice(0, TOP_N);
+    picks.push(...topForDay);
   });
-  if (current) spikeGroups.push(current);
-
-  // Engagement requirement scales with the stock's own typical engagement,
-  // instead of a fixed "must have 1+ like" bar that starves quiet nano stocks
-  const allEng = rows.map(r => (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0));
-  const sortedEng = [...allEng].sort((a, b) => a - b);
-  const medianEng = sortedEng[Math.floor(sortedEng.length / 2)] || 0;
-  const minPickEngagement = Math.max(0, medianEng); // top messages just need to beat their own stock's median
-
-  const picks = spikeGroups
-    .map(msgs => {
-      const withEng = msgs.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
-      return withEng.sort((a, b) => b._eng - a._eng)[0];
-    })
-    .filter(pick => pick && pick._eng >= minPickEngagement);
 
   return picks.sort((a, b) => (b.created_at || b.timestamp || "").localeCompare(a.created_at || a.timestamp || ""));
 }
