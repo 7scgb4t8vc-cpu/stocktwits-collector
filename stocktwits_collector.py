@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, get_db, save_ohlc, get_price_history, get_active_symbols, add_blocked_symbol
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, log_price_tick, get_db, save_ohlc, get_price_history, get_active_symbols, add_blocked_symbol
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -208,7 +208,21 @@ def main():
     # ── Currently filtered/active symbols (from the Screener/News page) ──────
     watchlist = get_active_symbols()
     print(f"\nCurrent active symbols ({len(watchlist)} symbols): {watchlist}")
-
+# ── After-hours price polling (v=111, live quotes incl. pre/post-market) ──
+    if watchlist:
+        print("\nPolling live prices (pre/post-market included)...")
+        et_now = datetime.now(et).strftime("%Y-%m-%d %H:%M ET")
+        fv_ticker_rows = fetch_finviz_by_tickers(watchlist, finviz_token)
+        for row in fv_ticker_rows:
+            symbol = row.get("Ticker", "").strip()
+            price = row.get("Price", "").strip()
+            if not symbol or not price:
+                continue
+            try:
+                log_price_tick(symbol, et_now, float(price.replace(",", "")))
+            except (TypeError, ValueError):
+                continue
+        print(f"  ✓ Logged {len(fv_ticker_rows)} live price ticks.")
     # ── Collect StockTwits messages only for user-selected watchlist stocks ──
     st_rows = []
 
