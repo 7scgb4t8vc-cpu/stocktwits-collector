@@ -284,16 +284,8 @@ def main():
             history = get_price_history(symbol)
             today_prices = []
             today_vol = 0
-            for symbol in watchlist:
-        try:
-            history = get_price_history(symbol)
-            today_prices = []
-            today_vol = 0
             today_ticks_debug = [r for r in history if r.get("timestamp","").startswith(today)]
             print(f"  DEBUG [{symbol}]: {len(today_ticks_debug)} ticks today")
-            for r in history:
-                if not r.get("timestamp", "").startswith(today):
-                    continue
             for r in history:
                 if not r.get("timestamp", "").startswith(today):
                     continue
