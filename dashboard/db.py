@@ -232,3 +232,16 @@ def add_blocked_symbol(symbol: str, reason: str = "not_found"):
 def get_blocked_symbols() -> list:
     docs = list(blocked_symbols_collection().find())
     return [d["symbol"] for d in docs]
+def config_collection():
+    return get_db()["config"]
+
+def set_finviz_token(token: str):
+    config_collection().update_one(
+        {"_id": "finviz_token"},
+        {"$set": {"value": token}},
+        upsert=True
+    )
+
+def get_finviz_token() -> str:
+    doc = config_collection().find_one({"_id": "finviz_token"})
+    return doc["value"] if doc else ""
