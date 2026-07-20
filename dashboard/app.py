@@ -627,3 +627,12 @@ def debug_social():
 @app.route("/api/blocked-symbols")
 def api_blocked_symbols():
     return jsonify(get_blocked_symbols())
+from db import get_finviz_token, set_finviz_token
+
+@app.route("/api/finviz-token", methods=["POST"])
+def api_set_finviz_token():
+    token = (request.get_json(silent=True) or {}).get("token", "").strip()
+    if not token:
+        return jsonify({"error": "No token provided"}), 400
+    set_finviz_token(token)
+    return jsonify({"status": "ok"})
