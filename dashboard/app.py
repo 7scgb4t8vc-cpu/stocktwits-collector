@@ -586,12 +586,13 @@ from db import get_active_symbols, log_price_tick, try_acquire_poller_lock
 _POLLER_WORKER_ID = str(uuid.uuid4())
 
 def _price_poller_loop():
-    finviz_token = os.environ.get("FINVIZ_API_TOKEN", "")
-    if not finviz_token:
-        print("Poller: FINVIZ_API_TOKEN not set, skipping.")
-        return
-    while True:
-        try:
+        while True:
+            finviz_token = get_finviz_token()
+            if not finviz_token:
+                print("Poller: no token set, skipping.")
+                time.sleep(60)
+                continue
+                try:
             if try_acquire_poller_lock(_POLLER_WORKER_ID):
                 symbols = get_active_symbols()
                 if symbols:
