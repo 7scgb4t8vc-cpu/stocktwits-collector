@@ -593,7 +593,7 @@ def _price_poller_loop():
                 time.sleep(60)
                 continue
                 try:
-            if try_acquire_poller_lock(_POLLER_WORKER_ID):
+                    if try_acquire_poller_lock(_POLLER_WORKER_ID):
                 symbols = get_active_symbols()
                 if symbols:
                     rows = fetch_finviz_by_tickers(symbols, finviz_token)
