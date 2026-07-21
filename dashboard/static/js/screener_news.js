@@ -91,14 +91,7 @@ async function renderNewsCards(filteredRows) {
 
   const symbols = rows.map(r => r.symbol);
 
-  clearTimeout(_newsActiveSymbolsTimer);
-  _newsActiveSymbolsTimer = setTimeout(() => {
-    fetch("/api/active-symbols", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols: symbols.slice(0, 50) }),
-    });
-  }, 2000);
+  
 
   const bySymbol = {};
   allSocialRows.forEach(r => {
