@@ -249,19 +249,19 @@ def main():
                 for msg in messages:
                     body = msg.get("body", "").replace("\n", " ").strip()
                     cleaned = clean_message(body)
-                    if not is_quality_message(cleaned):
-                        continue
+                    passed = is_quality_message(cleaned)
                     st_rows.append({
-                        "_id":        msg["id"],
-                        "timestamp":  timestamp,
-                        "created_at": msg.get("created_at", timestamp),
-                        "symbol":     symbol,
-                        "message":    cleaned,
-                        "sentiment":  get_sentiment(msg),
-                        "likes":      msg.get("likes", {}).get("total", 0),
-                        "reshares":   msg.get("reshares", {}).get("reshared_count", 0),
+                    "_id":        msg["id"],
+                    "timestamp":  timestamp,
+                    "created_at": msg.get("created_at", timestamp),
+                    "symbol":     symbol,
+                    "message":    cleaned,
+                    "sentiment":  get_sentiment(msg),
+                    "likes":      msg.get("likes", {}).get("total", 0),
+                    "reshares":   msg.get("reshares", {}).get("reshared_count", 0),
+                    "quality_pass": passed,
                     })
-                    accepted += 1
+                    accepted += 1 if passed else 0
                 print(f"{len(messages)} fetched, {accepted} passed filters.")
             else:
                 print("No new messages.")
