@@ -432,6 +432,7 @@ def api_social():
     symbol = request.args.get("symbol", "").upper()
     label  = request.args.get("label", "")
     rows   = load_social()
+    rows = [r for r in rows if r.get("quality_pass", True)]  # feed stays quality-filtered
     if symbol:
         rows = [r for r in rows if r["symbol"] == symbol]
     if label:
