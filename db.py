@@ -196,7 +196,7 @@ def get_active_symbols():
     coll = active_symbols_collection()
     coll.delete_many({"last_seen": {"$lt": cutoff}})
     docs = list(coll.find())
-    return [d["symbol"] for d in docs]
+    return [d["symbol"] for d in docs if "symbol" in d]
 def log_price_tick(symbol, timestamp, price):
     """Minute-level price tick from the background poller. Kept separate
     in spirit from log_price() (5-min full-universe snapshots) but writes
