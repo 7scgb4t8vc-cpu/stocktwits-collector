@@ -57,6 +57,7 @@ from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
 from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist, get_blocked_symbols
+from db import get_finviz_token, set_finviz_token
 
 app = Flask(__name__)
 
@@ -628,7 +629,6 @@ def debug_social():
 @app.route("/api/blocked-symbols")
 def api_blocked_symbols():
     return jsonify(get_blocked_symbols())
-from db import get_finviz_token, set_finviz_token
 
 @app.route("/api/finviz-token", methods=["POST"])
 def api_set_finviz_token():
