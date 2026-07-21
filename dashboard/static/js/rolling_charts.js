@@ -111,7 +111,15 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
     .sort((a,b) => a-b);
 
   const slidingCounts = computeSlidingVolume(sortedTimesMs, maStepsMs, windowMs);
-
+function emaSmooth(values, alpha = 0.3) {
+  const out = new Array(values.length);
+  out[0] = values[0];
+  for (let i = 1; i < values.length; i++) {
+    out[i] = alpha * values[i] + (1 - alpha) * out[i - 1];
+  }
+  return out;
+}
+const smoothedCounts = emaSmooth(slidingCounts);
   // price forward-filled at 1-minute resolution to match maStepsMs
   const priceMap = {};
   for (const p of (fullData.price_ticks||[])) {
@@ -130,9 +138,9 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
   }
 
   return {
-    volume_series:    maTimestamps.map((ts,i)=>({timestamp:ts,count:slidingCounts[i]})),
+    volume_series:    maTimestamps.map((ts,i)=>({timestamp:ts,count:smoothedCounts[i]})),
     sentiment_series: slots.map(ts=>({timestamp:ts,...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0})})),
-    correlation_series: maTimestamps.map((ts,i)=>({timestamp:ts,msg_count:slidingCounts[i],price:filledPrice[i]})),
+    correlation_series: maTimestamps.map((ts,i)=>({timestamp:ts,msg_count:smoothedCounts[i],price:filledPrice[i]})),
   };
 }
 
