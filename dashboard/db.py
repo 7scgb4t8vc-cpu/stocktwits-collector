@@ -68,11 +68,13 @@ def upsert_finviz(rows):
     if not rows:
         return
     coll = finviz_collection()
+    current_symbols = [row["symbol"] for row in rows]
     operations = [
         ReplaceOne({"symbol": row["symbol"]}, row, upsert=True)
         for row in rows
     ]
     coll.bulk_write(operations, ordered=False)
+    coll.delete_many({"symbol": {"$nin": current_symbols}})
 
 def get_finviz(symbol=None):
     coll = finviz_collection()
@@ -173,18 +175,26 @@ def active_symbols_collection():
     return get_db()["active_symbols"]
 
 def set_active_symbols(symbols):
-    """Overwrite the current filtered symbol list (max 50) that the
-    minute-level poller should track."""
-    symbols = symbols[:50]
-    active_symbols_collection().update_one(
-        {"_id": "current"},
-        {"$set": {"symbols": symbols, "updated_at": datetime.utcnow().isoformat()}},
-        upsert=True
-    )
+    """Mark each symbol as seen now. Doesn't remove others — they expire
+    naturally via get_active_symbols() after EXPIRY_HOURS of inactivity."""
+    now = datetime.utcnow()
+    coll = active_symbols_collection()
+    for s in symbols:
+        coll.update_one(
+            {"symbol": s},
+            {"$set": {"symbol": s, "last_seen": now}},
+            upsert=True
+        )
+
+EXPIRY_HOURS = 72
 
 def get_active_symbols():
-    doc = active_symbols_collection().find_one({"_id": "current"})
-    return doc["symbols"] if doc else []
+    """Return symbols seen in any filtered view within the last EXPIRY_HOURS."""
+    cutoff = datetime.utcnow() - timedelta(hours=EXPIRY_HOURS)
+    coll = active_symbols_collection()
+    coll.delete_many({"last_seen": {"$lt": cutoff}})
+    docs = list(coll.find())
+    return [d["symbol"] for d in docs if "symbol" in d]
 
 def log_price_tick(symbol, timestamp, price):
     """Minute-level price tick from the background poller. Writes to the
