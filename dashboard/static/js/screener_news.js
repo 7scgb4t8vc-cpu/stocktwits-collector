@@ -287,6 +287,19 @@ function escapeHtmlNews(text) {
   txt.innerHTML = String(text);
   return txt.value;
 }
+let _newsAutoRefreshInterval = null;
+
+function startNewsAutoRefresh() {
+  if (_newsAutoRefreshInterval) clearInterval(_newsAutoRefreshInterval);
+  _newsAutoRefreshInterval = setInterval(() => {
+    Object.keys(_newsCardState).forEach(symbol => {
+      const state = _newsCardState[symbol];
+      if (state.viewEnd) return; // don't refresh if user is viewing history
+      loadRollingChart(symbol);
+    });
+  }, 60000);
+}
+startNewsAutoRefresh();
 function statPair(label, value) {
   return `<div class="news-sidepanel-pair"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
 }
