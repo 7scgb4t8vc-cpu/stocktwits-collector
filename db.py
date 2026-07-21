@@ -69,6 +69,7 @@ def upsert_finviz(rows):
     if not rows:
         return
     coll = finviz_collection()
+    current_symbols = [row["symbol"] for row in rows]
     operations = [
         ReplaceOne({"symbol": row["symbol"]}, row, upsert=True)
         for row in rows
@@ -76,6 +77,8 @@ def upsert_finviz(rows):
     batch_size = 2000
     for i in range(0, len(operations), batch_size):
         coll.bulk_write(operations[i:i + batch_size], ordered=False)
+    # Remove symbols no longer present in the FinViz universe (e.g. excluded ETFs)
+    coll.delete_many({"symbol": {"$nin": current_symbols}})
 
 def get_finviz(symbol=None):
     coll = finviz_collection()
