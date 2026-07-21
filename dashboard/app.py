@@ -3,13 +3,91 @@ StockTwits Dashboard — Flask App
 =================================
 Reads from MongoDB and serves the live dashboard.
 """
-
+from curl_cffi import requests as curl_requests
+import html as html_lib
 import os
 import requests
 import pytz
 import csv
 import io
 import re
+import threading
+import time
+import uuid
+
+BASE_URL = "https://api.stocktwits.com/api/2"
+IMPERSONATE = "chrome120"
+ST_HEADERS = {
+    "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                   "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"),
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Referer": "https://stocktwits.com/",
+    "Origin": "https://stocktwits.com",
+}
+
+def fetch_messages_minute(symbol, since_id=None, max_pages=2):
+    url = f"{BASE_URL}/streams/symbol/{symbol}.json"
+    all_messages = []
+    max_id = None
+    for _ in range(max_pages):
+        params = {"limit": 30}
+        if max_id:
+            params["max"] = max_id
+        resp = curl_requests.get(url, params=params, headers=ST_HEADERS, impersonate=IMPERSONATE, timeout=15)
+        resp.raise_for_status()
+        page = resp.json().get("messages", [])
+        if not page:
+            break
+        all_messages.extend(page)
+        oldest_id = page[-1]["id"]
+        if since_id and oldest_id <= since_id:
+            break
+        if oldest_id == max_id:
+            break
+        max_id = oldest_id - 1
+    return all_messages
+
+def get_sentiment_minute(msg):
+    entities = msg.get("entities", {})
+    if entities.get("sentiment"):
+        return entities["sentiment"].get("basic", "None") or "None"
+    return "None"
+
+PROFANITY_STEMS = ["fuck","shit","bitch","cunt","dick","cock","pussy","bastard","piss","crap","damn","fag","slut","whore","asshole"]
+def _build_profanity_pattern(stems):
+    parts = []
+    for stem in stems:
+        fuzzy = re.sub(r"[aeiou]", r"[aeiou*#@]", stem)
+        parts.append(fuzzy + r"[a-z]*")
+    return re.compile(r"\b(" + "|".join(parts) + r")\b", re.IGNORECASE)
+PROFANITY_PATTERN = _build_profanity_pattern(PROFANITY_STEMS)
+
+def clean_message_minute(text):
+    text = html_lib.unescape(text)
+    text = re.sub(r"http\S+|www\.\S+", "", text)
+    text = re.sub(r"@\w+", "", text)
+    text = re.sub(r"\$[A-Z]{1,5}", "", text)
+    text = text.encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-zA-Z0-9\s\.\,\!\?\'\-]", "", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text[:280]
+
+def is_quality_message_minute(text):
+    if not text:
+        return False
+    words = text.split()
+    if len(words) < 4:
+        return False
+    non_ticker = re.sub(r"\$[A-Z]{1,5}", "", text).strip()
+    if len(non_ticker) < 10:
+        return False
+    real_words = [w for w in words if re.match(r"^[a-zA-Z]{2,}$", w)]
+    if len(real_words) < 2:
+        return False
+    if PROFANITY_PATTERN.search(text):
+        return False
+    return True
 
 FINVIZ_COLUMNS = "0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,73,75,76,77,78,79,80,81,82,83,84,85,86,87,88"
 
@@ -52,12 +130,15 @@ def parse_finviz_row(row):
         field = re.sub(r"[^a-z0-9]+", "_", key.strip().lower()).strip("_")
         parsed[field] = val
     return parsed
+
 ET = pytz.timezone("America/New_York")
 from datetime import datetime, timezone, timedelta
 from flask import Flask, render_template, jsonify, request
 
 from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist, get_blocked_symbols
 from db import get_finviz_token, set_finviz_token
+from db import get_active_symbols, log_price_tick, try_acquire_poller_lock, set_active_symbols
+from db import insert_messages, load_cursors, save_cursors, add_blocked_symbol
 
 app = Flask(__name__)
 
@@ -142,6 +223,7 @@ def load_social():
             "nlp_score":  row.get("nlp_score", ""),
             "likes":      row.get("likes", 0),
             "reshares":   row.get("reshares", 0),
+            "quality_pass": row.get("quality_pass", True),
         })
     return result
 
@@ -571,8 +653,6 @@ def sync_watchlist():
         coll.insert_many([{"symbol": s} for s in symbols])
     return {"status": "ok", "count": len(symbols)}
 
-from db import set_active_symbols
-
 @app.route("/api/active-symbols", methods=["POST"])
 def api_set_active_symbols():
     data = request.get_json(silent=True) or {}
@@ -580,39 +660,6 @@ def api_set_active_symbols():
     symbols = [s.strip().upper() for s in symbols if isinstance(s, str) and s.strip()]
     set_active_symbols(symbols)
     return jsonify({"status": "ok", "count": len(symbols)})
-import threading
-import time
-import uuid
-from db import get_active_symbols, log_price_tick, try_acquire_poller_lock
-
-_POLLER_WORKER_ID = str(uuid.uuid4())
-
-def _price_poller_loop():
-    while True:
-        finviz_token = get_finviz_token()
-        if not finviz_token:
-            print("Poller: no token set, skipping.")
-            time.sleep(60)
-            continue
-        try:
-            if try_acquire_poller_lock(_POLLER_WORKER_ID):
-                symbols = get_active_symbols()
-                if symbols:
-                    rows = fetch_finviz_by_tickers(symbols, finviz_token)
-                    print(f"Poller DEBUG: token_len={len(finviz_token)}, rows={len(rows)}")
-                    now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
-                    for raw in rows:
-                        parsed = parse_finviz_row(raw)
-                        sym = parsed.get("ticker", "").strip().upper()
-                        price = parsed.get("price")
-                        if sym and price:
-                            log_price_tick(sym, now_et, price)
-                    print(f"Poller: logged {len(rows)} ticks for {symbols}")
-        except Exception as e:
-            print(f"Poller error: {e}")
-        time.sleep(60)
-
-threading.Thread(target=_price_poller_loop, daemon=True).start()
 
 @app.route("/api/debug-social")
 def debug_social():
@@ -639,3 +686,83 @@ def api_set_finviz_token():
         return jsonify({"error": "No token provided"}), 400
     set_finviz_token(token)
     return jsonify({"status": "ok"})
+
+
+# ── Background pollers ────────────────────────────────────────────────────────
+
+_POLLER_WORKER_ID = str(uuid.uuid4())
+
+def _price_poller_loop():
+    while True:
+        finviz_token = get_finviz_token()
+        if not finviz_token:
+            print("Poller: no token set, skipping.")
+            time.sleep(60)
+            continue
+        try:
+            if try_acquire_poller_lock(_POLLER_WORKER_ID):
+                symbols = get_active_symbols()
+                if symbols:
+                    rows = fetch_finviz_by_tickers(symbols, finviz_token)
+                    now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
+                    for raw in rows:
+                        parsed = parse_finviz_row(raw)
+                        sym = parsed.get("ticker", "").strip().upper()
+                        price = parsed.get("price")
+                        if sym and price:
+                            log_price_tick(sym, now_et, price)
+                    print(f"Poller: logged {len(rows)} ticks for {symbols}")
+        except Exception as e:
+            print(f"Poller error: {e}")
+        time.sleep(60)
+
+threading.Thread(target=_price_poller_loop, daemon=True).start()
+
+_MSG_POLLER_WORKER_ID = str(uuid.uuid4())
+
+def _message_poller_loop():
+    while True:
+        try:
+            if try_acquire_poller_lock("msg_" + _MSG_POLLER_WORKER_ID, stale_after_seconds=90):
+                symbols = get_active_symbols()
+                cursors = load_cursors()
+                total_new = 0
+                for symbol in symbols:
+                    since_id = cursors.get(symbol)
+                    try:
+                        messages = fetch_messages_minute(symbol, since_id)
+                    except Exception as e:
+                        if "404" in str(e):
+                            add_blocked_symbol(symbol, reason="not_found_on_stocktwits")
+                        messages = []
+                    if not messages:
+                        continue
+                    cursors[symbol] = messages[0]["id"]
+                    rows = []
+                    for msg in messages:
+                        body = msg.get("body", "").replace("\n", " ").strip()
+                        cleaned = clean_message_minute(body)
+                        if not cleaned:
+                            continue
+                        passed = is_quality_message_minute(cleaned)
+                        rows.append({
+                            "_id": msg["id"],
+                            "timestamp": datetime.now(ET).strftime("%Y-%m-%d %H:%M ET"),
+                            "created_at": msg.get("created_at", ""),
+                            "symbol": symbol,
+                            "message": cleaned,
+                            "sentiment": get_sentiment_minute(msg),
+                            "likes": msg.get("likes", {}).get("total", 0),
+                            "reshares": msg.get("reshares", {}).get("reshared_count", 0),
+                            "quality_pass": passed,
+                        })
+                    if rows:
+                        insert_messages(rows)
+                        total_new += len(rows)
+                save_cursors(cursors)
+                print(f"Message poller: {total_new} new messages across {len(symbols)} symbols")
+        except Exception as e:
+            print(f"Message poller error: {e}")
+        time.sleep(60)
+
+threading.Thread(target=_message_poller_loop, daemon=True).start()
