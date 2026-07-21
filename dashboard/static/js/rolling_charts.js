@@ -56,7 +56,10 @@ function roundToBucket(tsStr, bucketMin) {
   const ms = new Date(tsStr.replace(" ","T")+"Z").getTime();
   return roundToBucketFromMs(ms, bucketMin);
 }
-
+function parseMsgTimestamp(raw) {
+  const s = raw.replace(" ", "T");
+  return new Date(s.endsWith("Z") ? s : s + "Z").getTime();
+}
 // Sliding trailing-window message counts.
 // At every 1-minute step `t`, counts messages with timestamp in (t - windowMs, t].
 // `sortedTimesMs` must be ascending. `stepsMs` must be ascending.
@@ -89,7 +92,7 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
 
   const sentMap = {};
   for (const m of (fullData.messages||[])) {
-    const rMs = new Date(m.created_at.replace(" ","T")+"Z").getTime();
+    const rMs = parseMsgTimestamp(m.created_at);
     if (rMs < startMs || rMs > endMs) continue;
     const bucket = roundToBucket(m.created_at, bucketMin);
     if (!sentMap[bucket]) sentMap[bucket] = {bullish:0,bearish:0,neutral:0,mixed:0};
@@ -106,7 +109,7 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
 
   // messages need to be pulled from windowMs before startMs too, since early points still need lookback
   const sortedTimesMs = (fullData.messages||[])
-    .map(m => new Date(m.created_at.replace(" ","T")+"Z").getTime())
+    .map(m => parseMsgTimestamp(m.created_at))
     .filter(rMs => !isNaN(rMs) && rMs > maStartMs - windowMs && rMs <= endMs)
     .sort((a,b) => a-b);
 
