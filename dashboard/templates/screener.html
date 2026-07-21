@@ -592,7 +592,7 @@
   <div class="stat-chip bullish-chip"><span id="stat-bullish">—</span> bullish</div>
   <div class="stat-chip bearish-chip"><span id="stat-bearish">—</span> bearish</div>
 </div>
-
+<button id="track-btn" class="btn-refresh" onclick="trackCurrentFilter()">📌 Track These Stocks</button>
 <!-- Column View Switcher -->
 <div class="scr-view-tabs">
   <button class="scr-view-tab active" data-view="overview" onclick="switchView('overview')">Overview</button>
@@ -1434,6 +1434,15 @@ async function toggleWatchlist(symbol, isTracked) {
   else currentWatchlist.add(symbol);
   applyFilters();
 }
+function trackCurrentFilter() {
+  const rows = computeFilteredRows();
+  const symbols = rows.map(r => r.symbol).slice(0, 50);
+  fetch("/api/active-symbols", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ symbols }),
+  }).then(() => alert(`Tracking ${symbols.length} stocks.`));
+}
 function renderTable(rows) {
   let bull = 0, bear = 0;
   rows.forEach(r => {
@@ -1452,17 +1461,6 @@ function renderTable(rows) {
   body.innerHTML = rows.map(r => {
     return "<tr>" + cols.map(col => `<td>${formatCell(r, col)}</td>`).join("") + "</tr>";
   }).join("");
-
-  const symbols = rows.map(r => r.symbol);
-
-  clearTimeout(_activeSymbolsTimer);
-  _activeSymbolsTimer = setTimeout(() => {
-    fetch("/api/active-symbols", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ symbols: symbols.slice(0, 50) }),
-    });
-  }, 2000);
 }
 
 document.getElementById("screener-thead").addEventListener("click", (e) => {
