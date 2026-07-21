@@ -692,7 +692,20 @@ def api_set_finviz_token():
 
 _POLLER_WORKER_ID = str(uuid.uuid4())
 
+_last_token_alert = None
+
+def send_ntfy_alert(message):
+    try:
+        requests.post(
+            "https://ntfy.sh/Token_Exp",
+            data=message.encode("utf-8"),
+            headers={"Title": "FinViz Token Expired", "Priority": "high"},
+            timeout=5,
+        )
+    except Exception as e:
+        print(f"ntfy alert failed: {e}")
 def _price_poller_loop():
+    global _last_token_alert
     while True:
         finviz_token = get_finviz_token()
         if not finviz_token:
@@ -705,6 +718,11 @@ def _price_poller_loop():
                 if symbols:
                     rows = fetch_finviz_by_tickers(symbols, finviz_token)
                     now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
+                    if not rows:
+                        now = time.time()
+                        if not _last_token_alert or now - _last_token_alert > 1800:
+                            send_ntfy_alert("FinViz token appears expired — no rows returned.")
+                            _last_token_alert = now
                     for raw in rows:
                         parsed = parse_finviz_row(raw)
                         sym = parsed.get("ticker", "").strip().upper()
