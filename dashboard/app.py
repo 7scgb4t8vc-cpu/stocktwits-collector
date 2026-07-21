@@ -598,6 +598,7 @@ def _price_poller_loop():
                 symbols = get_active_symbols()
                 if symbols:
                     rows = fetch_finviz_by_tickers(symbols, finviz_token)
+                    print(f"Poller DEBUG: token_len={len(finviz_token)}, rows={len(rows)}")
                     now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
                     for raw in rows:
                         parsed = parse_finviz_row(raw)
