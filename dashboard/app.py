@@ -799,3 +799,26 @@ threading.Thread(target=_message_poller_loop, daemon=True).start()
 def test_alert():
     send_ntfy_alert("Test alert — ntfy is working!")
     return jsonify({"status": "sent"})
+    
+@app.route("/admin/token")
+def token_admin_page():
+    return """
+    <html><body style="font-family:sans-serif;max-width:400px;margin:40px auto;">
+      <h3>Update FinViz Token</h3>
+      <input id="tok" type="text" placeholder="Paste token here" style="width:100%;padding:8px;font-size:14px;">
+      <button onclick="submitToken()" style="margin-top:10px;padding:8px 16px;">Update</button>
+      <p id="result"></p>
+      <script>
+        function submitToken() {
+          const token = document.getElementById('tok').value.trim();
+          fetch('/api/finviz-token', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({token})
+          }).then(r => r.json()).then(data => {
+            document.getElementById('result').textContent = JSON.stringify(data);
+          });
+        }
+      </script>
+    </body></html>
+    """
