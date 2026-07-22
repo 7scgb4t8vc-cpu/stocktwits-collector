@@ -784,3 +784,8 @@ def _message_poller_loop():
         time.sleep(60)
 
 threading.Thread(target=_message_poller_loop, daemon=True).start()
+
+@app.route("/api/test-alert")
+def test_alert():
+    send_ntfy_alert("Test alert — ntfy is working!")
+    return jsonify({"status": "sent"})
