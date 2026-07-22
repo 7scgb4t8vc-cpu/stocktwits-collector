@@ -694,16 +694,26 @@ _POLLER_WORKER_ID = str(uuid.uuid4())
 
 _last_token_alert = None
 
+import smtplib
+from email.mime.text import MIMEText
+
 def send_ntfy_alert(message):
     try:
-        requests.post(
-            "https://ntfy.sh/Token_Exp",
-            data=message.encode("utf-8"),
-            headers={"Title": "FinViz Token Expired", "Priority": "high"},
-            timeout=5,
-        )
+        sender = os.environ.get("ALERT_EMAIL_FROM")
+        password = os.environ.get("ALERT_EMAIL_PASSWORD")
+        recipient = os.environ.get("ALERT_EMAIL_TO")
+        if not sender or not password or not recipient:
+            print("Email alert not configured, skipping.")
+            return
+        msg = MIMEText(message)
+        msg["Subject"] = "FinViz Token Expired"
+        msg["From"] = sender
+        msg["To"] = recipient
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=10) as server:
+            server.login(sender, password)
+            server.sendmail(sender, recipient, msg.as_string())
     except Exception as e:
-        print(f"ntfy alert failed: {e}")
+        print(f"Email alert failed: {e}")
 def _price_poller_loop():
     global _last_token_alert
     while True:
