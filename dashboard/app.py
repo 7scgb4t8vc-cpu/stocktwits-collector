@@ -50,15 +50,12 @@ def fetch_messages_minute(symbol, since_id=None, max_pages=2):
 import yfinance as yf
 
 def fetch_yfinance_afterhours(symbols):
-    """Post-market prices via yfinance for the 4-8PM ET window,
-    since FinViz's export API doesn't expose after-hours pricing."""
     prices = {}
     for sym in symbols:
         try:
-            info = yf.Ticker(sym).fast_info
-            price = getattr(info, "post_market_price", None) or getattr(info, "last_price", None)
-            if price:
-                prices[sym] = price
+            hist = yf.Ticker(sym).history(period="1d", interval="1m", prepost=True)
+            if not hist.empty:
+                prices[sym] = float(hist["Close"].iloc[-1])
         except Exception as e:
             print(f"yfinance error for {sym}: {e}")
     return prices
