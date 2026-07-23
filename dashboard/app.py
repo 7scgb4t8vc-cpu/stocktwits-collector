@@ -47,7 +47,21 @@ def fetch_messages_minute(symbol, since_id=None, max_pages=2):
             break
         max_id = oldest_id - 1
     return all_messages
+import yfinance as yf
 
+def fetch_yfinance_afterhours(symbols):
+    """Post-market prices via yfinance for the 4-8PM ET window,
+    since FinViz's export API doesn't expose after-hours pricing."""
+    prices = {}
+    for sym in symbols:
+        try:
+            info = yf.Ticker(sym).fast_info
+            price = getattr(info, "post_market_price", None) or getattr(info, "last_price", None)
+            if price:
+                prices[sym] = price
+        except Exception as e:
+            print(f"yfinance error for {sym}: {e}")
+    return prices
 def get_sentiment_minute(msg):
     entities = msg.get("entities", {})
     if entities.get("sentiment"):
@@ -725,21 +739,35 @@ def _price_poller_loop():
         try:
             if try_acquire_poller_lock(_POLLER_WORKER_ID):
                 symbols = get_active_symbols()
+                now_dt = datetime.now(ET)
+                now_et = now_dt.strftime("%Y-%m-%d %H:%M ET")
+                hour = now_dt.hour
+
                 if symbols:
-                    rows = fetch_finviz_by_tickers(symbols, finviz_token)
-                    now_et = datetime.now(ET).strftime("%Y-%m-%d %H:%M ET")
-                    if not rows:
-                        now = time.time()
-                        if not _last_token_alert or now - _last_token_alert > 1800:
-                            send_ntfy_alert("FinViz token appears expired — no rows returned.")
-                            _last_token_alert = now
-                    for raw in rows:
-                        parsed = parse_finviz_row(raw)
-                        sym = parsed.get("ticker", "").strip().upper()
-                        price = parsed.get("price")
-                        if sym and price:
+                    if 16 <= hour < 20:
+                        # After-hours (4-8PM ET): FinViz export doesn't cover this, use yfinance
+                        prices = fetch_yfinance_afterhours(symbols)
+                        for sym, price in prices.items():
                             log_price_tick(sym, now_et, price)
-                    print(f"Poller: logged {len(rows)} ticks for {symbols}")
+                        print(f"Poller (yfinance/after-hours): logged {len(prices)} ticks for {symbols}")
+                    elif hour >= 20 or hour < 4:
+                        # Overnight: no data collected, matches professor's approach
+                        print("Poller: overnight window, skipping.")
+                    else:
+                        # Regular hours + pre-market: FinViz
+                        rows = fetch_finviz_by_tickers(symbols, finviz_token)
+                        if not rows:
+                            now = time.time()
+                            if not _last_token_alert or now - _last_token_alert > 1800:
+                                send_ntfy_alert("FinViz token appears expired — no rows returned.")
+                                _last_token_alert = now
+                        for raw in rows:
+                            parsed = parse_finviz_row(raw)
+                            sym = parsed.get("ticker", "").strip().upper()
+                            price = parsed.get("price")
+                            if sym and price:
+                                log_price_tick(sym, now_et, price)
+                        print(f"Poller (FinViz): logged {len(rows)} ticks for {symbols}")
         except Exception as e:
             print(f"Poller error: {e}")
         time.sleep(60)
