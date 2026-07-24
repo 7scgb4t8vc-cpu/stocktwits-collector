@@ -181,7 +181,7 @@ loadBlockedSymbols();
 
 const NEWS_TF_OPTIONS = ["5m","15m","30m","1h","2h","4h","6h","12h","1d","7d","30d"];
 const NEWS_TF_LABELS = {"5m":"5m","15m":"15m","30m":"30m","1h":"1H","2h":"2H","4h":"4H","6h":"6H","12h":"12H","1d":"D","7d":"W","30d":"M"};
-const NEWS_BUCKET_OPTIONS = {"1m":1,"3m":3,"5m":5,"15m":15,"30m":30,"1h":60,"d":1440,"w":10080,"m":43200};
+const NEWS_BUCKET_OPTIONS = {"1m":1,"3m":3,"5m":5,"15m":15,"30m":30,"1h":60,"2h":120,"4h":240,"6h":360,"12h":720,"d":1440,"w":10080,"m":43200};
 
 function newsCardState(symbol) {
   if (!_newsCardState[symbol]) _newsCardState[symbol] = { tf: "1d", bucket: null, viewEnd: null };
