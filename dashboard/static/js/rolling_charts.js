@@ -130,20 +130,32 @@ const smoothedCounts = emaSmooth(slidingCounts);
     if (rMs < maStartMs || rMs > endMs) continue;
     priceMap[roundToBucketFromMs(rMs, 1)] = p.price;
   }
+  const MAX_GAP_MINUTES = 15; // don't bridge gaps longer than this
   let lastPrice = null;
-  const filledPrice = maTimestamps.map(ts => {
-    if (priceMap[ts] !== undefined) lastPrice = priceMap[ts];
-    return lastPrice;
+  let lastKnownIdx = -1;
+  const keepIdx = [];
+  const filledPriceRaw = maTimestamps.map((ts, i) => {
+    if (priceMap[ts] !== undefined) {
+      lastPrice = priceMap[ts];
+      lastKnownIdx = i;
+      keepIdx.push(i);
+      return lastPrice;
+    }
+    if (lastKnownIdx !== -1 && (i - lastKnownIdx) <= MAX_GAP_MINUTES) {
+      keepIdx.push(i);
+      return lastPrice;
+    }
+    return null;
   });
-  const firstKnownIdx = filledPrice.findIndex(v => v !== null);
-  if (firstKnownIdx > 0) {
-    for (let i = 0; i < firstKnownIdx; i++) filledPrice[i] = filledPrice[firstKnownIdx];
-  }
+
+  const keptTimestamps = keepIdx.map(i => maTimestamps[i]);
+  const keptCounts = keepIdx.map(i => smoothedCounts[i]);
+  const keptPrice = keepIdx.map(i => filledPriceRaw[i]);
 
   return {
-    volume_series:    maTimestamps.map((ts,i)=>({timestamp:ts,count:smoothedCounts[i]})),
+    volume_series:    keptTimestamps.map((ts,i)=>({timestamp:ts,count:keptCounts[i]})),
     sentiment_series: slots.map(ts=>({timestamp:ts,...(sentMap[ts]||{bullish:0,bearish:0,neutral:0,mixed:0})})),
-    correlation_series: maTimestamps.map((ts,i)=>({timestamp:ts,msg_count:smoothedCounts[i],price:filledPrice[i]})),
+    correlation_series: keptTimestamps.map((ts,i)=>({timestamp:ts,msg_count:keptCounts[i],price:keptPrice[i]})),
   };
 }
 
