@@ -282,17 +282,27 @@ function escapeHtmlNews(text) {
 }
 let _newsAutoRefreshInterval = null;
 
-function startNewsAutoRefresh() {
+function startNewsAutoRefresh(intervalMs) {
   if (_newsAutoRefreshInterval) clearInterval(_newsAutoRefreshInterval);
+  if (!intervalMs || intervalMs <= 0) return; // "Off" selected
   _newsAutoRefreshInterval = setInterval(() => {
     Object.keys(_newsCardState).forEach(symbol => {
       const state = _newsCardState[symbol];
-      if (state.viewEnd) return; // don't refresh if user is viewing history
+      if (state.viewEnd) return;
       loadRollingChart(symbol);
     });
-  }, 60000);
+  }, intervalMs);
 }
-startNewsAutoRefresh();
+
+document.addEventListener("DOMContentLoaded", () => {
+  const sel = document.getElementById("refresh-interval-select");
+  if (sel) {
+    sel.addEventListener("change", () => startNewsAutoRefresh(parseInt(sel.value)));
+    startNewsAutoRefresh(parseInt(sel.value));
+  } else {
+    startNewsAutoRefresh(60000); // fallback if dropdown isn't on this page
+  }
+});
 function statPair(label, value) {
   return `<div class="news-sidepanel-pair"><span class="news-sidepanel-label">${label}</span><span class="news-sidepanel-value">${value !== undefined && value !== null && value !== "" ? value : "—"}</span></div>`;
 }
