@@ -148,12 +148,10 @@ async function renderNewsCards(filteredRows) {
       </div>
       <div class="news-card-messages">
         ${msgs.length ? msgs.map(m => {
-          const label = (m.nlp_label || "neutral").toLowerCase();
           return `
-          <div class="news-msg sentiment-${label}">
+          <div class="news-msg">
             <div class="news-msg-meta">
               <span>${m.timestamp}</span>
-              <span class="sent-badge sent-${label}">${label}</span>
               <span class="news-msg-eng">👍 ${m.likes || 0} · 🔁 ${m.reshares || 0}</span>
             </div>
             <p class="news-msg-text">${escapeHtmlNews(m.message)}</p>
