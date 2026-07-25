@@ -205,7 +205,7 @@ function renderRollingCharts(ids, sliced, tf) {
           tooltip:{enabled:false,external:makeSharedTooltip(ids.tooltip, tf, tt=>tt.dataPoints.map(dp=>({
             color:dp.dataset.borderColor,
             label:dp.dataset.label,
-            val:dp.dataset.label==="Price ($)"?`$${dp.parsed.y!==null?dp.parsed.y.toFixed(2):"—"}`:dp.parsed.y
+            val:dp.dataset.label==="Price ($)"?`$${dp.parsed.y!==null?dp.parsed.y.toFixed(2):"—"}`:(dp.parsed.y!==null?dp.parsed.y.toFixed(2):"—")
           })))}
         },
         scales:{
