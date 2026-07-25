@@ -1,3 +1,13 @@
+function formatTimestamp12h(ts) {
+  if (!ts) return ts;
+  const match = ts.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})(.*)$/);
+  if (!match) return ts;
+  const [, date, hh, mm, rest] = match;
+  let hour = parseInt(hh, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${date} ${hour}:${mm} ${ampm}${rest}`;
+}
 function computeAbnormalMessages(rows) {
   const withEng = rows.map(r => ({ ...r, _eng: (parseInt(r.likes) || 0) + (parseInt(r.reshares) || 0) }));
   const engs  = withEng.map(r => r._eng);
@@ -151,7 +161,7 @@ async function renderNewsCards(filteredRows) {
           return `
           <div class="news-msg">
             <div class="news-msg-meta">
-              <span>${m.timestamp}</span>
+              <span>${formatTimestamp12h(m.timestamp)}</span>
               <span class="news-msg-eng">👍 ${m.likes || 0} · 🔁 ${m.reshares || 0}</span>
             </div>
             <p class="news-msg-text">${escapeHtmlNews(m.message)}</p>
