@@ -479,7 +479,7 @@ def load_momentum():
 
 
 def load_sentiment_scores():
-    watchlist = get_watchlist()
+    watchlist = set(get_active_symbols())
     coll = get_db()["sentiment_scores"]
     rows = list(coll.find())
     for r in rows:
