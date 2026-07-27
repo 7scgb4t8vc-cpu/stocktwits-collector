@@ -1018,7 +1018,7 @@ function toggleOrderDir() {
 }
 
 function resetFilters() {
-  ["f-sector","f-industry","f-country","f-mktcap","f-price","f-change","f-avgvol","f-relvol",
+  ["f-sector","f-industry","f-country","f-mktcap","f-price","f-change","f-avgvol","f-curvol","f-relvol",
    "f-pe","f-divyield","f-shortfloat","f-rsi","f-perfmonth",
    "f-index","f-analyst","f-optionable","f-shortable","f-sharesout","f-float","f-ipo","f-target",
    "f-fpe","f-peg","f-ps","f-pb","f-epsty","f-epsny","f-roe","f-roa","f-de","f-gm","f-om","f-nm",
@@ -1106,6 +1106,7 @@ function computeFilteredRows() {
   const price     = document.getElementById("f-price").value;
   const change    = document.getElementById("f-change").value;
   const avgvol    = document.getElementById("f-avgvol").value;
+  const curvol    = document.getElementById("f-curvol").value;
   const relvol    = document.getElementById("f-relvol").value;
   const peFilter  = document.getElementById("f-pe").value;
   const divYield  = document.getElementById("f-divyield").value;
@@ -1204,6 +1205,13 @@ function computeFilteredRows() {
       const num = parseInt(avgvol.slice(1));
       if (dir === "u" && !(av < num)) return false;
       if (dir === "o" && !(av > num)) return false;
+    }
+    const cv = parseInt(String(r.volume || "0").replace(/,/g, "")) || 0;
+    if (curvol) {
+      const dir = curvol[0];
+      const num = parseInt(curvol.slice(1));
+      if (dir === "u" && !(cv < num)) return false;
+      if (dir === "o" && !(cv > num)) return false;
     }
     if (relvol) {
       const dir = relvol[0];           // "o" or "u"
@@ -1510,6 +1518,7 @@ document.getElementById("f-mktcap").addEventListener("change", applyFilters);
 document.getElementById("f-price").addEventListener("change", applyFilters);
 document.getElementById("f-change").addEventListener("change", applyFilters);
 document.getElementById("f-avgvol").addEventListener("change", applyFilters);
+document.getElementById("f-curvol").addEventListener("change", applyFilters);
 document.getElementById("f-relvol").addEventListener("change", applyFilters);
 document.getElementById("f-pe").addEventListener("change", applyFilters);
 document.getElementById("f-divyield").addEventListener("change", applyFilters);
