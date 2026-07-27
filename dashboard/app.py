@@ -485,7 +485,25 @@ def load_sentiment_scores():
     for r in rows:
         r.pop("_id", None)
     return {r["symbol"]: r for r in rows if r.get("symbol", "") in watchlist}
+def load_trending_messages(limit=15):
+    active = set(get_active_symbols())
+    rows = get_messages()
+    rows = [r for r in rows if r.get("symbol", "") in active and r.get("quality_pass", True)]
 
+    def engagement(r):
+        return (parseFloat_safe(r.get("likes", 0)) +
+                parseFloat_safe(r.get("reshares", 0)) * 2)
+
+    def parseFloat_safe(v):
+        try:
+            return float(v)
+        except Exception:
+            return 0.0
+
+    scored = [{**r, "_eng": engagement(r)} for r in rows]
+    scored = [r for r in scored if r["_eng"] >= 3]
+    scored.sort(key=lambda r: r["_eng"], reverse=True)
+    return scored[:limit]
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
@@ -847,3 +865,6 @@ def token_admin_page():
       </script>
     </body></html>
     """
+@app.route("/api/trending-messages")
+def api_trending_messages():
+    return jsonify(load_trending_messages())
