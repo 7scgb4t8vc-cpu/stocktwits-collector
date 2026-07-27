@@ -5,8 +5,6 @@
   <h1>Dashboard</h1>
   <p class="page-subtitle">Overview of StockTwits sentiment and market activity</p>
   <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.75rem">
-    <button class="btn-refresh" id="btn-trigger" onclick="triggerRefresh()">⚡ Fetch Fresh Data</button>
-    <span id="trigger-status" style="font-size:13px;color:var(--muted)"></span>
   </div>
 </div>
 
@@ -112,26 +110,6 @@ async function loadDashboard() {
         </div>`;
     }).join("");
   }
-}
-
-async function triggerRefresh() {
-  const btn    = document.getElementById("btn-trigger");
-  const status = document.getElementById("trigger-status");
-  btn.disabled = true;
-  status.textContent = "Triggering workflow...";
-  try {
-    const res  = await fetch("/api/trigger-refresh", { method: "POST" });
-    const data = await res.json();
-    if (data.status === "triggered") {
-      status.textContent = "✅ Running! Data updates in ~30s.";
-      setTimeout(() => loadDashboard(), 35000);
-    } else {
-      status.textContent = "❌ Failed: " + data.error;
-    }
-  } catch (e) {
-    status.textContent = "❌ Error triggering workflow.";
-  }
-  setTimeout(() => { btn.disabled = false; status.textContent = ""; }, 40000);
 }
 
 function escapeHtml(t) {
