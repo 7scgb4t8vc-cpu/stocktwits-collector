@@ -20,7 +20,7 @@ import pytz
 from curl_cffi import requests as curl_requests
 import requests as std_requests
 
-from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, log_price_tick, get_db, save_ohlc, get_price_history, get_active_symbols, add_blocked_symbol
+from db import insert_messages, upsert_finviz, save_cursors, load_cursors, log_price, log_price_tick, get_db, save_ohlc, get_price_history, get_active_symbols, add_blocked_symbol, get_finviz_token
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
@@ -198,9 +198,9 @@ def main():
     print(f"StockTwits + FinViz Elite Collector — {timestamp}")
     print(f"{'='*55}")
 
-    finviz_token = os.environ.get("FINVIZ_API_TOKEN", "")
+    finviz_token = get_finviz_token()
     if not finviz_token:
-        print("✗ FINVIZ_API_TOKEN environment variable not set.")
+        print("✗ No FinViz token set in MongoDB.")
         return
 
     cursors = load_cursors()
