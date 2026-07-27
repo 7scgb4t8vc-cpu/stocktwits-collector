@@ -245,7 +245,7 @@ def load_screener():
 
 
 def load_frequency():
-    watchlist = get_watchlist()
+    watchlist = set(get_active_symbols())
     rows = get_messages()
     counts = {}
     last_seen = {}
@@ -461,7 +461,7 @@ def load_ohlc_data(symbol: str, interval: str = "1d"):
 
 
 def load_momentum():
-    watchlist = get_watchlist()
+    watchlist = set(get_active_symbols())
     rows = get_finviz()
     rows = [r for r in rows if r.get("symbol", "") in watchlist]
 
