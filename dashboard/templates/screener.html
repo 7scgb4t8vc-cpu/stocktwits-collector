@@ -895,6 +895,7 @@ function parseMarketCapNum(val) {
   if (!val) return 0;
   const s = String(val).trim();
   const n = parseFloat(s);
+  if (s.endsWith("T")) return n * 1_000_000_000_000;
   if (s.endsWith("B")) return n * 1_000_000_000;
   if (s.endsWith("M")) return n * 1_000_000;
   if (s.endsWith("K")) return n * 1_000;
