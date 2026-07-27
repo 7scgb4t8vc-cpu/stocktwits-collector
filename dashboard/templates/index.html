@@ -28,7 +28,7 @@
   </div>
 
   <div class="dash-section dash-section--wide">
-    <h2 class="section-title">💬 Latest Messages</h2>
+    <h2 class="section-title">🔥 Trending Messages</h2>
     <div id="feed" class="loading">Loading...</div>
   </div>
 
@@ -39,13 +39,15 @@
 {% block scripts %}
 <script>
 async function loadDashboard() {
-  const [socialRes, freqRes, momRes] = await Promise.all([
+  const [socialRes, freqRes, momRes, trendingRes] = await Promise.all([
     fetch("/api/social"),
     fetch("/api/frequency"),
     fetch("/api/momentum"),
+    fetch("/api/trending-messages"),
   ]);
 
   const social = await socialRes.json();
+  const trending = await trendingRes.json();
   const freq   = await freqRes.json();
   const mom    = await momRes.json();
 
@@ -94,10 +96,10 @@ async function loadDashboard() {
   }
 
   const feedEl = document.getElementById("feed");
-  if (!social.length) {
+  if (!trending.length) {
     feedEl.innerHTML = '<div class="empty">No messages.</div>';
   } else {
-    feedEl.innerHTML = social.slice(0, 10).map(r => {
+    feedEl.innerHTML = trending.map(r => {
       const label = r.nlp_label || r.sentiment || "none";
       return `
         <div class="feed-card sentiment-${label.toLowerCase()}">
