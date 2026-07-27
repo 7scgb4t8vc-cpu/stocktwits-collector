@@ -82,7 +82,7 @@ async function loadDashboard() {
     momEl.innerHTML = '<div class="empty">No data.</div>';
   } else {
     momEl.innerHTML = mom.slice(0, 10).map(r => {
-      const chg    = parseFloat(r.change_pct) || 0;
+      const chg    = parseFloat(r._change) || 0;
       const chgCls = chg >= 0 ? "bullish" : "bearish";
       const sign   = chg >= 0 ? "+" : "";
       return `
@@ -90,7 +90,7 @@ async function loadDashboard() {
         <span class="ticker-badge">${r.ticker || r.symbol || ""}</span>
         <span class="dash-label">${r.company || ""}</span>
         <span class="sentiment-badge badge-${chgCls}">${sign}${chg.toFixed(2)}%</span>
-        <span class="dash-meta">Vol ${r.rel_volume || "—"}x</span>
+        <span class="dash-meta">Vol ${r._rel_vol ? r._rel_vol.toFixed(2) : "—"}x</span>
       </div>`;
     }).join("");
   }
