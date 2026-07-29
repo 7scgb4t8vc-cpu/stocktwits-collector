@@ -50,6 +50,7 @@
       <col style="width:100px">
       <col style="width:70px">
       <col style="width:70px">
+      <col style="width:80px">
     </colgroup>
     <thead>
       <tr>
@@ -59,10 +60,11 @@
         <th data-key="nlp_label">Sentiment</th>
         <th data-key="nlp_score">Score</th>
         <th data-key="likes">Likes</th>
+        <th data-key="reshares">Reshares</th>
       </tr>
     </thead>
     <tbody id="news-body">
-      <tr><td colspan="5" class="loading">Loading news...</td></tr>
+      <tr><td colspan="7" class="loading">Loading news...</td></tr>
     </tbody>
   </table>
 </div>
@@ -77,14 +79,14 @@ let sortDir = -1;
 
 async function loadNews() {
   const body = document.getElementById("news-body");
-  body.innerHTML = '<tr><td colspan="5" class="loading">Loading...</td></tr>';
+  body.innerHTML = '<tr><td colspan="7" class="loading">Loading...</td></tr>';
 
   try {
     const res = await fetch("/api/social");
     allNews = await res.json();
     applyFilters();
   } catch (e) {
-    body.innerHTML = '<tr><td colspan="5" class="error">Failed to load data.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="error">Failed to load data.</td></tr>';
   }
 }
 
@@ -117,7 +119,7 @@ function applyFilters() {
 
   const body = document.getElementById("news-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="5" class="empty">No news found.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" class="empty">No news found.</td></tr>';
     return;
   }
 
@@ -132,6 +134,7 @@ function applyFilters() {
         <td><span class="sentiment-badge badge-${label}">${label}</span></td>
         <td>${score}</td>
         <td>${r.likes || 0}</td>
+        <td>${r.reshares || 0}</td>
       </tr>`;
   }).join("");
 }
