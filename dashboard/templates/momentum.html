@@ -287,7 +287,7 @@ async function loadMomentum() {
 
     let gainers = 0, losers = 0;
     allRows.forEach(r => {
-      const chg = parseFloat(r.change_pct) || 0;
+      const chg = r._change || 0;
       if (chg > 0) gainers++;
       else if (chg < 0) losers++;
     });
@@ -311,7 +311,7 @@ function renderTickerStrip(rows) {
     return;
   }
   strip.innerHTML = rows.map(r => {
-    const chg      = parseFloat(r.change_pct) || 0;
+    const chg      = r._change || 0;
     const chgClass = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
     const chgSign  = chg > 0 ? "+" : "";
     return `<div class="ticker-chip" onclick="scrollToSymbol('${r.symbol}')">
@@ -332,8 +332,8 @@ function applyFilters() {
   const change = document.getElementById("filter-change").value;
 
   const filtered = allRows.filter(r => {
-    const rv  = parseFloat(r.rel_volume) || 0;
-    const chg = parseFloat(r.change_pct) || 0;
+    const rv  = r._rel_vol || 0;
+    const chg = r._change || 0;
     const sentLabel = getSentimentLabel(r.symbol);
     if (rv < minRv) return false;
     if (sent && sentLabel !== sent) return false;
@@ -376,11 +376,11 @@ function renderList(rows) {
   }
 
   list.innerHTML = rows.map((r, i) => {
-    const chg       = parseFloat(r.change_pct) || 0;
+    const chg       = r._change || 0;
     const chgClass  = chg > 0 ? "positive" : chg < 0 ? "negative" : "";
     const chgSign   = chg > 0 ? "+" : "";
     const cardClass = chg > 0 ? "is-gainer" : chg < 0 ? "is-loser" : "";
-    const relVol    = parseFloat(r.rel_volume) || 0;
+    const relVol    = r._rel_vol || 0;
     const sentLabel = getSentimentLabel(r.symbol);
     const score     = getSentimentScore(r.symbol);
     const scoreStr  = score !== null ? (score > 0 ? "+" : "") + score.toFixed(2) : "—";
