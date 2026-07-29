@@ -5,7 +5,16 @@
   <h1>Social Feed</h1>
   <p class="page-subtitle">Live StockTwits messages with sentiment analysis</p>
 </div>
-
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+  <label style="font-size:11px;color:var(--muted);font-weight:600;">REFRESH EVERY</label>
+  <select id="refresh-interval-select" class="filter-select">
+    <option value="15000">15s</option>
+    <option value="30000">30s</option>
+    <option value="60000" selected>1 min</option>
+    <option value="300000">5 min</option>
+    <option value="0">Off</option>
+  </select>
+</div>
 <div class="filter-bar">
   <input type="text" id="filter-symbol" placeholder="Filter by symbol (e.g. NVDA)" class="filter-input" />
   <select id="filter-sentiment" class="filter-select">
@@ -100,9 +109,10 @@ function applyFilters() {
           <a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a>
           <span class="sentiment-badge badge-${label}">${label}</span>
           ${scoreHtml}
-          <span class="card-time">${r.timestamp}</span>
+          <span class="card-time">${formatTimestamp12h(r.timestamp)}</span>
         </div>
         <p class="card-message">${escapeHtml(r.message)}</p>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px;">👍 ${r.likes || 0} · 🔁 ${r.reshares || 0}</div>
       </div>`;
   }).join("");
 }
@@ -113,8 +123,30 @@ function escapeHtml(text) {
   return txt.value;
 }
 
+function formatTimestamp12h(ts) {
+  if (!ts) return ts;
+  const match = ts.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})(.*)$/);
+  if (!match) return ts;
+  const [, date, hh, mm, rest] = match;
+  let hour = parseInt(hh, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${date} ${hour}:${mm} ${ampm}${rest}`;
+}
+
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
 document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
+
+let _refreshInterval = null;
+function startAutoRefresh(intervalMs) {
+  if (_refreshInterval) clearInterval(_refreshInterval);
+  if (!intervalMs || intervalMs <= 0) return;
+  _refreshInterval = setInterval(loadSocial, intervalMs);
+}
+document.getElementById("refresh-interval-select").addEventListener("change", (e) => {
+  startAutoRefresh(parseInt(e.target.value));
+});
+startAutoRefresh(60000);
 
 window.registerPageLoader(loadSocial);
 </script>
