@@ -101,7 +101,7 @@ python nlp_processor.py
 
 ---
 
-## For whoever's grading this
+## For whoever's using this
 
 The easiest way to see this working is to just visit the live link above
 — it's already running continuously and collecting data. If you want to
