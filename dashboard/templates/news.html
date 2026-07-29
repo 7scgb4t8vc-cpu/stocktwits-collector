@@ -5,7 +5,16 @@
   <h1>News</h1>
   <p class="page-subtitle">Latest StockTwits activity across your watchlist</p>
 </div>
-
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+  <label style="font-size:11px;color:var(--muted);font-weight:600;">REFRESH EVERY</label>
+  <select id="refresh-interval-select" class="filter-select">
+    <option value="15000">15s</option>
+    <option value="30000">30s</option>
+    <option value="60000" selected>1 min</option>
+    <option value="300000">5 min</option>
+    <option value="0">Off</option>
+  </select>
+</div>
 <div class="filter-bar">
   <input type="text" id="filter-symbol" placeholder="Filter by symbol (e.g. NVDA)" class="filter-input" />
   <select id="filter-sentiment" class="filter-select">
@@ -31,6 +40,7 @@
         <th data-key="message">Headline</th>
         <th data-key="nlp_label">Sentiment</th>
         <th data-key="nlp_score">Score</th>
+        <th data-key="likes">Likes</th>
       </tr>
     </thead>
     <tbody id="news-body">
@@ -98,11 +108,12 @@ function applyFilters() {
     const score = r.nlp_score ? parseFloat(r.nlp_score).toFixed(2) : "—";
     return `
       <tr class="sentiment-${label}">
-        <td>${r.timestamp}</td>
+        <td>${formatTimestamp12h(r.timestamp)}</td>
         <td><a class="ticker-badge ticker-link" href="/charts?symbol=${r.symbol}">${r.symbol}</a></td>
         <td>${escapeHtml(r.message)}</td>
         <td><span class="sentiment-badge badge-${label}">${label}</span></td>
         <td>${score}</td>
+        <td>${r.likes || 0}</td>
       </tr>`;
   }).join("");
 }
@@ -113,9 +124,19 @@ function escapeHtml(text) {
   return txt.value;
 }
 
+function formatTimestamp12h(ts) {
+  if (!ts) return ts;
+  const match = ts.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})(.*)$/);
+  if (!match) return ts;
+  const [, date, hh, mm, rest] = match;
+  let hour = parseInt(hh, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${date} ${hour}:${mm} ${ampm}${rest}`;
+}
+
 document.getElementById("filter-symbol").addEventListener("input", applyFilters);
 document.getElementById("filter-sentiment").addEventListener("change", applyFilters);
-
 document.querySelectorAll("#news-table thead th").forEach(th => {
   th.style.cursor = "pointer";
   th.addEventListener("click", () => {
@@ -125,6 +146,17 @@ document.querySelectorAll("#news-table thead th").forEach(th => {
     applyFilters();
   });
 });
+
+let _refreshInterval = null;
+function startAutoRefresh(intervalMs) {
+  if (_refreshInterval) clearInterval(_refreshInterval);
+  if (!intervalMs || intervalMs <= 0) return;
+  _refreshInterval = setInterval(loadNews, intervalMs);
+}
+document.getElementById("refresh-interval-select").addEventListener("change", (e) => {
+  startAutoRefresh(parseInt(e.target.value));
+});
+startAutoRefresh(60000);
 
 window.registerPageLoader(loadNews);
 </script>
