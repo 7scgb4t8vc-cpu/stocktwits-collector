@@ -1,6 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-
+<style>
+#news-table {
+  table-layout: fixed;
+  width: 100%;
+}
+#news-table th:nth-child(3),
+#news-table td:nth-child(3) {
+  max-width: 300px;
+}
+#news-table td:nth-child(3) {
+  overflow-x: auto;
+  white-space: nowrap;
+  display: block;
+}
+</style>
 <div class="page-header">
   <h1>News</h1>
   <p class="page-subtitle">Latest StockTwits activity across your watchlist</p>
