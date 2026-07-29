@@ -4,6 +4,16 @@
   <h1>Charts</h1>
   <p class="page-subtitle">Price history, sentiment, and social posts for a single stock</p>
 </div>
+<div style="display:flex;align-items:center;gap:8px;margin-bottom:0.75rem;">
+  <label style="font-size:11px;color:var(--muted);font-weight:600;">REFRESH EVERY</label>
+  <select id="refresh-interval-select" class="filter-select">
+    <option value="15000">15s</option>
+    <option value="30000">30s</option>
+    <option value="60000" selected>1 min</option>
+    <option value="300000">5 min</option>
+    <option value="0">Off</option>
+  </select>
+</div>
 <div class="filter-bar">
   <select id="symbol-select" class="filter-select">
     <option value="">Select a symbol…</option>
@@ -26,8 +36,11 @@
     <button class="tf-btn" data-tf="30d">M</button>
     <input type="datetime-local" id="date-picker" class="date-picker" title="Jump to date/time">
   </div>
+  <div class="tf-strip" id="bucket-strip" style="margin-bottom:1rem;">
+    <span style="font-size:11px;color:var(--muted);font-weight:600;margin-right:6px;">INTERVAL</span>
+  </div>
   <div id="sparse-warning" style="display:none" class="sparse-warning">
-    ⚠ Collector runs every 5 min during market hours — sub-hourly windows may have limited data points.
+    ⚠ Sub-minute windows may show limited data points depending on message/price activity.
   </div>
   <div class="chart-card" style="margin-bottom:1rem;">
     <div id="shared-tooltip" style="height:28px;margin-bottom:0.5rem;display:flex;align-items:center;gap:16px;font-size:11px;"></div>
@@ -111,7 +124,39 @@ let _currentTf = "1d";
 let _fullData = null;
 let _viewEndMs = null;
 
+const CHART_BUCKET_OPTIONS = {"1m":1,"3m":3,"5m":5,"15m":15,"30m":30,"1h":60,"2h":120,"4h":240,"6h":360,"12h":720,"d":1440,"w":10080,"m":43200};
+let _currentBucket = null;
 
+function formatTimestamp12h(ts) {
+  if (!ts) return ts;
+  const match = ts.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})(.*)$/);
+  if (!match) return ts;
+  const [, date, hh, mm, rest] = match;
+  let hour = parseInt(hh, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${date} ${hour}:${mm} ${ampm}${rest}`;
+}
+
+function renderBucketStrip() {
+  const strip = document.getElementById("bucket-strip");
+  const label = strip.querySelector("span");
+  strip.innerHTML = "";
+  strip.appendChild(label);
+  Object.keys(CHART_BUCKET_OPTIONS).forEach(b => {
+    const btn = document.createElement("button");
+    btn.className = "tf-btn" + (b === "1h" ? " active" : "");
+    btn.textContent = b;
+    btn.dataset.bucket = b;
+    btn.onclick = () => {
+      _currentBucket = CHART_BUCKET_OPTIONS[b];
+      document.querySelectorAll("#bucket-strip .tf-btn").forEach(x => x.classList.remove("active"));
+      btn.classList.add("active");
+      updateCharts();
+    };
+    strip.appendChild(btn);
+  });
+}
 
 function destroyCharts() {
   destroyRollingCharts(_charts);
@@ -130,7 +175,7 @@ function renderCharts(sliced) {
 
 function updateCharts() {
   if (!_fullData) return;
-  const sliced = sliceRollingData(_fullData, _currentTf, _viewEndMs);
+  const sliced = sliceRollingData(_fullData, _currentTf, _viewEndMs, _currentBucket);
   renderCharts(sliced);
 }
 function syncDatePicker() {
@@ -225,9 +270,8 @@ async function loadSocialFeed(symbol) {
       return {...p,_trend:trend};
     }).sort((a,b)=>b._trend-a._trend);
     feed.innerHTML = `<div class="charts-feed">`+sorted.slice(0,30).map(p=>{
-      const lbl=(p.nlp_label||"neutral").toLowerCase();
       const trendHtml=p._trend>0?`<span class="eng-badge">⚡ ${p._trend.toFixed(1)}</span>`:"";
-      return `<div class="charts-post ${lbl}"><div class="charts-post-header"><span class="charts-post-label ${lbl}">${lbl}</span>${trendHtml}<span class="charts-post-time">${p.timestamp||""}</span></div><div class="charts-post-text">${escapeHtml(p.message||"")}</div></div>`;
+      return `<div class="charts-post"><div class="charts-post-header">${trendHtml}<span class="charts-post-time">${formatTimestamp12h(p.timestamp||"")}</span></div><div class="charts-post-text">${escapeHtml(p.message||"")}</div></div>`;
     }).join("")+`</div>`;
   } catch(e) { feed.innerHTML='<div class="error">Failed to load posts.</div>'; }
 }
@@ -262,8 +306,9 @@ async function loadSymbolCharts(symbol) {
 
 let _refreshInterval = null;
 
-function startAutoRefresh() {
+function startAutoRefresh(intervalMs) {
   if (_refreshInterval) clearInterval(_refreshInterval);
+  if (!intervalMs || intervalMs <= 0) return;
   _refreshInterval = setInterval(async () => {
     if (!_currentSymbol || _viewEndMs) return;
     try {
@@ -271,7 +316,7 @@ function startAutoRefresh() {
       _fullData = await res.json();
       updateCharts();
     } catch(e) {}
-  }, 30000);
+  }, intervalMs);
 }
 
 document.getElementById("tf-strip").addEventListener("click", (e) => {
@@ -309,7 +354,11 @@ document.getElementById("symbol-select").addEventListener("change", (e) => {
   _currentSymbol = e.target.value;
   _viewEndMs = null;
   loadSymbolCharts(_currentSymbol);
-  startAutoRefresh();
+  startAutoRefresh(parseInt(document.getElementById("refresh-interval-select").value));
+});
+
+document.getElementById("refresh-interval-select").addEventListener("change", (e) => {
+  startAutoRefresh(parseInt(e.target.value));
 });
 
 async function loadCharts() {
