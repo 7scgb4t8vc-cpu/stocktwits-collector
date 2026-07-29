@@ -579,11 +579,9 @@ def api_watchlist_remove():
 def api_frequency():
     return jsonify(load_frequency())
 
-
 @app.route("/api/symbols")
 def api_symbols():
-    return jsonify(sorted(get_watchlist()))
-
+    return jsonify(sorted(get_active_symbols()))
 
 @app.route("/api/charts")
 def api_charts():
