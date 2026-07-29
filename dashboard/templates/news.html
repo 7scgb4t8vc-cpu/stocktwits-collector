@@ -5,10 +5,6 @@
   table-layout: fixed;
   width: 100%;
 }
-#news-table th:nth-child(3),
-#news-table td:nth-child(3) {
-  max-width: 600px;
-}
 #news-table td:nth-child(3) {
   overflow-x: auto;
   white-space: nowrap;
@@ -47,6 +43,14 @@
 
 <div class="table-wrap">
   <table class="data-table" id="news-table">
+    <colgroup>
+      <col style="width:140px">
+      <col style="width:80px">
+      <col style="width:600px">
+      <col style="width:100px">
+      <col style="width:70px">
+      <col style="width:70px">
+    </colgroup>
     <thead>
       <tr>
         <th data-key="timestamp">Time</th>
