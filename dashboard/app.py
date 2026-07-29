@@ -504,7 +504,56 @@ def load_trending_messages(limit=15):
     scored = [r for r in scored if r["_eng"] >= 3]
     scored.sort(key=lambda r: r["_eng"], reverse=True)
     return scored[:limit]
+def load_sentiment_trend():
+    """Compare avg signed sentiment in the last 15 min vs the 15 min before that,
+    per symbol, to detect emerging shifts before they cross the static threshold."""
+    from datetime import datetime, timedelta
+    active = set(get_active_symbols())
+    rows = get_messages()
+    rows = [r for r in rows if r.get("symbol", "") in active]
 
+    now = datetime.utcnow()
+    recent_cutoff = now - timedelta(minutes=15)
+    prior_cutoff = now - timedelta(minutes=30)
+
+    by_symbol_recent = {}
+    by_symbol_prior = {}
+
+    for r in rows:
+        raw_dt = r.get("created_at") or r.get("timestamp", "")
+        try:
+            if raw_dt.endswith("Z"):
+                dt = datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
+            else:
+                dt = parse_timestamp(raw_dt)
+        except Exception:
+            continue
+        if not dt:
+            continue
+
+        label = (r.get("nlp_label") or "neutral").lower()
+        score = float(r.get("nlp_score") or 0)
+        signed = score if label == "bullish" else (-score if label == "bearish" else 0)
+        sym = r.get("symbol", "")
+
+        if dt >= recent_cutoff:
+            by_symbol_recent.setdefault(sym, []).append(signed)
+        elif dt >= prior_cutoff:
+            by_symbol_prior.setdefault(sym, []).append(signed)
+
+    trends = {}
+    for sym in active:
+        recent_vals = by_symbol_recent.get(sym, [])
+        prior_vals = by_symbol_prior.get(sym, [])
+        if not recent_vals or not prior_vals:
+            continue
+        recent_avg = sum(recent_vals) / len(recent_vals)
+        prior_avg = sum(prior_vals) / len(prior_vals)
+        delta = recent_avg - prior_avg
+        direction = "rising" if delta > 0.02 else ("falling" if delta < -0.02 else "flat")
+        trends[sym] = {"recent_avg": round(recent_avg, 4), "prior_avg": round(prior_avg, 4), "delta": round(delta, 4), "direction": direction}
+
+    return trends
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -866,3 +915,6 @@ def token_admin_page():
 @app.route("/api/trending-messages")
 def api_trending_messages():
     return jsonify(load_trending_messages())
+@app.route("/api/sentiment-trend")
+def api_sentiment_trend():
+    return jsonify(load_sentiment_trend())
