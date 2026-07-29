@@ -125,7 +125,14 @@ function applyFilters() {
 
   body.innerHTML = rows.map(r => {
     const label = (r.nlp_label || "neutral").toLowerCase();
-    const score = r.nlp_score ? parseFloat(r.nlp_score).toFixed(2) : "—";
+    const rawScore = r.nlp_score ? parseFloat(r.nlp_score) : null;
+    let signedScore = rawScore;
+    if (rawScore !== null) {
+      if (label === "bearish") signedScore = -Math.abs(rawScore);
+      else if (label === "bullish") signedScore = Math.abs(rawScore);
+      else signedScore = 0;
+    }
+    const score = signedScore !== null ? (signedScore > 0 ? "+" : "") + signedScore.toFixed(2) : "—";
     return `
       <tr class="sentiment-${label}">
         <td>${formatTimestamp12h(r.timestamp)}</td>
