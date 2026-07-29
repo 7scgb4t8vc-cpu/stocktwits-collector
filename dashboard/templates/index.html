@@ -2,7 +2,7 @@
 {% block content %}
 
 <div class="page-header">
-  <h1>Dashboard</h1>
+  <h1>Overview</h1>
   <p class="page-subtitle">Overview of StockTwits sentiment and market activity</p>
   <div style="margin-top:0.75rem;display:flex;align-items:center;gap:0.75rem">
   </div>
@@ -38,6 +38,16 @@
 
 {% block scripts %}
 <script>
+function formatTimestamp12h(ts) {
+  if (!ts) return ts;
+  const match = ts.match(/^(\d{4}-\d{2}-\d{2}) (\d{2}):(\d{2})(.*)$/);
+  if (!match) return ts;
+  const [, date, hh, mm, rest] = match;
+  let hour = parseInt(hh, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  hour = hour % 12 || 12;
+  return `${date} ${hour}:${mm} ${ampm}${rest}`;
+}
 async function loadDashboard() {
   const [socialRes, freqRes, momRes, trendingRes] = await Promise.all([
     fetch("/api/social"),
@@ -106,7 +116,7 @@ async function loadDashboard() {
           <div class="card-header">
             <span class="ticker-badge">${r.symbol}</span>
             <span class="sentiment-badge badge-${label.toLowerCase()}">${label}</span>
-            <span class="card-time">${r.timestamp}</span>
+            <span class="card-time">${formatTimestamp12h(r.timestamp)}</span>
           </div>
           <p class="card-message">${escapeHtml(r.message)}</p>
         </div>`;
