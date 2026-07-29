@@ -370,6 +370,7 @@ async function loadCharts() {
     document.getElementById("symbol-select").value = _currentSymbol;
   }
   setupDragPan();
+  renderBucketStrip();
   if (_currentSymbol) await loadSymbolCharts(_currentSymbol);
   startAutoRefresh();
 }
