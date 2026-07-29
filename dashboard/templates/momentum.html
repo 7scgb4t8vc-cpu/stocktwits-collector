@@ -267,16 +267,20 @@ let allRows = [];
 let scoreMap = {};
 let socialMap = {};
 
+let trendMap = {};
+
 async function loadMomentum() {
   try {
-    const [momRes, scoreRes, socialRes] = await Promise.all([
+    const [momRes, scoreRes, socialRes, trendRes] = await Promise.all([
       fetch("/api/momentum"),
       fetch("/api/sentiment-scores"),
       fetch("/api/social"),
+      fetch("/api/sentiment-trend"),
     ]);
     allRows  = await momRes.json();
     scoreMap = await scoreRes.json();
     const socialRows = await socialRes.json();
+    trendMap = await trendRes.json();
 
     socialMap = {};
     for (const msg of socialRows) {
@@ -384,6 +388,8 @@ function renderList(rows) {
     const sentLabel = getSentimentLabel(r.symbol);
     const score     = getSentimentScore(r.symbol);
     const scoreStr  = score !== null ? (score > 0 ? "+" : "") + score.toFixed(2) : "—";
+    const trend     = trendMap[r.symbol];
+    const trendIcon = trend ? (trend.direction === "rising" ? " ↑" : trend.direction === "falling" ? " ↓" : "") : "";
     const postCount = (socialMap[r.symbol] || []).length;
 
     const posts = (socialMap[r.symbol] || []).slice(0, 5);
@@ -391,10 +397,10 @@ function renderList(rows) {
       ? posts.map(p => {
           const lbl = (p.nlp_label || "neutral").toLowerCase();
           return `<div class="mom-post ${lbl}">
-            <div class="mom-post-header">
-              <span class="mom-post-label ${lbl}">${lbl}</span>
-              <span class="mom-post-time">${p.timestamp || ""}</span>
-            </div>
+            <div class="mom-field">
+            <span class="mom-field-label">Sentiment</span>
+            <span class="mom-field-value">${scoreStr}${trendIcon}</span>
+          </div>
             <div class="mom-post-text">${escapeHtml(p.message || "")}</div>
           </div>`;
         }).join("")
