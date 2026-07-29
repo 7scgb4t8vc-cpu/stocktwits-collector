@@ -1075,8 +1075,8 @@ async function loadScreener() {
       const sentiment_score = scoreRow ? parseFloat(scoreRow.agg_sentiment) : null;
       let dominant = "Neutral";
       if (sentiment_score !== null && !isNaN(sentiment_score)) {
-        if (sentiment_score > 0.05) dominant = "Bullish";
-        else if (sentiment_score < -0.05) dominant = "Bearish";
+        if (sentiment_score > 0.03) dominant = "Bullish";
+        else if (sentiment_score < -0.03) dominant = "Bearish";
       }
       return { ...r, sentiment: dominant, sentiment_score, _sc: sc };
     });
