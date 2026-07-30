@@ -27,6 +27,11 @@ ST_HEADERS = {
 }
 
 def fetch_messages_minute(symbol, since_id=None, max_pages=2):
+    # This is the "live" version of message fetching, used by the 60-second
+    # background poller below. A separate, near-identical copy also lives in
+    # stocktwits_collector.py for the slower GitHub Actions job — they're kept
+    # in sync manually, not shared as one function, since the two run in
+    # completely separate deployments (Railway vs GitHub Actions).
     url = f"{BASE_URL}/streams/symbol/{symbol}.json"
     all_messages = []
     max_id = None
@@ -47,9 +52,15 @@ def fetch_messages_minute(symbol, since_id=None, max_pages=2):
             break
         max_id = oldest_id - 1
     return all_messages
+
 import yfinance as yf
 
 def fetch_yfinance_afterhours(symbols):
+    # FinViz's export API (used everywhere else in this app) does NOT return
+    # live after-hours (4-8PM ET) prices, even though FinViz's own website
+    # shows them — we confirmed this by testing directly. yfinance is used
+    # ONLY during this specific window as a workaround; FinViz is used for
+    # everything else (regular hours + pre-market).
     prices = {}
     for sym in symbols:
         try:
@@ -59,12 +70,16 @@ def fetch_yfinance_afterhours(symbols):
         except Exception as e:
             print(f"yfinance error for {sym}: {e}")
     return prices
+
 def get_sentiment_minute(msg):
     entities = msg.get("entities", {})
     if entities.get("sentiment"):
         return entities["sentiment"].get("basic", "None") or "None"
     return "None"
 
+# Fuzzy profanity filter: swaps vowels for a character class so censored
+# spellings (e.g. "sh*t", "f#ck") still get caught, and allows a suffix so
+# plurals/-ing/-er variants match too.
 PROFANITY_STEMS = ["fuck","shit","bitch","cunt","dick","cock","pussy","bastard","piss","crap","damn","fag","slut","whore","asshole"]
 def _build_profanity_pattern(stems):
     parts = []
@@ -85,6 +100,13 @@ def clean_message_minute(text):
     return text[:280]
 
 def is_quality_message_minute(text):
+    # NOTE: this "quality" filter no longer decides whether a message gets
+    # SAVED — every message is saved regardless, tagged with quality_pass
+    # (see _message_poller_loop below). This function only controls what
+    # counts as "quality" for display purposes: the Trending Messages feed
+    # and stock-card post lists filter to quality_pass=True, while chart
+    # message-volume counts include everything, quality or not, since the
+    # research hypothesis cares about raw volume, not readability.
     if not text:
         return False
     words = text.split()
@@ -210,6 +232,10 @@ def round_to_bucket(dt: datetime, bucket_minutes: int) -> str:
     return dt.strftime("%Y-%m-%d %H:%M")
 
 # ── Watchlist ─────────────────────────────────────────────────────────────────
+# NOTE: this "watchlist" collection is an older, separate concept from
+# "active_symbols" below. Active symbols is what actually drives live data
+# collection (price + message polling); watchlist is a legacy manually-managed
+# list, mostly unused now that active_symbols/Track-These-Stocks exists.
 
 def get_watchlist() -> set:
     docs = list(get_db()["watchlist"].find())
@@ -326,6 +352,10 @@ def load_symbol_chart_data(symbol: str, timeframe: str = "1d", end: datetime = N
     filtered = []
     for row in rows:
         raw_dt = row.get("created_at") or row.get("timestamp", "")
+        # StockTwits' created_at is already a full ISO string ending in "Z"
+        # (e.g. "2026-07-21T14:32:00Z"). We must NOT blindly append another
+        # "Z" here — doing that once caused every message using this code
+        # path to silently fail to parse and vanish from the chart entirely.
         if raw_dt.endswith("Z"):
             dt = datetime.strptime(raw_dt, "%Y-%m-%dT%H:%M:%SZ")
         else:
@@ -471,6 +501,11 @@ def load_momentum():
         except Exception:
             return 0.0
 
+    # These computed fields (_rel_vol, _change) are what the front-end
+    # actually reads. The raw FinViz fields are named "relative_volume" and
+    # "change" — using the wrong name here silently breaks the whole page,
+    # since Python/JS won't error on a missing dict key, it just returns
+    # nothing and the UI quietly shows 0/blank everywhere.
     for row in rows:
         row["_rel_vol"] = parse_float(row.get("relative_volume", "0"))
         row["_change"]  = parse_float(str(row.get("change", "0")).replace("%", ""))
@@ -485,7 +520,12 @@ def load_sentiment_scores():
     for r in rows:
         r.pop("_id", None)
     return {r["symbol"]: r for r in rows if r.get("symbol", "") in watchlist}
+
 def load_trending_messages(limit=15):
+    # "Trending" = high engagement (likes + 2x reshares), not necessarily
+    # strongly bullish/bearish. Only counts quality_pass messages, matching
+    # the same filter used on individual stock cards, so the dashboard's
+    # trending feed stays consistent with what you'd see per-stock.
     active = set(get_active_symbols())
     rows = get_messages()
     rows = [r for r in rows if r.get("symbol", "") in active and r.get("quality_pass", True)]
@@ -504,9 +544,17 @@ def load_trending_messages(limit=15):
     scored = [r for r in scored if r["_eng"] >= 3]
     scored.sort(key=lambda r: r["_eng"], reverse=True)
     return scored[:limit]
+
 def load_sentiment_trend():
     """Compare avg signed sentiment in the last 15 min vs the 15 min before that,
-    per symbol, to detect emerging shifts before they cross the static threshold."""
+    per symbol, to detect emerging shifts before they cross the static threshold.
+
+    NOTE: as of writing, this mostly returns "flat"/0.0 for every symbol in
+    practice — 15-minute windows are often too narrow to have enough messages
+    in BOTH windows to compute a meaningful average, given current message
+    volume. Widening both windows (e.g. 60 min vs 60 min) would likely make
+    this more useful; left as-is for now since it isn't broken, just not very
+    sensitive yet."""
     from datetime import datetime, timedelta
     active = set(get_active_symbols())
     rows = get_messages()
@@ -533,6 +581,9 @@ def load_sentiment_trend():
 
         label = (r.get("nlp_label") or "neutral").lower()
         score = float(r.get("nlp_score") or 0)
+        # nlp_score from FinBERT is always a positive confidence value —
+        # direction comes only from the label, so we apply the sign here
+        # to get a proper "-1 to +1" signed score per message.
         signed = score if label == "bullish" else (-score if label == "bearish" else 0)
         sym = r.get("symbol", "")
 
@@ -554,6 +605,7 @@ def load_sentiment_trend():
         trends[sym] = {"recent_avg": round(recent_avg, 4), "prior_avg": round(prior_avg, 4), "delta": round(delta, 4), "direction": direction}
 
     return trends
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 
 @app.route("/")
@@ -630,6 +682,9 @@ def api_frequency():
 
 @app.route("/api/symbols")
 def api_symbols():
+    # Powers the symbol dropdown on the Charts page — reads from
+    # active_symbols (what's actually being live-collected), not the older
+    # watchlist collection, so only symbols with real data show up here.
     return jsonify(sorted(get_active_symbols()))
 
 @app.route("/api/charts")
@@ -720,6 +775,7 @@ def trigger_refresh():
     if resp.status_code == 204:
         return jsonify({"status": "triggered"})
     return jsonify({"error": resp.text}), resp.status_code
+
 @app.route("/api/watchlist/sync", methods=["POST"])
 def sync_watchlist():
     symbols = request.json.get("symbols", [])
@@ -731,6 +787,13 @@ def sync_watchlist():
 
 @app.route("/api/active-symbols", methods=["POST"])
 def api_set_active_symbols():
+    # Called by the Screener/News page whenever the user clicks
+    # "Track These Stocks". This does NOT overwrite the tracked list — it
+    # merges new symbols in and refreshes their "last seen" time, so
+    # switching filters (e.g. mega-cap -> nano-cap) doesn't stop data
+    # collection for symbols you were already tracking. Old symbols expire
+    # automatically after 72 hours of not being re-selected (see
+    # set_active_symbols/get_active_symbols in db.py).
     data = request.get_json(silent=True) or {}
     symbols = data.get("symbols", [])
     symbols = [s.strip().upper() for s in symbols if isinstance(s, str) and s.strip()]
@@ -757,6 +820,11 @@ def api_blocked_symbols():
 
 @app.route("/api/finviz-token", methods=["POST"])
 def api_set_finviz_token():
+    # The FinViz Elite token is stored in MongoDB rather than as a static
+    # environment variable, because the token is on a SHARED account (other
+    # students use it too) and expires often whenever someone else logs in.
+    # Storing it in the DB means it can be updated instantly from the
+    # /admin/token page below, without needing to redeploy the app.
     token = (request.get_json(silent=True) or {}).get("token", "").strip()
     if not token:
         return jsonify({"error": "No token provided"}), 400
@@ -765,6 +833,9 @@ def api_set_finviz_token():
 
 
 # ── Background pollers ────────────────────────────────────────────────────────
+# These two functions run continuously in background threads for as long as
+# the app is alive on Railway. This is what makes price + message data update
+# every 60 seconds, 24/7, without needing any external cron job.
 
 _POLLER_WORKER_ID = str(uuid.uuid4())
 
@@ -774,6 +845,12 @@ import smtplib
 from email.mime.text import MIMEText
 
 def send_ntfy_alert(message):
+    # Sends a text message (via email-to-SMS gateway) when the FinViz token
+    # dies, so it can be noticed and fixed within a minute instead of
+    # silently losing hours of price data. Function name is a leftover from
+    # an earlier attempt using ntfy.sh push notifications, which got blocked
+    # by a Railway networking restriction — kept the old name to avoid
+    # having to update every call site.
     try:
         sender = os.environ.get("ALERT_EMAIL_FROM")
         password = os.environ.get("ALERT_EMAIL_PASSWORD")
@@ -790,7 +867,16 @@ def send_ntfy_alert(message):
             server.sendmail(sender, recipient, msg.as_string())
     except Exception as e:
         print(f"Email alert failed: {e}")
+
 def _price_poller_loop():
+    # Runs every 60 seconds forever. Picks a data source based on the
+    # current time of day:
+    #   - 4-8PM ET (after-hours): FinViz doesn't cover this window at all,
+    #     so we fall back to yfinance just for this slice of the day.
+    #   - 8PM-4AM ET (overnight): markets are fully closed, nothing to
+    #     collect — intentionally skipped, matching the professor's setup.
+    #   - everything else (pre-market + regular hours): FinViz, which is
+    #     the primary, most complete data source.
     global _last_token_alert
     while True:
         finviz_token = get_finviz_token()
@@ -799,6 +885,10 @@ def _price_poller_loop():
             time.sleep(60)
             continue
         try:
+            # try_acquire_poller_lock prevents two Railway workers (if ever
+            # running more than one) from double-collecting the same data.
+            # Currently Gunicorn only runs 1 worker, so this is a safety net
+            # more than a strict requirement right now.
             if try_acquire_poller_lock(_POLLER_WORKER_ID):
                 symbols = get_active_symbols()
                 now_dt = datetime.now(ET)
@@ -807,18 +897,19 @@ def _price_poller_loop():
 
                 if symbols:
                     if 16 <= hour < 20:
-                        # After-hours (4-8PM ET): FinViz export doesn't cover this, use yfinance
                         prices = fetch_yfinance_afterhours(symbols)
                         for sym, price in prices.items():
                             log_price_tick(sym, now_et, price)
                         print(f"Poller (yfinance/after-hours): logged {len(prices)} ticks for {symbols}")
                     elif hour >= 20 or hour < 4:
-                        # Overnight: no data collected, matches professor's approach
                         print("Poller: overnight window, skipping.")
                     else:
-                        # Regular hours + pre-market: FinViz
                         rows = fetch_finviz_by_tickers(symbols, finviz_token)
                         if not rows:
+                            # Empty response almost always means the shared
+                            # FinViz token has expired (someone else logged
+                            # in). Alert at most once per 30 min so this
+                            # doesn't spam a text every single minute.
                             now = time.time()
                             if not _last_token_alert or now - _last_token_alert > 1800:
                                 send_ntfy_alert("FinViz token appears expired — no rows returned.")
@@ -839,6 +930,9 @@ threading.Thread(target=_price_poller_loop, daemon=True).start()
 _MSG_POLLER_WORKER_ID = str(uuid.uuid4())
 
 def _message_poller_loop():
+    # Same pattern as the price poller, but for StockTwits messages. Uses a
+    # separate lock name ("msg_" prefix) so this poller and the price poller
+    # don't block each other.
     while True:
         try:
             if try_acquire_poller_lock("msg_" + _MSG_POLLER_WORKER_ID, stale_after_seconds=90):
@@ -862,6 +956,8 @@ def _message_poller_loop():
                         cleaned = clean_message_minute(body)
                         if not cleaned:
                             continue
+                        # Every message gets saved, tagged pass/fail — see
+                        # is_quality_message_minute's docstring above for why.
                         passed = is_quality_message_minute(cleaned)
                         rows.append({
                             "_id": msg["id"],
@@ -887,11 +983,16 @@ threading.Thread(target=_message_poller_loop, daemon=True).start()
 
 @app.route("/api/test-alert")
 def test_alert():
+    # Manually trigger a test alert to confirm the text-message system is
+    # still working, without waiting for the token to actually expire.
     send_ntfy_alert("Test alert — ntfy is working!")
     return jsonify({"status": "sent"})
-    
+
 @app.route("/admin/token")
 def token_admin_page():
+    # Small standalone page (not a template) so the FinViz token can be
+    # updated from a phone in a couple taps whenever it expires, without
+    # needing the browser console or a redeploy.
     return """
     <html><body style="font-family:sans-serif;max-width:400px;margin:40px auto;">
       <h3>Update FinViz Token</h3>
@@ -912,9 +1013,11 @@ def token_admin_page():
       </script>
     </body></html>
     """
+
 @app.route("/api/trending-messages")
 def api_trending_messages():
     return jsonify(load_trending_messages())
+
 @app.route("/api/sentiment-trend")
 def api_sentiment_trend():
     return jsonify(load_sentiment_trend())
