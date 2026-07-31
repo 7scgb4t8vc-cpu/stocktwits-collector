@@ -15,6 +15,8 @@ sockets — per worker.
 """
 
 import os
+import sys
+import traceback
 
 import certifi
 from pymongo import MongoClient
@@ -23,18 +25,38 @@ timeout = 120
 
 
 def post_fork(server, worker):
-    import db
+    pid = os.getpid()
+    print(f"[post_fork] worker {pid}: starting post_fork hook", file=sys.stderr, flush=True)
 
-    db._client = MongoClient(
-        db.MONGO_URI,
-        serverSelectionTimeoutMS=5000,
-        connectTimeoutMS=5000,
-        socketTimeoutMS=120000,
-        tls=True,
-        tlsCAFile=certifi.where(),
-    )
-    db._client_pid = os.getpid()
+    try:
+        print(f"[post_fork] worker {pid}: importing db module", file=sys.stderr, flush=True)
+        import db
 
-    database = db._client["stocktwits"]
-    database["messages"].create_index("created_at")
-    database["messages"].create_index([("symbol", 1), ("created_at", -1)])
+        print(f"[post_fork] worker {pid}: resolving certifi CA bundle", file=sys.stderr, flush=True)
+        ca_file = certifi.where()
+        print(f"[post_fork] worker {pid}: certifi CA bundle at {ca_file}", file=sys.stderr, flush=True)
+
+        print(f"[post_fork] worker {pid}: creating MongoClient", file=sys.stderr, flush=True)
+        db._client = MongoClient(
+            db.MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=120000,
+            tls=True,
+            tlsCAFile=ca_file,
+        )
+        db._client_pid = pid
+        print(f"[post_fork] worker {pid}: MongoClient created successfully", file=sys.stderr, flush=True)
+
+        print(f"[post_fork] worker {pid}: creating indexes", file=sys.stderr, flush=True)
+        database = db._client["stocktwits"]
+        database["messages"].create_index("created_at")
+        database["messages"].create_index([("symbol", 1), ("created_at", -1)])
+        print(f"[post_fork] worker {pid}: indexes created successfully", file=sys.stderr, flush=True)
+
+        print(f"[post_fork] worker {pid}: post_fork hook completed successfully", file=sys.stderr, flush=True)
+    except Exception:
+        print(f"[post_fork] worker {pid}: EXCEPTION raised in post_fork hook", file=sys.stderr, flush=True)
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        raise
