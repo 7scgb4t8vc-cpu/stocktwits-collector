@@ -6,3 +6,4 @@ certifi
 yfinance
 pytz
 curl_cffi
+zstandard
