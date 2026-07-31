@@ -246,6 +246,12 @@ def main():
             if messages:
                 cursors[symbol] = messages[0]["id"]
                 accepted = 0
+                
+# Every message gets saved regardless of quality — quality_pass just tags
+# whether it meets the readability bar. Chart message-volume counts use
+# ALL messages (since the research hypothesis cares about raw volume), while
+# the "Trending Messages" feed and stock-card post lists filter to
+# quality_pass=True only.
                 for msg in messages:
                     body = msg.get("body", "").replace("\n", " ").strip()
                     cleaned = clean_message(body)
@@ -349,7 +355,8 @@ def clean_message(text: str) -> str:
     text = re.sub(r"\s+", " ", text).strip()
     return text[:280]
 
-
+# NOTE: this does not decide whether a message gets stored (all messages are
+# stored) — it only decides what counts as "quality" for display purposes.
 def is_quality_message(text: str) -> bool:
     """Return True if message meets quality standards."""
     if not text:
