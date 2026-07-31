@@ -64,6 +64,9 @@ def finviz_collection():
 
 from pymongo import ReplaceOne
 
+# After updating current symbols, deletes any old symbol NOT in this fetch —
+# this is what removes stale/excluded tickers (e.g. ETFs after adding the
+# ind_stocksonly filter) instead of leaving them stuck in the database forever.
 def upsert_finviz(rows):
     if not rows:
         return
@@ -151,6 +154,12 @@ def save_cursors(cursors):
             {"$set": {"since_id": since_id}},
             upsert=True
         )
+        
+# Prevents two app instances (or two background threads) from double-collecting
+# the same data at the same time. Each poller "claims" the lock by writing its
+# own worker ID; a claim only succeeds if nobody currently holds it, WE already
+# hold it, or the existing claim is stale (holder crashed/hung). Currently
+# Railway only runs 1 worker, so this is a safety net more than a strict need.
 def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
     """Atomically claim the poller lock if unclaimed, held by us, or stale.
     Returns True if this worker holds the lock this cycle."""
@@ -173,7 +182,10 @@ def try_acquire_poller_lock(worker_id, stale_after_seconds=90):
     return result.get("holder") == worker_id
 def active_symbols_collection():
     return get_db()["active_symbols"]
-
+    
+# Adds/refreshes symbols instead of overwriting the tracked list. This lets a
+# user switch screener filters (e.g. mega-cap -> nano-cap) without losing data
+# collection for symbols they were already tracking.
 def set_active_symbols(symbols):
     """Mark each symbol as seen now. Doesn't remove others — they expire
     naturally via get_active_symbols() after EXPIRY_HOURS of inactivity."""
@@ -188,6 +200,8 @@ def set_active_symbols(symbols):
 
 EXPIRY_HOURS = 72
 
+# Symbols that haven't been re-selected in EXPIRY_HOURS are dropped automatically,
+# so the tracked list doesn't grow forever as filters change over time.
 def get_active_symbols():
     """Return symbols seen in any filtered view within the last EXPIRY_HOURS."""
     cutoff = datetime.utcnow() - timedelta(hours=EXPIRY_HOURS)
