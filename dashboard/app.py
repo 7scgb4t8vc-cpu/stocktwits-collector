@@ -171,7 +171,7 @@ from flask import Flask, render_template, jsonify, request
 from db import get_db, get_messages, get_finviz, get_price_history, get_ohlc, add_to_watchlist, remove_from_watchlist, get_blocked_symbols
 from db import get_finviz_token, set_finviz_token
 from db import get_active_symbols, log_price_tick, try_acquire_poller_lock, set_active_symbols
-from db import insert_messages, load_cursors, save_cursors, add_blocked_symbol
+from db import insert_messages, load_cursors, save_cursors, add_blocked_symbol, delete_old_messages
 
 app = Flask(__name__)
 
@@ -974,6 +974,9 @@ def _message_poller_loop():
                         insert_messages(rows)
                         total_new += len(rows)
                 save_cursors(cursors)
+                deleted = delete_old_messages(days=7)
+                if deleted:
+                    print(f"Cleanup: removed {deleted} messages older than 7 days")
                 print(f"Message poller: {total_new} new messages across {len(symbols)} symbols")
         except Exception as e:
             print(f"Message poller error: {e}")
