@@ -245,7 +245,7 @@ def get_watchlist() -> set:
 
 def load_social():
     active = set(get_active_symbols())
-    rows = get_messages()
+    rows = get_messages(days=1)
     rows = [r for r in rows if r.get("symbol", "") in active]
     rows.sort(key=lambda r: r.get("timestamp", ""), reverse=True)
     result = []
@@ -527,7 +527,7 @@ def load_trending_messages(limit=15):
     # the same filter used on individual stock cards, so the dashboard's
     # trending feed stays consistent with what you'd see per-stock.
     active = set(get_active_symbols())
-    rows = get_messages()
+    rows = get_messages(days=1)
     rows = [r for r in rows if r.get("symbol", "") in active and r.get("quality_pass", True)]
 
     def engagement(r):
