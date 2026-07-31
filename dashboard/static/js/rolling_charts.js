@@ -56,10 +56,15 @@ function roundToBucket(tsStr, bucketMin) {
   const ms = new Date(tsStr.replace(" ","T")+"Z").getTime();
   return roundToBucketFromMs(ms, bucketMin);
 }
+
+// Sliding trailing-window message counts.
+// At every 1-minute step `t`, counts messages with timestamp in (t - windowMs, t].
+// `sortedTimesMs` must be ascending. `stepsMs` must be ascending.
 function parseMsgTimestamp(raw) {
   const s = raw.replace(" ", "T");
   return new Date(s.endsWith("Z") ? s : s + "Z").getTime();
 }
+
 // Sliding trailing-window message counts.
 // At every 1-minute step `t`, counts messages with timestamp in (t - windowMs, t].
 // `sortedTimesMs` must be ascending. `stepsMs` must be ascending.
@@ -114,6 +119,10 @@ function sliceRollingData(fullData, tf, viewEndMs, bucketMinOverride) {
     .sort((a,b) => a-b);
 
   const slidingCounts = computeSlidingVolume(sortedTimesMs, maStepsMs, windowMs);
+
+// Smooths the raw sliding-window message counts so the volume line doesn't
+// zig-zag on every small fluctuation, without inventing data — it only
+// softens real values, it never fills in zero periods with fake numbers. 
 function emaSmooth(values, alpha = 0.3) {
   const out = new Array(values.length);
   out[0] = values[0];
@@ -130,6 +139,11 @@ const smoothedCounts = emaSmooth(slidingCounts);
     if (rMs < maStartMs || rMs > endMs) continue;
     priceMap[roundToBucketFromMs(rMs, 1)] = p.price;
   }
+
+// Skips long stretches with no real data (market closed overnight, weekends)
+// instead of drawing a flat, misleading line through them. Short gaps (a few
+// missed minutes) still get bridged so the line doesn't look choppy from
+// normal minor delays.
   const MAX_GAP_MINUTES = 15; // don't bridge gaps longer than this
   let lastPrice = null;
   let lastKnownIdx = -1;
