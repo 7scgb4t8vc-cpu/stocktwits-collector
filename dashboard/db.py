@@ -17,7 +17,6 @@ def get_db():
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=5000,
             socketTimeoutMS=20000,
-            maxPoolSize=10,
             tls=True,
             tlsCAFile=certifi.where(),
         )
