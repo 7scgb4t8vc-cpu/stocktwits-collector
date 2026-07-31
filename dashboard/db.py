@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import os
+import certifi
 from pymongo import MongoClient
 
 MONGO_URI = os.environ.get("MONGO_URI")
@@ -20,27 +21,6 @@ def get_db():
             tlsCAFile=certifi.where(),
         )
         _client_pid = current_pid
-        db = _client["stocktwits"]
-        db["messages"].create_index("created_at")
-        db["messages"].create_index([("symbol", 1), ("created_at", -1)])
-    return _client["stocktwits"]
-
-import certifi
-
-def get_db():
-    global _client
-    if _client is None:
-        _client = MongoClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=None,
-            maxPoolSize=50,
-            minPoolSize=5,
-            maxIdleTimeMS=45000,
-            tls=True,
-            tlsCAFile=certifi.where(),
-        )
         db = _client["stocktwits"]
         db["messages"].create_index("created_at")
         db["messages"].create_index([("symbol", 1), ("created_at", -1)])
