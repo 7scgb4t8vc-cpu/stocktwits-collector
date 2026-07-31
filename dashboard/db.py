@@ -16,7 +16,7 @@ def get_db():
             MONGO_URI,
             serverSelectionTimeoutMS=5000,
             connectTimeoutMS=5000,
-            socketTimeoutMS=20000,
+            socketTimeoutMS=120000,
             tls=True,
             tlsCAFile=certifi.where(),
         )
