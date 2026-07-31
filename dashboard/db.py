@@ -52,7 +52,7 @@ def get_messages(symbol=None, scored_only=False, unscored_only=False, days=7):
         query["nlp_label"] = {"$exists": False}
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     query["created_at"] = {"$gte": cutoff}
-    return list(coll.find(query).limit(20000))
+    return list(coll.find(query, batch_size=500).limit(20000))
 
 def update_sentiment(message_id, sentiment, score):
     messages_collection().update_one(
@@ -87,7 +87,7 @@ def get_finviz(symbol=None):
         if doc:
             doc.pop("_id", None)
         return doc
-    docs = list(coll.find())
+    docs = list(coll.find(batch_size=500))
     for d in docs:
         d.pop("_id", None)
     return docs
