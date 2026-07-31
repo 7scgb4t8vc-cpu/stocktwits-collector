@@ -5,7 +5,25 @@ from pymongo import MongoClient
 MONGO_URI = os.environ.get("MONGO_URI")
 
 _client = None
+_client_pid = None
 
+def get_db():
+    global _client, _client_pid
+    current_pid = os.getpid()
+    if _client is None or _client_pid != current_pid:
+        _client = MongoClient(
+            MONGO_URI,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=5000,
+            socketTimeoutMS=120000,
+            tls=True,
+            tlsCAFile=certifi.where(),
+        )
+        _client_pid = current_pid
+        db = _client["stocktwits"]
+        db["messages"].create_index("created_at")
+        db["messages"].create_index([("symbol", 1), ("created_at", -1)])
+    return _client["stocktwits"]
 
 import certifi
 
