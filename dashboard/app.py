@@ -838,7 +838,7 @@ def api_set_finviz_token():
 # every 60 seconds, 24/7, without needing any external cron job.
 
 _POLLER_WORKER_ID = str(uuid.uuid4())
-
+_last_cleanup_time = None
 _last_token_alert = None
 
 import smtplib
@@ -974,9 +974,18 @@ def _message_poller_loop():
                         insert_messages(rows)
                         total_new += len(rows)
                 save_cursors(cursors)
-                deleted = delete_old_messages(days=7)
-                if deleted:
-                    print(f"Cleanup: removed {deleted} messages older than 7 days")
+
+                # Only run the cleanup every ~30 minutes instead of every
+                # cycle, to reduce load on the free-tier Mongo cluster —
+                # this doesn't affect chart refresh speed, only how often
+                # old messages get purged.
+                global _last_cleanup_time
+                now_ts = time.time()
+                if not _last_cleanup_time or now_ts - _last_cleanup_time > 1800:
+                    deleted = delete_old_messages(days=7)
+                    if deleted:
+                        print(f"Cleanup: removed {deleted} messages older than 7 days")
+                    _last_cleanup_time = now_ts
                 print(f"Message poller: {total_new} new messages across {len(symbols)} symbols")
         except Exception as e:
             print(f"Message poller error: {e}")
