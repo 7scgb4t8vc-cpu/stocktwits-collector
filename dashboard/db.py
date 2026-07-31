@@ -269,3 +269,9 @@ def set_finviz_token(token: str):
 def get_finviz_token() -> str:
     doc = config_collection().find_one({"_id": "finviz_token"})
     return doc["value"] if doc else ""
+def delete_old_messages(days=7):
+    """Remove messages older than `days` to keep the collection size bounded
+    and queries fast. Called periodically by the message poller."""
+    cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    result = messages_collection().delete_many({"created_at": {"$lt": cutoff}})
+    return result.deleted_count
