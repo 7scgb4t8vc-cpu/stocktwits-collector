@@ -9,21 +9,30 @@ _client = None
 _client_pid = None
 
 def get_db():
+    """Pure getter — the MongoClient is created exactly once per worker by
+    the post_fork hook in gunicorn.conf.py. Creating it here (i.e. before
+    fork, or lazily on first request) causes the connection pool's sockets
+    to be shared/inherited across worker processes, which corrupts them and
+    causes cursor reads (find -> getMore) to hang forever.
+
+    This function only checks that we're still running in the process the
+    client was created for (a paranoia check in case a worker somehow forks
+    again without going through post_fork) and returns the existing client.
+    """
     global _client, _client_pid
     current_pid = os.getpid()
-    if _client is None or _client_pid != current_pid:
-        _client = MongoClient(
-            MONGO_URI,
-            serverSelectionTimeoutMS=5000,
-            connectTimeoutMS=5000,
-            socketTimeoutMS=120000,
-            tls=True,
-            tlsCAFile=certifi.where(),
+    if _client is None:
+        raise RuntimeError(
+            "MongoClient has not been initialized. It must be created in "
+            "gunicorn.conf.py's post_fork hook before get_db() is called."
         )
-        _client_pid = current_pid
-        db = _client["stocktwits"]
-        db["messages"].create_index("created_at")
-        db["messages"].create_index([("symbol", 1), ("created_at", -1)])
+    if _client_pid != current_pid:
+        raise RuntimeError(
+            "MongoClient was created in a different process (pid "
+            f"{_client_pid}) than the current one (pid {current_pid}). "
+            "This should never happen — post_fork should initialize the "
+            "client for every worker process."
+        )
     return _client["stocktwits"]
 
 def messages_collection():
