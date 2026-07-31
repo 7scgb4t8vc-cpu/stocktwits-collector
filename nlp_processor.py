@@ -62,6 +62,11 @@ def classify_batch(texts: list, tokenizer, model) -> list:
         score = row[best_idx]
 
         sorted_probs = sorted(row, reverse=True)
+
+# If the model's top two confidence scores are close together (within 0.10),
+# treat it as "mixed" sentiment rather than picking whichever edged out
+# slightly — a message with 51% bullish vs 49% bearish isn't confidently
+# either one.
         if len(sorted_probs) > 1 and (sorted_probs[0] - sorted_probs[1]) < 0.10 and label != "neutral":
             label = "mixed"
 
@@ -72,6 +77,11 @@ def classify_batch(texts: list, tokenizer, model) -> list:
 
 # ── Per-stock sentiment score ─────────────────────────────────────────────────
 
+# FinBERT gives each message an unsigned confidence score (0 to 1, direction
+# comes from the label only). This function is where that gets converted into
+# a signed, per-symbol average — bullish adds to the total, bearish subtracts —
+# so a stock's overall sentiment is one number from -1 (fully bearish) to
+# +1 (fully bullish).
 def compute_sentiment_scores(scored_messages: list) -> list:
     by_symbol = {}
     for row in scored_messages:
@@ -144,7 +154,10 @@ def main():
             "symbol":       row.get("symbol", ""),
             "clean_text":   clean_text(row.get("message", "")),
         })
-
+        
+# Very short messages (5 characters or less after cleaning) don't have enough
+# content for FinBERT to meaningfully classify — these are skipped and just
+# saved as neutral with a 0.0 score further down.
     to_classify = [c for c in cleaned if len(c["clean_text"]) > 5]
     skipped = len(cleaned) - len(to_classify)
     print(f"  {len(to_classify)} messages to classify, {skipped} skipped (too short after cleaning).")
