@@ -273,9 +273,12 @@ def delete_old_messages(days=7):
     cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
     result = messages_collection().delete_many({"created_at": {"$lt": cutoff}})
     return result.deleted_count
-def get_finviz(symbol=None):
+def get_finviz(symbol=None, fields=None):
        coll = finviz_collection()
        projection = {"_id": 0}
+       if fields:
+           projection.update({f: 1 for f in fields})
+           projection["_id"] = 0
        if symbol:
            doc = coll.find_one({"symbol": symbol}, projection)
            return doc
