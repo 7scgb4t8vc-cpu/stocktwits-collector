@@ -265,8 +265,7 @@ def load_social():
     return result
 
 def load_screener():
-       watchlist = set(get_active_symbols())
-       return get_finviz(symbols=watchlist)
+       return get_finviz()
 
 def load_frequency():
     watchlist = set(get_active_symbols())
