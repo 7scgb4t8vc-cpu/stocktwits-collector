@@ -266,8 +266,9 @@ def load_social():
 
 
 def load_screener():
-    # Full FinViz universe — no longer restricted to the watchlist
-    return get_finviz()
+       watchlist = set(get_active_symbols())
+       rows = get_finviz()
+       return [r for r in rows if r.get("symbol", "") in watchlist]
 
 
 def load_frequency():
