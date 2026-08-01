@@ -275,8 +275,7 @@ def delete_old_messages(days=7):
     return result.deleted_count
 def get_finviz(symbol=None):
        coll = finviz_collection()
-       projection = {"_id": 0, "symbol": 1, "price": 1, "change": 1,
-                     "relative_volume": 1, "volume": 1}
+       projection = {"_id": 0}
        if symbol:
            doc = coll.find_one({"symbol": symbol}, projection)
            return doc
