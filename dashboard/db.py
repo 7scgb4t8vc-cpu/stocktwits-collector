@@ -89,16 +89,6 @@ def upsert_finviz(rows):
     coll.bulk_write(operations, ordered=False)
     coll.delete_many({"symbol": {"$nin": current_symbols}})
 
-def get_finviz(symbol=None):
-       coll = finviz_collection()
-       projection = {"_id": 0, "symbol": 1, "price": 1, "change": 1,
-                     "relative_volume": 1, "volume": 1}
-       if symbol:
-           doc = coll.find_one({"symbol": symbol}, projection)
-           return doc
-       docs = list(coll.find({}, projection).batch_size(500))
-       return docs
-
 def ohlc_collection():
     return get_db()["ohlc_history"]
 
