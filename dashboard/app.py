@@ -264,12 +264,9 @@ def load_social():
         })
     return result
 
-
 def load_screener():
        watchlist = set(get_active_symbols())
-       rows = get_finviz()
-       return [r for r in rows if r.get("symbol", "") in watchlist]
-
+       return get_finviz(symbols=watchlist)
 
 def load_frequency():
     watchlist = set(get_active_symbols())
