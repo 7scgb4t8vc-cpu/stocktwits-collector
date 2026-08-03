@@ -15,6 +15,7 @@ import threading
 import time
 import uuid
 
+
 BASE_URL = "https://api.stocktwits.com/api/2"
 IMPERSONATE = "chrome120"
 ST_HEADERS = {
