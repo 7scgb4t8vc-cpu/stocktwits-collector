@@ -49,7 +49,7 @@ def get_messages(symbol=None, scored_only=False, unscored_only=False, days=7):
            query["nlp_label"] = {"$exists": False}
        cutoff = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
        query["created_at"] = {"$gte": cutoff}
-       projection = {"symbol": 1, "nlp_label": 1, "nlp_score": 1,
+       projection = {"symbol": 1, "message": 1, "nlp_label": 1, "nlp_score": 1,
                  "created_at": 1, "likes": 1, "reshares": 1, "quality_pass": 1}
        return list(coll.find(query, projection).limit(20000))
 
