@@ -1,5 +1,5 @@
 name: Reset Stuck Sentiment (one-off)
-   on: workflow_dispatch
+   "on": workflow_dispatch
 
    jobs:
      reset:
