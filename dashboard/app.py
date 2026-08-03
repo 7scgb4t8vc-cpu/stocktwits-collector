@@ -489,7 +489,7 @@ def load_ohlc_data(symbol: str, interval: str = "1d"):
 
 def load_momentum():
     watchlist = set(get_active_symbols())
-    rows = get_finviz(fields=["symbol", "relative_volume", "change"])
+    rows = get_finviz(fields=["symbol", "relative_volume", "change", "price", "volume"])
     rows = [r for r in rows if r.get("symbol", "") in watchlist]
 
     def parse_float(v):
