@@ -1,21 +1,21 @@
 name: Reset Stuck Sentiment (one-off)
-   on:
-     workflow_dispatch:
+on:
+  workflow_dispatch:
 
-   jobs:
-     reset:
-       runs-on: ubuntu-latest
-       timeout-minutes: 10
-       steps:
-         - name: Checkout repo
-           uses: actions/checkout@v4
-         - name: Set up Python
-           uses: actions/setup-python@v5
-           with:
-             python-version: "3.12"
-         - name: Install dependencies
-           run: pip install "pymongo[srv]" certifi
-         - name: Run reset script
-           env:
-             MONGO_URI: ${{ secrets.MONGO_URI }}
-           run: python -u reset_stuck_sentiment.py
+jobs:
+  reset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install "pymongo[srv]" certifi
+      - name: Run reset script
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: python -u reset_stuck_sentiment.py
